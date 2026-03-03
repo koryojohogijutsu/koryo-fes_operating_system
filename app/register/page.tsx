@@ -9,7 +9,7 @@ export default function RegisterPage() {
   const [transport, setTransport] = useState("");
   const router = useRouter();
 
-  // visitor_id がなければ生成して cookie に保存
+  // generate visitor_id and save in cookie
   useEffect(() => {
     const cookies = document.cookie.split("; ").reduce((acc: any, row) => {
       const [key, value] = row.split("=");

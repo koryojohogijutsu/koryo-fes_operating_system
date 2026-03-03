@@ -24,9 +24,7 @@ export default function Home() {
     }
   }, []);
 
-  // 2. 重複していた handleScan を1つに統合
   const handleScan = async (classCode: string) => {
-    // すでに実行済みなら何もしない
     if (hasScanned.current) return;
     hasScanned.current = true;
 
@@ -37,7 +35,7 @@ export default function Home() {
 
     if (!visitorId) {
       alert("visitor_id がありません");
-      hasScanned.current = false; // 再試行できるようにリセット
+      hasScanned.current = false; // Reset
       return;
     }
 
@@ -61,7 +59,6 @@ export default function Home() {
       alert("通信エラーが発生しました");
     } finally {
       setScanning(false);
-      // 必要に応じて hasScanned.current = false; にして再スキャンを許可する
     }
   };
 
