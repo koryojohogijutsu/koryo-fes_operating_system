@@ -83,7 +83,14 @@ useEffect(() => {
           classes.map((cls) => (
             <div
               key={cls}
-              onClick={() => setSelected(cls)}
+              onClick={() => {
+                if (selected.includes(cls)) {
+                  setSelected(selected.filter((c) => c !== cls));
+                } else {
+                  if (selected.length >= voteLimit) return;
+                  setSelected([...selected, cls]);
+                }
+              }}
               style={{
                 width: "200px",
                 padding: "15px",
