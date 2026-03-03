@@ -14,7 +14,7 @@ export async function GET(req: NextRequest) {
   }
 
   const { data, error } = await supabase
-    .from("visitors")
+    .from("visits")
     .select("class_code")
     .eq("visitor_id", visitorId)
     .eq("entered_class", true);

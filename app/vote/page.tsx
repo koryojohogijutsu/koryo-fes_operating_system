@@ -16,24 +16,28 @@ export default function VotePage() {
       : null;
 
   // コンポーネントマウント時にクラス一覧を取得
-  useEffect(() => {
-    const fetchClasses = async () => {
-      const visitorId = getVisitorId();
-      if (!visitorId) return;
+useEffect(() => {
+  const fetchClasses = async () => {
+    const visitorId = getVisitorId();
+    if (!visitorId) return;
 
-      try {
-        const res = await fetch("/api/get-entered-classes", {
-          headers: { "x-visitor-id": visitorId },
-        });
-        const data = await res.json();
-        setClasses(data.classCodes || []);
-      } catch (error) {
-        console.error("データの取得に失敗しました", error);
-      }
-    };
+    try {
+      const res = await fetch("/api/get-entered-classes", {
+        headers: { "x-visitor-id": visitorId },
+      });
+      const data = await res.json();
 
-    fetchClasses();
-  }, []);
+      // 重複削除
+      const uniqueClasses = [...new Set(data.classCodes || [])];
+
+      setClasses(uniqueClasses);
+    } catch (error) {
+      console.error("データの取得に失敗しました", error);
+    }
+  };
+
+  fetchClasses();
+}, []);
 
   const handleVote = async () => {
     if (!selected) {
