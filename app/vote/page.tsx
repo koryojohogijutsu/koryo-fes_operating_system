@@ -62,6 +62,7 @@ useEffect(() => {
 
     if (res.ok) {
       alert("投票完了：" + selected);
+      router.push("/");
     } else {
       const data = await res.json();
       alert("エラー：" + data.error);
