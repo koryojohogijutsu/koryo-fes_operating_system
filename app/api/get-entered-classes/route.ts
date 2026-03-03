@@ -17,7 +17,6 @@ export async function GET(req: NextRequest) {
     .from("visits")
     .select("class_code")
     .eq("visitor_id", visitorId)
-    .eq("entered_class", true);
 
   if (error) {
     return NextResponse.json({ error: "取得失敗" }, { status: 500 });
