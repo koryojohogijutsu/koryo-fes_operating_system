@@ -14,7 +14,6 @@ export async function POST(req: NextRequest) {
 
     const { error } = await supabase.from("visits").insert({
       visitor_id: visitorId,
-      class_code: "school", // 学校入場用コード
       group_size: groupSize,
       transport,
     });
