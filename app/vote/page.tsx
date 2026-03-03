@@ -1,121 +1,114 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useRouter } from 'next/navigation';
 
 export default function VotePage() {
-  const [selected, setSelected] = useState<string[]>([]);
+  const [classes, setClasses] = useState<string[]>([]);
+  const [selected, setSelected] = useState<string | null>(null);
   const [voteLimit, setVoteLimit] = useState<number>(0);
-  const [loading, setLoading] = useState<boolean>(true);
-  const [submitting, setSubmitting] = useState<boolean>(false);
-  const [message, setMessage] = useState<string>("");
+  const router = useRouter();
 
-  // cookieからvisitor_id取得
-  const getVisitorId = () => {
-    const match = document.cookie
-      .split("; ")
-      .find((row) => row.startsWith("visitor_id="));
-    return match?.split("=")[1];
-  };
+  // Cookieからvisitor_idを取得
+  const getVisitorId = () =>
+    typeof document !== "undefined"
+      ? document.cookie
+          .split("; ")
+          .find((row) => row.startsWith("visitor_id="))
+          ?.split("=")[1]
+      : null;
 
-  // 初期ロード時にvoteLimit取得（registerで保存済み想定）
-  useEffect(() => {
-    const init = async () => {
-      const visitorId = getVisitorId();
-      if (!visitorId) {
-        setMessage("来場登録が必要です");
-        setLoading(false);
-        return;
-      }
-
-      const res = await fetch("/api/register", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ visitorId }),
-      });
-
-      const data = await res.json();
-
-      if (data.voteLimit) {
-        setVoteLimit(data.voteLimit);
-      }
-
-      setLoading(false);
-    };
-
-    init();
-  }, []);
-
-  const toggleSelect = (code: string) => {
-    if (selected.includes(code)) {
-      setSelected(selected.filter((c) => c !== code));
-    } else {
-      if (selected.length >= voteLimit) return;
-      setSelected([...selected, code]);
-    }
-  };
-
-  const handleSubmit = async () => {
-    if (selected.length === 0) return;
-
+  // コンポーネントマウント時にクラス一覧を取得
+useEffect(() => {
+  const fetchClasses = async () => {
     const visitorId = getVisitorId();
     if (!visitorId) return;
 
-    setSubmitting(true);
-
-    for (const classCode of selected) {
-      await fetch("/api/vote", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "x-visitor-id": visitorId,
-        },
-        body: JSON.stringify({ classCode }),
+    try {
+      const res = await fetch("/api/get-entered-classes", {
+        headers: { "x-visitor-id": visitorId },
       });
-    }
+      const data = await res.json();
 
-    setMessage("投票が完了しました");
-    setSubmitting(false);
+      // 重複削除
+      const uniqueClasses = [...new Set(data.classCodes || [])]  as string[];
+
+      setClasses(uniqueClasses);
+    } catch (error) {
+      console.error("データの取得に失敗しました", error);
+    }
   };
 
-  if (loading) return <p>読み込み中...</p>;
+  fetchClasses();
+}, []);
+
+  const handleVote = async () => {
+    if (!selected) {
+      alert("クラスを選択してください");
+      return;
+    }
+
+    const visitorId = getVisitorId();
+    if (!visitorId) {
+      alert("エラー：セッション情報が見つかりません");
+      return;
+    }
+
+    const res = await fetch("/api/vote", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-visitor-id": visitorId,
+      },
+      body: JSON.stringify({ classCode: selected }),
+    });
+
+    if (res.ok) {
+      alert("投票完了：" + selected);
+      router.push("/");
+    } else {
+      const data = await res.json();
+      alert("エラー：" + data.error);
+    }
+  };
 
   const remaining = voteLimit - selected.length;
 
   return (
-    <div style={{ padding: "20px" }}>
-      <h1>投票ページ</h1>
+    <main style={{ padding: 20, textAlign: "center" }}>
+      <h1>投票</h1>
 
-      <p>投票可能数: {voteLimit}</p>
-      <p>あと {remaining} 件選択できます</p>
-
-      <div style={{ marginTop: "20px" }}>
-        {["A", "B", "C", "D", "E"].map((code) => (
-          <button
-            key={code}
-            onClick={() => toggleSelect(code)}
-            disabled={
-              !selected.includes(code) && selected.length >= voteLimit
-            }
-            style={{
-              margin: "5px",
-              padding: "10px",
-              backgroundColor: selected.includes(code)
-                ? "#4CAF50"
-                : "#eee",
-            }}
-          >
-            {code}
-          </button>
-        ))}
+      <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "10px" }}>
+        {classes.length > 0 ? (
+          classes.map((cls) => (
+            <div
+              key={cls}
+              onClick={() => setSelected(cls)}
+              style={{
+                width: "200px",
+                padding: "15px",
+                border: selected === cls ? "3px solid blue" : "1px solid gray",
+                borderRadius: "8px",
+                cursor: "pointer",
+                backgroundColor: selected === cls ? "#eef" : "white",
+              }}
+            >
+              {cls}
+            </div>
+          ))
+        ) : (
+          <p>読み込み中、または表示できるクラスがありません。</p>
+        )}
       </div>
 
-      <div style={{ marginTop: "20px" }}>
-        <button onClick={handleSubmit} disabled={submitting}>
-          投票する
-        </button>
-      </div>
-
-      {message && <p style={{ marginTop: "15px" }}>{message}</p>}
-    </div>
+      <br />
+      <button 
+        onClick={handleVote}
+        style={{ padding: "10px 20px", fontSize: "16px", cursor: "pointer" }}
+      >
+        送信
+      </button>
+    </main>
   );
 }
+
