@@ -1,105 +1,62 @@
 "use client";
-// 1. useRef を追加。useRouter は next/navigation からインポート
-import { useEffect, useState, useRef } from "react";
-import { useRouter } from "next/navigation"; 
-import QRScanner from "@/components/QRScanner";
+
+import { useEffect } from "react";
+import { useRouter } from "next/navigation";
 
 export default function Home() {
   const router = useRouter();
-  const [scanning, setScanning] = useState(false);
-  const hasScanned = useRef(false);
 
-  // visitor_id をクライアント側で生成
   useEffect(() => {
-    if (typeof document === "undefined") return;
-
-    const cookies = document.cookie
-      .split("; ")
-      .find((row) => row.startsWith("visitor_id="));
-
-    if (!cookies) {
-      const visitorId = crypto.randomUUID();
-      document.cookie = `visitor_id=${visitorId}; path=/; SameSite=Lax`;
-      console.log("visitor_id generated:", visitorId);
-    }
-  }, []);
-
-  const handleScan = async (classCode: string) => {
-    if (hasScanned.current) return;
-    hasScanned.current = true;
-
-    const visitorId = document.cookie
+    // visitor_id をcookieから取得 or 新規生成
+    const existing = document.cookie
       .split("; ")
       .find((row) => row.startsWith("visitor_id="))
       ?.split("=")[1];
 
-    if (!visitorId) {
-      alert("visitor_id がありません");
-      hasScanned.current = false; // Reset
-      return;
+    if (!existing) {
+      const id = crypto.randomUUID();
+      document.cookie = `visitor_id=${id}; path=/; SameSite=Lax`;
     }
-
-    try {
-      const res = await fetch("/api/enter-class", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "x-visitor-id": visitorId,
-        },
-        body: JSON.stringify({ classCode }),
-      });
-
-      if (res.ok) {
-        alert("入場完了：" + classCode);
-      } else {
-        const data = await res.json();
-        alert("エラー: " + (data.error || "不明"));
-      }
-    } catch {
-      alert("通信エラーが発生しました");
-    } finally {
-      setScanning(false);
-    }
-  };
+  }, []);
 
   return (
-    <main style={{ padding: "20px", textAlign: "center" }}>
-      <h1>クラス入場</h1>
+    <main style={{ padding: "40px 20px", textAlign: "center" }}>
+      <h1>蛟龍祭</h1>
+      <p style={{ color: "#555", marginBottom: "40px" }}>
+        クラス企画に入るときはQRを表示してください
+      </p>
 
-      {!scanning && (
-        <>
-          <button
-            onClick={() => {
-              hasScanned.current = false; // スキャン開始時にフラグをリセット
-              setScanning(true);
-            }}
-            style={{
-              padding: "15px 30px",
-              fontSize: "18px",
-              cursor: "pointer",
-              marginBottom: "20px"
-            }}
-          >
-            QRを読み込む
-          </button>
+      <div style={{ display: "flex", flexDirection: "column", gap: "16px", maxWidth: "280px", margin: "0 auto" }}>
+        <button
+          onClick={() => router.push("/myqr")}
+          style={{
+            padding: "16px",
+            fontSize: "18px",
+            cursor: "pointer",
+            backgroundColor: "#1976d2",
+            color: "white",
+            border: "none",
+            borderRadius: "8px",
+          }}
+        >
+          QRを表示する
+        </button>
 
-          <br />
-
-          <a href="/vote-auth">
-            <button
-              style={{
-                padding: "10px 25px",
-                fontSize: "16px",
-                cursor: "pointer"
-              }}
-            >
-              投票はこちら
-            </button>
-          </a>
-        </>
-      )}
-
-      {scanning && <QRScanner onScan={handleScan} />}
+        <button
+          onClick={() => router.push("/vote-auth")}
+          style={{
+            padding: "14px",
+            fontSize: "16px",
+            cursor: "pointer",
+            backgroundColor: "white",
+            color: "#1976d2",
+            border: "2px solid #1976d2",
+            borderRadius: "8px",
+          }}
+        >
+          投票はこちら
+        </button>
+      </div>
     </main>
   );
 }
