@@ -28,7 +28,7 @@ export default function Home() {
 
       <div style={{ display: "flex", flexDirection: "column", gap: "16px", maxWidth: "280px", margin: "0 auto" }}>
         <button
-          onClick={() => router.push("/myqr")}
+          onClick={() => router.push("/enter")}
           style={{
             padding: "16px",
             fontSize: "18px",
