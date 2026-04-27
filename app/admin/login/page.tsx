@@ -11,11 +11,7 @@ export default function AdminLoginPage() {
   const [error, setError] = useState("");
 
   const login = async () => {
-    const { error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    });
-
+    const { error } = await supabase.auth.signInWithPassword({ email, password });
     if (error) {
       setError(error.message);
     } else {
@@ -24,27 +20,32 @@ export default function AdminLoginPage() {
   };
 
   return (
-    <div>
+    <div style={{ padding: "40px", maxWidth: "360px", margin: "0 auto" }}>
       <h1>管理者ログイン</h1>
 
-      <input
-        placeholder="Email"
-        value={email}
-        onChange={(e) => setEmail(e.target.value)}
-      />
-      <br />
+      <div style={{ display: "flex", flexDirection: "column", gap: "12px", marginTop: "20px" }}>
+        <input
+          placeholder="Email"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          style={{ padding: "10px", fontSize: "15px" }}
+        />
+        <input
+          type="password"
+          placeholder="Password"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          style={{ padding: "10px", fontSize: "15px" }}
+        />
+        <button
+          onClick={login}
+          style={{ padding: "10px", fontSize: "15px", cursor: "pointer", backgroundColor: "#1976d2", color: "white", border: "none", borderRadius: "6px" }}
+        >
+          ログイン
+        </button>
+      </div>
 
-      <input
-        type="password"
-        placeholder="Password"
-        value={password}
-        onChange={(e) => setPassword(e.target.value)}
-      />
-      <br />
-
-      <button onClick={login}>ログイン</button>
-
-      {error && <p>{error}</p>}
+      {error && <p style={{ color: "#f44336", marginTop: "12px" }}>{error}</p>}
     </div>
   );
 }
