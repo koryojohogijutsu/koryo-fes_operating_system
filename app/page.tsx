@@ -225,7 +225,7 @@ function HomeInner() {
         margin: "0 auto",
       }}>
         <button
-          onClick={() => router.push("/myqr")}
+          onClick={() => router.push("/enter")}
           style={{
             padding: "16px",
             fontSize: "17px",
