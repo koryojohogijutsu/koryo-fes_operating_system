@@ -255,7 +255,7 @@ function HomeInner() {
         </button>
 
         <button
-          onClick={() => router.push(`/history?vid=${visitorId}`)}
+          onClick={() => router.push("/history")}
           style={{
             padding: "14px",
             fontSize: "16px",
