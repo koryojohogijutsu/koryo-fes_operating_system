@@ -19,13 +19,6 @@ const COLORS = [
 ];
 
 const STYLE = `
-  @keyframes glow-pulse {
-    0%, 100% { opacity: 1; }
-    50%       { opacity: 0.75; }
-  }
-  .penlight-screen {
-    animation: glow-pulse 2s ease-in-out infinite;
-  }
   .color-btn {
     transition: transform 0.12s ease, box-shadow 0.12s ease;
   }
@@ -81,7 +74,6 @@ export default function PenlightPage() {
       {/* フルスクリーン発光画面 */}
       {activeColor && (
         <div
-          className="penlight-screen"
           style={{
             position: "fixed",
             inset: 0,
