@@ -1,14 +1,13 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
-import { randomUUID } from "crypto";
 
 export async function POST(req: Request) {
   try {
-    const body = await req.json();
-    let visitorId = req.headers.get("x-visitor-id");
+    const { visitorId, classCode } = await req.json();
 
+    // QRの文字列が空の場合はエラーを返す
     if (!visitorId) {
-      visitorId = randomUUID();
+      return NextResponse.json({ error: "QRコードが無効です" }, { status: 400 });
     }
 
     const supabase = createClient(
@@ -16,9 +15,10 @@ export async function POST(req: Request) {
       process.env.SUPABASE_SERVICE_ROLE_KEY!
     );
 
+    // 送られてきた visitorId (QRの文字列) をそのままDBに保存
     const { error } = await supabase.from("visits").insert({
       visitor_id: visitorId,
-      class_code: body.classCode, // ← schoolなし
+      class_code: classCode,
       entered_at: new Date().toISOString(),
     });
 
@@ -26,15 +26,9 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
-    const response = NextResponse.json({ success: true });
+    return NextResponse.json({ success: true, visitorId });
 
-    response.cookies.set("visitor_id", visitorId, {
-      path: "/",
-    });
-
-    return response;
-
-  } catch {
+  } catch (err) {
     return NextResponse.json({ error: "Server error" }, { status: 500 });
   }
 }
