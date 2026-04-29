@@ -142,14 +142,14 @@ function HomeInner() {
 
     // ── クエリなし：スマホ来場者 ──────────────────────
     if (!idParam) {
-      let visitorId = document.cookie
+      const visitorId = document.cookie
         .split("; ")
         .find((row) => row.startsWith("visitor_id="))
         ?.split("=")[1];
 
       if (!visitorId) {
-        visitorId = crypto.randomUUID();
-        document.cookie = `visitor_id=${visitorId}; path=/; SameSite=Lax`;
+        router.push("/register");
+        return;
       }
 
       setStatus({ state: "ok", visitorId, type: "smartphone" });
