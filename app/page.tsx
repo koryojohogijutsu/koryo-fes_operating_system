@@ -142,18 +142,17 @@ function HomeInner() {
 
     // ── クエリなし：スマホ来場者 ──────────────────────
     if (!idParam) {
-      const visitorId = document.cookie
+      let visitorId = document.cookie
         .split("; ")
         .find((row) => row.startsWith("visitor_id="))
         ?.split("=")[1];
 
-      // 修正ポイント：visitorIdが存在する場合のみセットする
-      if (visitorId) {
-        setStatus({ state: "ok", visitorId, type: "smartphone" });
-      } else {
-        // IDがない場合は、新規発行APIへ飛ばすなどの処理を想定（ここではエラーにせず待機）
-        // 必要に応じて setStatus({ state: "error", ... }) を追加してください
+      if (!visitorId) {
+        visitorId = crypto.randomUUID();
+        document.cookie = `visitor_id=${visitorId}; path=/; SameSite=Lax`;
       }
+
+      setStatus({ state: "ok", visitorId, type: "smartphone" });
       return;
     }
 
@@ -269,6 +268,30 @@ function HomeInner() {
         >
           履歴を見る
         </button>
+
+        <button
+          onClick={() => router.push("/penlight")}
+          style={{
+            padding: "14px",
+            fontSize: "16px",
+            cursor: "pointer",
+            backgroundColor: "white",
+            color: "#555",
+            border: "1px solid #ccc",
+            borderRadius: "8px",
+          }}
+        >
+          ペンライト
+        </button>
+      </div>
+
+      <div style={{ marginTop: "40px" }}>
+        <a
+          href="/admin/login"
+          style={{ fontSize: "12px", color: "#ccc", textDecoration: "none" }}
+        >
+          管理者ログイン
+        </a>
       </div>
     </main>
   );
