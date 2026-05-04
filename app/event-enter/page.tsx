@@ -145,7 +145,7 @@ export default function EventEnterPage() {
         ← ホームに戻る
       </a>
 
-      <h1 style={{ fontSize: "20px", marginBottom: "6px" }}>🎤 イベント入場</h1>
+      <h1 style={{ fontSize: "20px", marginBottom: "6px" }}>イベント入場</h1>
       <p style={{ color: "#888", fontSize: "13px", marginBottom: "20px" }}>
         会場のQRコードをスキャンしてください
       </p>
