@@ -240,7 +240,7 @@ function HomeInner() {
         </button>
 
         <button
-          onClick={() => router.push("/vote-auth")}
+          onClick={() => router.push("/vote")}
           style={{
             padding: "14px",
             fontSize: "16px",
