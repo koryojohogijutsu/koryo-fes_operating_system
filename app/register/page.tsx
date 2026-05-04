@@ -6,7 +6,8 @@ import { useRouter } from "next/navigation";
 export default function RegisterPage() {
   const router = useRouter();
   const [step, setStep] = useState<"survey" | "submitting">("survey");
-  const [groupSize, setGroupSize] = useState(1);
+  const [gender, setGender] = useState("");
+  const [age, setAge] = useState("");
   const [transport, setTransport] = useState("");
 
   useEffect(() => {
@@ -23,6 +24,14 @@ export default function RegisterPage() {
   }, []);
 
   const handleSubmit = async () => {
+    if (!gender) {
+      alert("性別を選択してください");
+      return;
+    };
+    if (!age) {
+      alert("年齢を選択してください");
+      return;
+    };
     if (!transport) {
       alert("来場手段を選択してください");
       return;
@@ -47,7 +56,7 @@ export default function RegisterPage() {
         "Content-Type": "application/json",
         "x-visitor-id": visitorId,
       },
-      body: JSON.stringify({ groupSize, transport }),
+      body: JSON.stringify({ gender, age, transport }),
     });
 
     if (res.ok) {
@@ -75,21 +84,45 @@ export default function RegisterPage() {
       </p>
 
       <div style={{ margin: "16px 0", textAlign: "left" }}>
-        <label style={{ fontWeight: "bold" }}>グループの人数</label>
+        <label style={{ fontWeight: "bold" }}>性別</label>
         <br />
         <select
-          value={groupSize}
-          onChange={(e) => setGroupSize(Number(e.target.value))}
+          value={gender}
+          onChange={(e) => setGender(e.target.value)}
           style={{ marginTop: "8px", padding: "10px", fontSize: "16px", width: "100%" }}
         >
-          {Array.from({ length: 20 }, (_, i) => i + 1).map((num) => (
-            <option key={num} value={num}>
-              {num}人
-            </option>
-          ))}
+          <option value="">選択してください</option>
+          <option value="men">男性</option>
+          <option value="women">女性</option>
+          <option value="other">その他</option>
+          <option value="none">回答しない</option>
         </select>
       </div>
-
+      
+      <div style={{ margin: "16px 0", textAlign: "left" }}>
+        <label style={{ fontWeight: "bold" }}>年齢</label>
+        <br />
+        <select
+          value={age}
+          onChange={(e) => setAge(e.target.value)}
+          style={{ marginTop: "8px", padding: "10px", fontSize: "16px", width: "100%" }}
+        >
+          <option value="">選択してください</option>
+          <option value="u-elementary">小学生未満</option>
+          <option value="elementary">小学生</option>
+          <option value="juniorhigh">中学生</option>
+          <option value="high">高校生</option>
+          <option value="university">大学生・大学院生</option>
+          <option value="20">20代 </option>
+          <option value="30">30代</option>
+          <option value="40">40代</option>
+          <option value="50">50代</option>
+          <option value="60">60代</option>
+          <option value="70">70代</option>
+          <option value="80+">80代以上</option>
+        </select>
+      </div>
+      
       <div style={{ margin: "16px 0", textAlign: "left" }}>
         <label style={{ fontWeight: "bold" }}>来場手段</label>
         <br />
