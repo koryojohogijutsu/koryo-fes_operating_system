@@ -212,7 +212,7 @@ function HomeInner() {
 
   return (
     <main style={{ padding: "40px 20px", textAlign: "center" }}>
-      <h1 style={{ fontSize: "24px", marginBottom: "4px" }}>蛟龍祭</h1>
+      <h1 style={{ fontSize: "24px", marginBottom: "4px" }}>蛟龍祭 場内サイト</h1>
       <p style={{ color: "#888", fontSize: "13px", marginBottom: "32px" }}>
         {typeLabel}
       </p>
