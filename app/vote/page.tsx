@@ -1,126 +1,52 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { useRouter } from 'next/navigation';
+import { useRouter } from "next/navigation";
 
 export default function VotePage() {
-  const [classes, setClasses] = useState<string[]>([]);
-  const [selected, setSelected] = useState<string[]>([]);
-  const [voteLimit, setVoteLimit] = useState<number>(0);
   const router = useRouter();
 
-  // Cookieからvisitor_idを取得
-  const getVisitorId = () =>
-    typeof document !== "undefined"
-      ? document.cookie
-          .split("; ")
-          .find((row) => row.startsWith("visitor_id="))
-          ?.split("=")[1]
-      : null;
-
-  // コンポーネントマウント時にクラス一覧を取得
-useEffect(() => {
-  const fetchClasses = async () => {
-    const visitorId = getVisitorId();
-    if (!visitorId) return;
-
-    try {
-      const res = await fetch("/api/get-entered-classes", {
-        headers: { "x-visitor-id": visitorId },
-      });
-      const data = await res.json();
-
-      // 重複削除
-      const uniqueClasses = [...new Set(data.classCodes || [])]  as string[];
-
-      setClasses(uniqueClasses);
-    } catch (error) {
-      console.error("データの取得に失敗しました", error);
-    }
-  };
-
-  fetchClasses();
-}, []);
-
-  const handleVote = async () => {
-    if (!selected) {
-      alert("クラスを選択してください");
-      return;
-    }
-
-    const visitorId = getVisitorId();
-    if (!visitorId) {
-      alert("エラー：セッション情報が見つかりません");
-      return;
-    }
-
-    const res = await fetch("/api/vote", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "x-visitor-id": visitorId,
-      },
-      body: JSON.stringify({ classCode: selected }),
-    });
-
-    if (res.ok) {
-      alert("投票完了：" + selected);
-      router.push("/");
-    } else {
-      const data = await res.json();
-      alert("エラー：" + data.error);
-    }
-  };
-
-  const remaining = voteLimit - selected.length;
-
   return (
-    <main style={{ padding: 20, textAlign: "center" }}>
-      <h1>投票</h1>
+    <main style={{ padding: "40px 20px", textAlign: "center", maxWidth: "400px", margin: "0 auto" }}>
+      <a href="/" style={{ fontSize: "13px", color: "#888", textDecoration: "none", display: "block", marginBottom: "24px", textAlign: "left" }}>
+        ← ホームに戻る
+      </a>
 
-      <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "10px" }}>
-        {classes.length > 0 ? (
-          classes.map((cls) => (
-            <div
-              key={cls}
-              onClick={() => {
-                if (selected.includes(cls)) {
-                  setSelected(selected.filter((c) => c !== cls));
-                } else {
-                  if (selected.length >= voteLimit) return;
-                  setSelected([...selected, cls]);
-                }
-              }}
-              style={{
-                width: "200px",
-                padding: "15px",
-                borderRadius: "8px",
-                cursor: "pointer",
-                border: selected.includes(cls)
-                  ? "3px solid blue"
-                  : "1px solid gray",
+      <h1 style={{ fontSize: "22px", marginBottom: "8px" }}>投票</h1>
+      <p style={{ color: "#888", fontSize: "13px", marginBottom: "40px" }}>
+        投票するカテゴリを選んでください
+      </p>
 
-                backgroundColor: selected.includes(cls)
-                  ? "#eef"
-                  : "white",
-              }}
-            >
-              {cls}
-            </div>
-          ))
-        ) : (
-          <p>読み込み中、または表示できるクラスがありません。</p>
-        )}
+      <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
+        <button
+          onClick={() => router.push("/vote/class")}
+          style={{
+            padding: "20px",
+            fontSize: "18px",
+            cursor: "pointer",
+            backgroundColor: "#e10102",
+            color: "white",
+            border: "none",
+            borderRadius: "12px",
+          }}
+        >
+          🏫 クラス企画
+        </button>
+
+        <button
+          onClick={() => router.push("/vote/event")}
+          style={{
+            padding: "20px",
+            fontSize: "18px",
+            cursor: "pointer",
+            backgroundColor: "white",
+            color: "#e10102",
+            border: "2px solid #e10102",
+            borderRadius: "12px",
+          }}
+        >
+          🎤 イベント企画
+        </button>
       </div>
-
-      <br />
-      <button 
-        onClick={handleVote}
-        style={{ padding: "10px 20px", fontSize: "16px", cursor: "pointer" }}
-      >
-        送信
-      </button>
     </main>
   );
 }
-
