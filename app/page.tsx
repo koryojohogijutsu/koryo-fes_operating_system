@@ -212,7 +212,7 @@ function HomeInner() {
 
   return (
     <main style={{ padding: "40px 20px", textAlign: "center" }}>
-      <h1 style={{ fontSize: "24px", marginBottom: "4px" }}>蛟龍祭 場内サイト</h1>
+      <h1 style={{ fontSize: "24px", marginBottom: "4px" }}>蛟龍祭</h1>
       <p style={{ color: "#888", fontSize: "13px", marginBottom: "32px" }}>
         {typeLabel}
       </p>
@@ -240,7 +240,7 @@ function HomeInner() {
         </button>
 
         <button
-          onClick={() => router.push("/vote")}
+          onClick={() => router.push("/vote-auth")}
           style={{
             padding: "14px",
             fontSize: "16px",
@@ -270,6 +270,21 @@ function HomeInner() {
         </button>
 
         <button
+          onClick={() => router.push("/event-enter")}
+          style={{
+            padding: "14px",
+            fontSize: "16px",
+            cursor: "pointer",
+            backgroundColor: "white",
+            color: "#e10102",
+            border: "2px solid #e10102",
+            borderRadius: "8px",
+          }}
+        >
+          🎤 イベント入場
+        </button>
+
+        <button
           onClick={() => router.push("/penlight")}
           style={{
             padding: "14px",
@@ -281,7 +296,7 @@ function HomeInner() {
             borderRadius: "8px",
           }}
         >
-          ペンライト
+          🎇 ペンライト
         </button>
       </div>
 
