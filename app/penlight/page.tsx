@@ -4,35 +4,43 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 
 const COLORS = [
-  { name: "レッド",     hex: "#FF0033" },
-  { name: "ピンク",     hex: "#FF3399" },
-  { name: "オレンジ",   hex: "#FF6600" },
-  { name: "イエロー",   hex: "#FFEE00" },
-  { name: "ライム",     hex: "#99FF00" },
-  { name: "グリーン",   hex: "#00FF66" },
-  { name: "シアン",     hex: "#00FFEE" },
-  { name: "スカイ",     hex: "#00AAFF" },
-  { name: "ブルー",     hex: "#0033FF" },
-  { name: "パープル",   hex: "#8800FF" },
+  { name: "レッド",       hex: "#FF0033" },
+  { name: "ピンク",       hex: "#FF3399" },
+  { name: "オレンジ",     hex: "#FF6600" },
+  { name: "イエロー",     hex: "#FFEE00" },
+  { name: "ライム",       hex: "#99FF00" },
+  { name: "グリーン",     hex: "#00FF66" },
+  { name: "シアン",       hex: "#00FFEE" },
+  { name: "スカイ",       hex: "#00AAFF" },
+  { name: "ブルー",       hex: "#0033FF" },
+  { name: "パープル",     hex: "#8800FF" },
   { name: "バイオレット", hex: "#CC00FF" },
-  { name: "ホワイト",   hex: "#FFFFFF" },
+  { name: "ホワイト",     hex: "#FFFFFF" },
 ];
 
 const STYLE = `
   .color-btn {
-    transition: transform 0.12s ease, box-shadow 0.12s ease;
+    transition: transform 0.12s ease;
   }
   .color-btn:active {
-    transform: scale(0.9);
+    transform: scale(0.88);
+  }
+  @keyframes palette-in {
+    from { opacity: 0; transform: translateY(20px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+  .palette-popup {
+    animation: palette-in 0.2s ease;
   }
 `;
 
 export default function PenlightPage() {
   const router = useRouter();
   const [activeColor, setActiveColor] = useState<string | null>(null);
+  const [paletteVisible, setPaletteVisible] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
 
-  // 画面表示中はスリープを防ぐ（Wake Lock API）
+  // スリープ防止（Wake Lock API）
   useEffect(() => {
     if (!activeColor) return;
     let wakeLock: WakeLockSentinel | null = null;
@@ -44,7 +52,26 @@ export default function PenlightPage() {
     return () => { wakeLock?.release(); };
   }, [activeColor]);
 
-  // フルスクリーン制御
+  const handleColorSelect = (hex: string) => {
+    setActiveColor(hex);
+    setPaletteVisible(false); // 色を選んだらパレットを閉じる
+  };
+
+  const handleScreenTap = () => {
+    if (!paletteVisible) {
+      setPaletteVisible(true);
+    }
+  };
+
+  const handleClose = () => {
+    setActiveColor(null);
+    setPaletteVisible(false);
+    if (document.fullscreenElement) {
+      document.exitFullscreen();
+      setIsFullscreen(false);
+    }
+  };
+
   const toggleFullscreen = () => {
     if (!document.fullscreenElement) {
       document.documentElement.requestFullscreen().catch(() => {});
@@ -55,23 +82,13 @@ export default function PenlightPage() {
     }
   };
 
-  const handleColorSelect = (hex: string) => {
-    setActiveColor(hex);
-  };
-
-  const handleClose = () => {
-    setActiveColor(null);
-    if (document.fullscreenElement) {
-      document.exitFullscreen();
-      setIsFullscreen(false);
-    }
-  };
+  const isDark = (hex: string) => !["#FFEE00", "#99FF00", "#FFFFFF"].includes(hex);
 
   return (
     <>
       <style>{STYLE}</style>
 
-      {/* フルスクリーン発光画面 */}
+      {/* 発光全画面 */}
       {activeColor && (
         <div
           style={{
@@ -83,107 +100,106 @@ export default function PenlightPage() {
             flexDirection: "column",
             alignItems: "center",
             justifyContent: "flex-end",
-            paddingBottom: "40px",
+            paddingBottom: "48px",
           }}
         >
-          {/* 発光感のためのグラデーションオーバーレイ */}
-          <div style={{
-            position: "absolute",
-            inset: 0,
-            background: `radial-gradient(ellipse at center, ${activeColor}cc 0%, ${activeColor} 70%)`,
-            pointerEvents: "none",
-          }} />
+          {/* タップ受付エリア（パレット非表示時） */}
+          {!paletteVisible && (
+            <div
+              onClick={handleScreenTap}
+              style={{ position: "absolute", inset: 0, zIndex: 1 }}
+            />
+          )}
 
-          {/* 色選択パレット（前面に表示） */}
-          <div style={{
-            position: "relative",
-            zIndex: 10,
-            display: "flex",
-            flexWrap: "wrap",
-            justifyContent: "center",
-            gap: "10px",
-            padding: "16px",
-            backgroundColor: "rgba(0,0,0,0.35)",
-            borderRadius: "20px",
-            backdropFilter: "blur(8px)",
-            maxWidth: "340px",
-            width: "90%",
-          }}>
-            {COLORS.map((c) => (
+          {/* ヒントテキスト（パレット非表示時のみ） */}
+          {!paletteVisible && (
+            <p style={{
+              position: "relative",
+              zIndex: 2,
+              color: isDark(activeColor) ? "rgba(255,255,255,0.35)" : "rgba(0,0,0,0.25)",
+              fontSize: "13px",
+              letterSpacing: "0.5px",
+              pointerEvents: "none",
+              marginBottom: "0",
+            }}>
+              タップして色を変更
+            </p>
+          )}
+
+          {/* パレット（タップ後に表示） */}
+          {paletteVisible && (
+            <div
+              className="palette-popup"
+              style={{
+                position: "relative",
+                zIndex: 3,
+                display: "flex",
+                flexWrap: "wrap",
+                justifyContent: "center",
+                gap: "10px",
+                padding: "16px",
+                backgroundColor: "rgba(0,0,0,0.4)",
+                borderRadius: "20px",
+                backdropFilter: "blur(10px)",
+                maxWidth: "340px",
+                width: "90%",
+              }}
+            >
+              {COLORS.map((c) => (
+                <button
+                  key={c.hex}
+                  className="color-btn"
+                  onClick={() => handleColorSelect(c.hex)}
+                  style={{
+                    width: "44px",
+                    height: "44px",
+                    borderRadius: "50%",
+                    backgroundColor: c.hex,
+                    border: activeColor === c.hex ? "3px solid white" : "2px solid rgba(255,255,255,0.3)",
+                    cursor: "pointer",
+                    boxShadow: activeColor === c.hex ? `0 0 14px ${c.hex}` : "none",
+                  }}
+                  title={c.name}
+                />
+              ))}
+
+              {/* 閉じるボタン */}
               <button
-                key={c.hex}
-                className="color-btn"
-                onClick={() => handleColorSelect(c.hex)}
+                onClick={handleClose}
                 style={{
                   width: "44px",
                   height: "44px",
                   borderRadius: "50%",
-                  backgroundColor: c.hex,
-                  border: activeColor === c.hex
-                    ? "3px solid white"
-                    : "2px solid rgba(255,255,255,0.3)",
+                  backgroundColor: "rgba(0,0,0,0.5)",
+                  border: "2px solid rgba(255,255,255,0.5)",
+                  color: "white",
+                  fontSize: "18px",
                   cursor: "pointer",
-                  boxShadow: activeColor === c.hex
-                    ? `0 0 12px ${c.hex}, 0 0 24px ${c.hex}`
-                    : "none",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
                 }}
-                title={c.name}
-              />
-            ))}
-
-            {/* 閉じるボタン */}
-            <button
-              onClick={handleClose}
-              style={{
-                width: "44px",
-                height: "44px",
-                borderRadius: "50%",
-                backgroundColor: "rgba(0,0,0,0.5)",
-                border: "2px solid rgba(255,255,255,0.5)",
-                color: "white",
-                fontSize: "18px",
-                cursor: "pointer",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-              }}
-              title="閉じる"
-            >
-              ✕
-            </button>
-          </div>
+              >
+                ✕
+              </button>
+            </div>
+          )}
         </div>
       )}
 
-      {/* 通常画面（色選択） */}
+      {/* 通常画面 */}
       <main style={{ padding: "30px 20px", textAlign: "center", maxWidth: "400px", margin: "0 auto" }}>
         <button
           onClick={() => router.push("/")}
-          style={{
-            background: "none",
-            border: "none",
-            color: "#888",
-            fontSize: "14px",
-            cursor: "pointer",
-            marginBottom: "16px",
-            padding: 0,
-            display: "block",
-          }}
+          style={{ background: "none", border: "none", color: "#888", fontSize: "14px", cursor: "pointer", marginBottom: "16px", padding: 0, display: "block" }}
         >
           ← ホームに戻る
         </button>
 
         <h1 style={{ fontSize: "22px", marginBottom: "8px" }}>🎇 ペンライト</h1>
-        <p style={{ color: "#888", fontSize: "13px", marginBottom: "30px" }}>
-          色をタップして点灯
-        </p>
+        <p style={{ color: "#888", fontSize: "13px", marginBottom: "30px" }}>色をタップして点灯</p>
 
-        <div style={{
-          display: "grid",
-          gridTemplateColumns: "repeat(4, 1fr)",
-          gap: "12px",
-          marginBottom: "30px",
-        }}>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "12px", marginBottom: "30px" }}>
           {COLORS.map((c) => (
             <button
               key={c.hex}
@@ -202,13 +218,7 @@ export default function PenlightPage() {
                 boxShadow: `0 4px 12px ${c.hex}66`,
               }}
             >
-              <span style={{
-                fontSize: "10px",
-                color: ["#FFEE00", "#99FF00", "#FFFFFF"].includes(c.hex) ? "#333" : "white",
-                fontWeight: "bold",
-                marginTop: "4px",
-                textShadow: "none",
-              }}>
+              <span style={{ fontSize: "10px", color: isDark(c.hex) ? "white" : "#333", fontWeight: "bold" }}>
                 {c.name}
               </span>
             </button>
@@ -217,15 +227,7 @@ export default function PenlightPage() {
 
         <button
           onClick={toggleFullscreen}
-          style={{
-            padding: "10px 20px",
-            fontSize: "13px",
-            cursor: "pointer",
-            backgroundColor: "white",
-            color: "#555",
-            border: "1px solid #ddd",
-            borderRadius: "8px",
-          }}
+          style={{ padding: "10px 20px", fontSize: "13px", cursor: "pointer", backgroundColor: "white", color: "#555", border: "1px solid #ddd", borderRadius: "8px" }}
         >
           {isFullscreen ? "フルスクリーン解除" : "フルスクリーンで使う"}
         </button>
