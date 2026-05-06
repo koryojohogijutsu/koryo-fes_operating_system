@@ -13,10 +13,18 @@ type VoteResult = { id: string; name: string; count: number };
 type StatusMap  = Record<string, boolean>;
 
 export default function EventManagePage() {
+  const router = useRouter();
+  const [authed,       setAuthed]       = useState(false);
   const [statusMap,    setStatusMap]    = useState<StatusMap>({});
   const [results,      setResults]      = useState<Record<string, VoteResult[]>>({});
   const [showResults,  setShowResults]  = useState<Record<string, boolean>>({});
   const [loadingMap,   setLoadingMap]   = useState<Record<string, boolean>>({});
+
+  useEffect(() => {
+    const auth = document.cookie.split("; ").find((r) => r.startsWith("admin_auth="))?.split("=")[1];
+    if (auth !== "1") { router.push("/admin/login"); return; }
+    setAuthed(true);
+  }, [router]);
 
   // 全カテゴリの投票ステータスを取得
   useEffect(() => {
@@ -66,10 +74,12 @@ export default function EventManagePage() {
     setLoadingMap((prev)  => ({ ...prev, [`result_${eventKey}`]: false }));
   };
 
+  if (!authed) return null;
+
   return (
     <main style={{ padding: "24px 20px", maxWidth: "500px", margin: "0 auto" }}>
-      <a href="/" style={{ fontSize: "13px", color: "#888", textDecoration: "none", display: "block", marginBottom: "20px" }}>
-        ← ホームに戻る
+      <a href="/admin" style={{ fontSize: "13px", color: "#888", textDecoration: "none", display: "block", marginBottom: "20px" }}>
+        ← 管理者メニューに戻る
       </a>
       <h1 style={{ fontSize: "20px", marginBottom: "24px" }}>イベント管理</h1>
 
