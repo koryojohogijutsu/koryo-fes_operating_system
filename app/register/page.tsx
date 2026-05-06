@@ -3,37 +3,41 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 
+const TRANSPORT_OPTIONS = [
+  { value: "car",   label: "車" },
+  { value: "bike",  label: "自転車・バイク" },
+  { value: "train", label: "電車" },
+  { value: "walk",  label: "徒歩" },
+  { value: "bus",   label: "バス" },
+  { value: "other", label: "その他" },
+];
+
 export default function RegisterPage() {
   const router = useRouter();
-  const [step, setStep] = useState<"survey" | "submitting">("survey");
-  const [gender, setGender] = useState("");
-  const [age, setAge] = useState("");
-  const [transport, setTransport] = useState("");
+  const [step,       setStep]       = useState<"survey" | "submitting">("survey");
+  const [groupSize,  setGroupSize]  = useState(1);
+  const [transports, setTransports] = useState<string[]>([]);
 
   useEffect(() => {
-    // visitor_id をcookieから取得 or 新規生成
     const existing = document.cookie
       .split("; ")
       .find((row) => row.startsWith("visitor_id="))
       ?.split("=")[1];
-
     if (!existing) {
       const id = crypto.randomUUID();
       document.cookie = `visitor_id=${id}; path=/; SameSite=Lax`;
     }
   }, []);
 
+  const toggleTransport = (value: string) => {
+    setTransports((prev) =>
+      prev.includes(value) ? prev.filter((v) => v !== value) : [...prev, value]
+    );
+  };
+
   const handleSubmit = async () => {
-    if (!gender) {
-      alert("性別を選択してください");
-      return;
-    };
-    if (!age) {
-      alert("年齢を選択してください");
-      return;
-    };
-    if (!transport) {
-      alert("来場手段を選択してください");
+    if (transports.length === 0) {
+      alert("来場手段を1つ以上選択してください");
       return;
     }
 
@@ -51,12 +55,9 @@ export default function RegisterPage() {
     }
 
     const res = await fetch("/api/register", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "x-visitor-id": visitorId,
-      },
-      body: JSON.stringify({ gender, age, transport }),
+      method:  "POST",
+      headers: { "Content-Type": "application/json", "x-visitor-id": visitorId },
+      body:    JSON.stringify({ groupSize, transport: transports.join(",") }),
     });
 
     if (res.ok) {
@@ -78,67 +79,62 @@ export default function RegisterPage() {
 
   return (
     <main style={{ padding: "30px 20px", textAlign: "center", maxWidth: "400px", margin: "0 auto" }}>
-      <h1>入場登録</h1>
+      <h1 style={{ fontSize: "22px", marginBottom: "8px" }}>入場登録</h1>
       <p style={{ color: "#555", fontSize: "14px", marginBottom: "30px" }}>
         アンケートにご協力ください
       </p>
 
+      {/* グループ人数 */}
       <div style={{ margin: "16px 0", textAlign: "left" }}>
-        <label style={{ fontWeight: "bold" }}>性別</label>
-        <br />
+        <label style={{ fontWeight: "bold", fontSize: "15px" }}>グループの人数</label>
         <select
-          value={gender}
-          onChange={(e) => setGender(e.target.value)}
-          style={{ marginTop: "8px", padding: "10px", fontSize: "16px", width: "100%" }}
+          value={groupSize}
+          onChange={(e) => setGroupSize(Number(e.target.value))}
+          style={{ marginTop: "8px", padding: "10px", fontSize: "16px", width: "100%", borderRadius: "6px", border: "1px solid #ccc" }}
         >
-          <option value="">選択してください</option>
-          <option value="men">男性</option>
-          <option value="women">女性</option>
-          <option value="other">その他</option>
-          <option value="none">回答しない</option>
+          {Array.from({ length: 20 }, (_, i) => i + 1).map((num) => (
+            <option key={num} value={num}>{num}人</option>
+          ))}
         </select>
       </div>
-      
-      <div style={{ margin: "16px 0", textAlign: "left" }}>
-        <label style={{ fontWeight: "bold" }}>年齢</label>
-        <br />
-        <select
-          value={age}
-          onChange={(e) => setAge(e.target.value)}
-          style={{ marginTop: "8px", padding: "10px", fontSize: "16px", width: "100%" }}
-        >
-          <option value="">選択してください</option>
-          <option value="u-elementary">小学生未満</option>
-          <option value="elementary">小学生</option>
-          <option value="juniorhigh">中学生</option>
-          <option value="high">高校生</option>
-          <option value="university">大学生・大学院生</option>
-          <option value="20">20代 </option>
-          <option value="30">30代</option>
-          <option value="40">40代</option>
-          <option value="50">50代</option>
-          <option value="60">60代</option>
-          <option value="70">70代</option>
-          <option value="80+">80代以上</option>
-        </select>
-      </div>
-      
-      <div style={{ margin: "16px 0", textAlign: "left" }}>
-        <label style={{ fontWeight: "bold" }}>来場手段</label>
-        <br />
-        <select
-          value={transport}
-          onChange={(e) => setTransport(e.target.value)}
-          style={{ marginTop: "8px", padding: "10px", fontSize: "16px", width: "100%" }}
-        >
-          <option value="">選択してください</option>
-          <option value="car">車</option>
-          <option value="bike">自転車・バイク</option>
-          <option value="train">電車</option>
-          <option value="walk">徒歩</option>
-          <option value="bus">バス</option>
-          <option value="other">その他</option>
-        </select>
+
+      {/* 来場手段（複数回答可） */}
+      <div style={{ margin: "20px 0", textAlign: "left" }}>
+        <label style={{ fontWeight: "bold", fontSize: "15px" }}>来場手段（複数回答可）</label>
+        <div style={{ display: "flex", flexDirection: "column", gap: "8px", marginTop: "10px" }}>
+          {TRANSPORT_OPTIONS.map((opt) => {
+            const checked = transports.includes(opt.value);
+            return (
+              <div
+                key={opt.value}
+                onClick={() => toggleTransport(opt.value)}
+                style={{
+                  padding: "12px 16px",
+                  borderRadius: "8px",
+                  border: checked ? "2px solid #e10102" : "1px solid #ddd",
+                  backgroundColor: checked ? "#fff5f5" : "white",
+                  cursor: "pointer",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "10px",
+                  fontSize: "15px",
+                }}
+              >
+                <span style={{
+                  width: "20px", height: "20px",
+                  borderRadius: "4px",
+                  border: checked ? "none" : "2px solid #ccc",
+                  backgroundColor: checked ? "#e10102" : "white",
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                  flexShrink: 0,
+                }}>
+                  {checked && <span style={{ color: "white", fontSize: "13px", fontWeight: "bold" }}>✓</span>}
+                </span>
+                {opt.label}
+              </div>
+            );
+          })}
+        </div>
       </div>
 
       <button
@@ -148,7 +144,7 @@ export default function RegisterPage() {
           padding: "14px",
           fontSize: "16px",
           cursor: "pointer",
-          backgroundColor: "#1976d2",
+          backgroundColor: "#e10102",
           color: "white",
           border: "none",
           borderRadius: "8px",
