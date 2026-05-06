@@ -74,7 +74,7 @@ function Inner() {
         <div style={{ fontSize: "56px", marginBottom: "16px" }}>✅</div>
         <h1 style={{ fontSize: "20px", marginBottom: "8px" }}>投票完了！</h1>
         <p style={{ color: "#888", marginBottom: "24px" }}>ありがとうございました</p>
-        <a href="/" style={{ color: "#e10102", fontSize: "15px" }}>イベント投票トップに戻る</a>
+        <a href="/" style={{ color: "#e10102", fontSize: "15px" }}>ホームに戻る</a>
       </main>
     );
   }
