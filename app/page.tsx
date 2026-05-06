@@ -302,7 +302,7 @@ function HomeInner() {
 
       <div style={{ marginTop: "40px" }}>
         <a
-          href="/admin/login"
+          href="/admin"
           style={{ fontSize: "12px", color: "#ccc", textDecoration: "none" }}
         >
           管理者ログイン
