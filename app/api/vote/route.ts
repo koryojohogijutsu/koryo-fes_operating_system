@@ -7,46 +7,26 @@ export async function POST(req: Request) {
     process.env.SUPABASE_SERVICE_ROLE_KEY!
   );
 
-  const today = Number(process.env.FESTIVAL_DAY || 1);
-  const body = await req.json();
+  const { visitorId, type, selections } = await req.json();
 
-  const visitorId = req.headers.get("x-visitor-id");
-  if (!visitorId) {
-    return NextResponse.json({ error: "visitor_id missing" }, { status: 400 });
+  if (!visitorId || !type || !selections) {
+    return NextResponse.json({ error: "パラメータ不足" }, { status: 400 });
   }
 
-  // visitor取得
-  const { data: visitor } = await supabase
-    .from("visitors")
-    .select("*")
-    .eq("visitor_id", visitorId)
-    .single();
+  // 各カテゴリをvotesテーブルにinsert
+  const rows = Object.entries(selections).map(([category, targetId]) => ({
+    visitor_id: visitorId,
+    vote_type:  type,       // 'class' | 'event'
+    category,              // 'grade1' | 'nodojiman' etc.
+    target_id:  targetId,  // class_code or event_entry id
+    voted_at:   new Date().toISOString(),
+  }));
 
-  if (!visitor) {
-    return NextResponse.json({ error: "visitor not found" }, { status: 404 });
+  const { error } = await supabase.from("votes").insert(rows);
+
+  if (error) {
+    return NextResponse.json({ error: error.message }, { status: 500 });
   }
-
-  // 人数制限チェック
-  const { count } = await supabase
-    .from("votes")
-    .select("*", { count: "exact", head: true })
-    .eq("visitor_id", visitorId)
-    .eq("festival_day", today);
-
-  if ((count ?? 0) >= visitor.vote_limit) {
-    return NextResponse.json({ error: "投票上限に達しています" }, { status: 400 });
-  }
-
-  // 重複防止（UNIQUE制約前提）
-  await supabase.from("votes").upsert(
-    {
-      visitor_id: visitorId,
-      class_code: body.classCode,
-      festival_day: today,
-      voted_at: new Date().toISOString(),
-    },
-    { onConflict: "visitor_id,festival_day,class_code" }
-  );
 
   return NextResponse.json({ success: true });
 }
