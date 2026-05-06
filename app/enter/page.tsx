@@ -139,11 +139,14 @@ export default function EnterPage() {
         </div>
 
         {/* QR + アニメーション（SVGはQRの外側のみ） */}
+        <div style={{ width: "100%", display: "flex", justifyContent: "center", overflow: "hidden" }}>
         <div style={{
           position: "relative",
           width: `${SVG_SIZE}px`,
           height: `${SVG_SIZE}px`,
-          margin: "0 auto",
+          flexShrink: 0,
+          transform: `scale(${Math.min(1, 340 / SVG_SIZE)})`,
+          transformOrigin: "top center",
         }}>
           {/* SVGアニメーション */}
           <svg
@@ -235,6 +238,7 @@ export default function EnterPage() {
               </div>
             )}
           </div>
+        </div>
         </div>
 
         <p style={{ fontSize: "11px", color: "#ccc", marginTop: "16px" }}>
