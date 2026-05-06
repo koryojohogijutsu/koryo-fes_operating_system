@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 
 const EVENT_CATEGORIES = [
   { key: "nodojiman",    label: "🎤 のど自慢" },
