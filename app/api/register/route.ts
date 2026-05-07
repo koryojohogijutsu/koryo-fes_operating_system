@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
-import { randomUUID } from "crypto";
 
 export async function POST(req: Request) {
   const supabase = createClient(
@@ -10,35 +9,35 @@ export async function POST(req: Request) {
 
   const body = await req.json();
 
-  // cookieからvisitor_idを取得、なければ新規生成
+  // cookieからvisitor_idを取得
   const cookie = req.headers.get("cookie");
-  const cookieVisitorId = cookie
+  const visitorId = cookie
     ?.split("; ")
     .find((row) => row.startsWith("visitor_id="))
     ?.split("=")[1];
 
-  const visitorId = cookieVisitorId ?? randomUUID();
-
-  // 既存チェック
-  const { data: existing } = await supabase
-    .from("visitors")
-    .select("*")
-    .eq("visitor_id", visitorId)
-    .single();
-
-  if (!existing) {
-    // 新規登録
-    await supabase.from("visitors").insert({
-      visitor_id: visitorId,
-      group_size: body.groupSize,
-      transport: body.transport,
-      created_at: new Date().toISOString(),
-    });
+  if (!visitorId) {
+    return NextResponse.json({ error: "visitor_id missing" }, { status: 400 });
   }
-  // 既存の場合は何もしない（再登録不要）
+
+  // visitsテーブルにアンケート情報を記録
+  const { error } = await supabase.from("visits").insert({
+    visitor_id: visitorId,
+    transport:  body.transport,
+    gender:     body.gender,
+    age:        body.age,
+    entered_at: new Date().toISOString(),
+  });
+
+  if (error) {
+    return NextResponse.json({ error: error.message }, { status: 500 });
+  }
 
   const response = NextResponse.json({ success: true });
-  response.cookies.set("visitor_id", visitorId, { path: "/", sameSite: "lax" });
+  // 半年（180日）有効
+  const expires = new Date();
+  expires.setDate(expires.getDate() + 180);
+  response.cookies.set("visitor_id", visitorId, { path: "/", sameSite: "lax", expires });
 
   return response;
 }
