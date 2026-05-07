@@ -26,6 +26,7 @@ export default function EventEnterPage() {
   const startedRef  = useRef(false);
   const scanningRef = useRef(false);
   const hashMapRef  = useRef<Record<string, string>>({});
+  const lastScanRef = useRef<{ hash: string; time: number } | null>(null);
 
   const [visitorId,      setVisitorId]      = useState<string | null>(null);
   const [eventVisits,    setEventVisits]    = useState<EventVisit[]>([]);
