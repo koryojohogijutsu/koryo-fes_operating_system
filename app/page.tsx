@@ -143,7 +143,7 @@ function HomeInner() {
         </div>
 
         <div style={{ marginTop: "40px" }}>
-          <a href="/admin/login" style={{ fontSize: "12px", color: "#ccc", textDecoration: "none" }}>管理者ログイン</a>
+          <a href="/admin" style={{ fontSize: "12px", color: "#ccc", textDecoration: "none" }}>管理者ログイン</a>
         </div>
       </main>
 
