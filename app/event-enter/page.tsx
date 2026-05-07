@@ -62,6 +62,13 @@ export default function EventEnterPage() {
 
   const handleScan = async (scanned: string) => {
     if (scanningRef.current || !visitorId) return;
+
+    // 10秒以内に同じQRのスキャンを排除
+    const now = Date.now();
+    if (lastScanRef.current && lastScanRef.current.hash === scanned && now - lastScanRef.current.time < 10000) {
+      return;
+    }
+    lastScanRef.current = { hash: scanned, time: now };
     scanningRef.current = true;
     setMessage(null);
 
