@@ -25,7 +25,7 @@ type EventVisit = { event_key: string; event_label: string; entered_at: string }
 export default function EventEnterPage() {
   const router = useRouter();
   const scannerRef = useRef<Html5Qrcode | null>(null);
-  const scanningRef = useRef(false); // スキャン処理中の二重動作防止
+  const scanningRef = useRef(false);
   const hashMapRef = useRef<Record<string, string>>({});
   const lastScanRef = useRef<{ hash: string; time: number } | null>(null);
 
@@ -34,10 +34,9 @@ export default function EventEnterPage() {
   const [message, setMessage] = useState<{ text: string; ok: boolean } | null>(null);
   const [loadingHistory, setLoadingHistory] = useState(true);
   const [scanning, setScanning] = useState(false);
-  const [isInitializing, setIsInitializing] = useState(false); // カメラ起動中フラグ
+  const [isInitializing, setIsInitializing] = useState(false);
   const [voting, setVoting] = useState(false);
 
-  // 初期化：ID取得とハッシュマップ作成
   useEffect(() => {
     const id = document.cookie
       .split("; ")
@@ -50,19 +49,15 @@ export default function EventEnterPage() {
     }
     setVisitorId(id);
 
-    // QRコードのハッシュマップを作成
     Promise.all(EVENT_KEYS.map(async (key) => ({ key, hash: await sha256(key) })))
       .then((pairs) => {
         const map: Record<string, string> = {};
-        pairs.forEach(({ key, hash }) => {
-          map[hash] = key;
-        });
+        pairs.forEach(({ key, hash }) => { map[hash] = key; });
         hashMapRef.current = map;
       });
 
     fetchHistory(id);
 
-    // コンポーネントアンマウント時にカメラを確実に停止
     return () => {
       if (scannerRef.current) {
         scannerRef.current.stop().catch(() => {});
@@ -77,7 +72,7 @@ export default function EventEnterPage() {
       const data = await res.json();
       setEventVisits(data.visits ?? []);
     } catch (e) {
-      console.error("履歴取得エラー", e);
+      console.error(e);
     } finally {
       setLoadingHistory(false);
     }
@@ -87,7 +82,6 @@ export default function EventEnterPage() {
     if (scanningRef.current || !visitorId) return;
 
     const now = Date.now();
-    // 10秒以内に同じQRのスキャンを排除
     if (lastScanRef.current && lastScanRef.current.hash === scanned && now - lastScanRef.current.time < 10000) {
       return;
     }
@@ -98,10 +92,7 @@ export default function EventEnterPage() {
     const eventKey = hashMapRef.current[scanned.trim()];
     if (!eventKey) {
       setMessage({ text: "❌ 無効なQRコードです", ok: false });
-      setTimeout(() => {
-        scanningRef.current = false;
-        setMessage(null);
-      }, 2000);
+      setTimeout(() => { scanningRef.current = false; setMessage(null); }, 2000);
       return;
     }
 
@@ -115,14 +106,10 @@ export default function EventEnterPage() {
     if (res.ok) {
       setMessage({ text: `✅ ${EVENT_LABELS[eventKey]} に入場しました！`, ok: true });
       fetchHistory(visitorId);
-      // 自動でカメラを止める
       stopScanner();
     } else {
       setMessage({ text: `❌ ${data.error || "エラーが発生しました"}`, ok: false });
-      setTimeout(() => {
-        scanningRef.current = false;
-        setMessage(null);
-      }, 2500);
+      setTimeout(() => { scanningRef.current = false; setMessage(null); }, 2500);
     }
   };
 
@@ -131,8 +118,13 @@ export default function EventEnterPage() {
     setIsInitializing(true);
     setMessage(null);
 
+    // 1. まず表示状態にする（これでDOMのdisplayがblockになる）
+    setScanning(true);
+
+    // 2. DOMがレンダリングされるのを少し待つ
+    await new Promise((resolve) => setTimeout(resolve, 100));
+
     try {
-      // 既存のインスタンスを掃除
       if (scannerRef.current) {
         await scannerRef.current.stop().catch(() => {});
         scannerRef.current = null;
@@ -143,15 +135,18 @@ export default function EventEnterPage() {
 
       await scanner.start(
         { facingMode: "environment" },
-        { fps: 10, qrbox: 250 },
+        { 
+          fps: 10, 
+          qrbox: { width: 250, height: 250 },
+          aspectRatio: 1.0 // 正方形で表示
+        },
         handleScan,
-        () => {} // QR未検出時のコールバックは無視
+        () => {} 
       );
-
-      setScanning(true);
     } catch (err) {
       console.error("Scanner start error:", err);
-      setMessage({ text: "カメラを起動できませんでした。ブラウザの設定を確認してください。", ok: false });
+      setMessage({ text: "カメラを起動できませんでした。ブラウザの設定で許可してください。", ok: false });
+      setScanning(false); // 失敗したら非表示に戻す
     } finally {
       setIsInitializing(false);
     }
@@ -213,7 +208,6 @@ export default function EventEnterPage() {
         会場のQRを読み取って入場記録、または投票できます
       </p>
 
-      {/* アクションボタン */}
       <div style={{ display: "flex", flexDirection: "column", gap: "12px", marginBottom: "24px" }}>
         <button
           onClick={scanning ? stopScanner : startScanner}
@@ -221,61 +215,64 @@ export default function EventEnterPage() {
           style={{
             padding: "14px",
             fontSize: "16px",
+            fontWeight: "bold",
             cursor: isInitializing ? "not-allowed" : "pointer",
             backgroundColor: scanning ? "#555" : "#e10102",
             color: "white",
             border: "none",
             borderRadius: "8px",
-            transition: "opacity 0.2s",
             opacity: isInitializing ? 0.7 : 1,
           }}
         >
-          {isInitializing ? "カメラ起動中..." : scanning ? "📷 スキャン停止" : "📷 QRを読み取る"}
+          {isInitializing ? "カメラ起動中..." : scanning ? "📷 スキャンを停止する" : "📷 QRを読み取る"}
         </button>
 
         <button
           onClick={handleVoteButton}
-          disabled={voting}
+          disabled={voting || scanning}
           style={{
             padding: "14px",
             fontSize: "16px",
-            cursor: voting ? "not-allowed" : "pointer",
+            cursor: (voting || scanning) ? "not-allowed" : "pointer",
             backgroundColor: "white",
             color: "#e10102",
             border: "2px solid #e10102",
             borderRadius: "8px",
+            opacity: scanning ? 0.5 : 1
           }}
         >
           {voting ? "確認中..." : "🗳️ 投票する"}
         </button>
       </div>
 
-      {/* QRスキャナー表示領域：ID固定かつ常駐 */}
+      {/* カメラ映像が表示されるエリア */}
       <div
-        id="event-reader"
         style={{
-          width: "100%",
-          maxWidth: "300px",
-          margin: "0 auto 16px",
           display: scanning ? "block" : "none",
-          borderRadius: "12px",
+          width: "100%",
+          maxWidth: "320px",
+          margin: "0 auto 20px",
+          borderRadius: "16px",
           overflow: "hidden",
-          border: "1px solid #ddd",
+          backgroundColor: "#000", // 起動前の背景を黒にする
+          border: "2px solid #e10102",
+          boxShadow: "0 4px 12px rgba(0,0,0,0.1)"
         }}
-      />
+      >
+        <div id="event-reader" style={{ width: "100%", minHeight: "250px" }} />
+      </div>
 
-      {/* メッセージ */}
       {message && (
         <div style={{
           padding: "12px 16px", borderRadius: "8px",
           backgroundColor: message.ok ? "#4caf50" : "#f44336",
           color: "white", fontSize: "15px", textAlign: "center", marginBottom: "16px",
+          fontWeight: "bold"
         }}>
           {message.text}
         </div>
       )}
 
-      {/* 入場履歴 */}
       <section style={{ marginTop: "12px" }}>
         <h2 style={{ fontSize: "15px", fontWeight: "bold", marginBottom: "10px", borderBottom: "2px solid #e10102", paddingBottom: "6px" }}>
           入場履歴
@@ -287,7 +284,7 @@ export default function EventEnterPage() {
         ) : (
           <ul style={{ listStyle: "none", padding: 0, margin: 0 }}>
             {eventVisits.map((v, i) => (
-              <li key={i} style={{ display: "flex", justifyContent: "space-between", padding: "10px 0", borderBottom: "1px solid #f0f0f0", fontSize: "14px" }}>
+              <li key={i} style={{ display: "flex", justifyContent: "space-between", padding: "12px 0", borderBottom: "1px solid #f0f0f0", fontSize: "14px" }}>
                 <strong>{v.event_label}</strong>
                 <span style={{ color: "#888", fontSize: "12px" }}>
                   {new Date(v.entered_at).toLocaleString("ja-JP", { month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit" })}
