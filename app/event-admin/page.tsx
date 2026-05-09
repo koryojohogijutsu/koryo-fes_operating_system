@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 
 const EVENT_CATEGORIES = [
@@ -21,19 +21,20 @@ export default function EventAdminPage() {
   const [loading,     setLoading]     = useState(true);
   const [authed,      setAuthed]      = useState(false);
 
+  const load = useCallback(async () => {
+    setLoading(true);
+    const res  = await fetch("/api/event-entries");
+    const data = await res.json();
+    setEntries(data.entries ?? []);
+    setLoading(false);
+  }, []);
+
   useEffect(() => {
     const auth = document.cookie.split("; ").find((r) => r.startsWith("admin_auth="))?.split("=")[1];
     if (auth !== "1") { router.push("/admin/login"); return; }
     setAuthed(true);
     load();
-  }, [router]);
-
-  const load = async () => {
-    const res  = await fetch("/api/event-entries");
-    const data = await res.json();
-    setEntries(data.entries ?? []);
-    setLoading(false);
-  };
+  }, [router, load]);
 
   const handleAdd = async () => {
     if (!name) { alert("氏名を入力してください"); return; }
@@ -41,7 +42,7 @@ export default function EventAdminPage() {
       method: "POST", headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ category, name, description }),
     });
-    if (res.ok) { setName(""); setDescription(""); load(); }
+    if (res.ok) { setName(""); setDescription(""); await load(); }
     else { const data = await res.json(); alert("エラー: " + data.error); }
   };
 
@@ -51,8 +52,13 @@ export default function EventAdminPage() {
       method: "DELETE", headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ id }),
     });
-    if (res.ok) { load(); }
-    else { const data = await res.json(); alert("エラー: " + data.error); }
+    if (res.ok) {
+      // stateを直接更新して即時反映
+      setEntries((prev) => prev.filter((e) => e.id !== id));
+    } else {
+      const data = await res.json();
+      alert("エラー: " + data.error);
+    }
   };
 
   if (!authed) return null;
@@ -62,7 +68,7 @@ export default function EventAdminPage() {
       <a href="/admin" style={{ fontSize: "13px", color: "#888", textDecoration: "none", display: "block", marginBottom: "20px" }}>← 管理者メニューに戻る</a>
       <h1 style={{ fontSize: "20px", marginBottom: "24px" }}>イベント出場者登録</h1>
 
-      <div style={{ display: "flex", flexDirection: "column", gap: "10px", marginBottom: "32px", padding: "16px", border: "1px solid #eee", borderRadius: "10px" }}>
+      <div style={{ display: "flex", flexDirection: "column", gap: "8px", marginBottom: "32px", padding: "16px", border: "1px solid #eee", borderRadius: "10px" }}>
         <select value={category} onChange={(e) => setCategory(e.target.value)}
           style={{ padding: "10px", fontSize: "14px", borderRadius: "6px", border: "1px solid #ccc" }}>
           {EVENT_CATEGORIES.map((c) => <option key={c.key} value={c.key}>{c.label}</option>)}
@@ -94,7 +100,7 @@ export default function EventAdminPage() {
                         <span style={{ color: "#777", fontSize: "13px" }}>{e.description}</span>
                       </div>
                       <button onClick={() => handleDelete(e.id)}
-                        style={{ color: "#f44336", background: "none", border: "none", cursor: "pointer", fontSize: "13px" }}>
+                        style={{ color: "#f44336", background: "none", border: "none", cursor: "pointer", fontSize: "13px", flexShrink: 0 }}>
                         削除
                       </button>
                     </li>
