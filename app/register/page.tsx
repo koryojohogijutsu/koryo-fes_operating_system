@@ -21,7 +21,7 @@ const GENDER_OPTIONS = [
 
 const AGE_OPTIONS = [
   { value: "under_elementary", label: "小学生未満" },
-  { value: "elementary",       label: "小学生" },
+  { value: "elementary",        label: "小学生" },
   { value: "junior_high",      label: "中学生" },
   { value: "high_school",      label: "高校生" },
   { value: "university",       label: "大学生・大学院生" },
@@ -48,7 +48,6 @@ export default function RegisterPage() {
       ?.split("=")[1];
     if (!existing) {
       const id = crypto.randomUUID();
-      // 半年（180日）有効
       const expires = new Date();
       expires.setDate(expires.getDate() + 180);
       document.cookie = `visitor_id=${id}; path=/; expires=${expires.toUTCString()}; SameSite=Lax`;
@@ -75,78 +74,147 @@ export default function RegisterPage() {
 
     if (!visitorId) { alert("エラー: visitor_id が見つかりません"); setStep("survey"); return; }
 
-    const res = await fetch("/api/register", {
-      method: "POST",
-      headers: { "Content-Type": "application/json", "x-visitor-id": visitorId },
-      body: JSON.stringify({ transport: transports.join(","), gender, age }),
-    });
+    try {
+      const res = await fetch("/api/register", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "x-visitor-id": visitorId },
+        body: JSON.stringify({ transport: transports.join(","), gender, age }),
+      });
 
-    if (res.ok) { router.push("/"); }
-    else { const r = await res.json(); alert("エラー: " + r.error); setStep("survey"); }
+      if (res.ok) {
+        router.push("/");
+      } else {
+        const r = await res.json();
+        alert("エラー: " + r.error);
+        setStep("survey");
+      }
+    } catch (e) {
+      alert("通信エラーが発生しました");
+      setStep("survey");
+    }
   };
 
-  if (step === "submitting") return <main style={{ padding: "40px", textAlign: "center" }}><p>送信中...</p></main>;
+  if (step === "submitting") {
+    return (
+      <main style={{ padding: "40px", textAlign: "center", backgroundColor: "#ffffff", minHeight: "100vh", color: "#333333" }}>
+        <p>送信中...</p>
+      </main>
+    );
+  }
 
   return (
-    <main style={{ padding: "30px 20px", maxWidth: "400px", margin: "0 auto" }}>
-      <h1 style={{ fontSize: "22px", marginBottom: "8px", textAlign: "center" }}>入場登録</h1>
-      <p style={{ color: "#555", fontSize: "14px", marginBottom: "24px", textAlign: "center" }}>アンケートにご協力ください</p>
+    <div style={{ backgroundColor: "#ffffff", minHeight: "100vh" }}>
+      <main style={{ padding: "30px 20px", maxWidth: "400px", margin: "0 auto", color: "#333333" }}>
+        <h1 style={{ fontSize: "22px", marginBottom: "8px", textAlign: "center", color: "#000000" }}>入場登録</h1>
+        <p style={{ color: "#666666", fontSize: "14px", marginBottom: "24px", textAlign: "center" }}>アンケートにご協力ください</p>
 
-      {/* 来場手段（複数回答可） */}
-      <div style={{ marginBottom: "24px" }}>
-        <label style={{ fontWeight: "bold", fontSize: "15px", display: "block", marginBottom: "10px" }}>来場手段（複数回答可）</label>
-        <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
-          {TRANSPORT_OPTIONS.map((opt) => {
-            const checked = transports.includes(opt.value);
-            return (
-              <div key={opt.value} onClick={() => toggleTransport(opt.value)}
-                style={{ padding: "12px 16px", borderRadius: "8px", border: checked ? "2px solid #e10102" : "1px solid #ddd", backgroundColor: checked ? "#fff5f5" : "white", cursor: "pointer", display: "flex", alignItems: "center", gap: "10px", fontSize: "15px" }}>
-                <span style={{ width: "20px", height: "20px", borderRadius: "4px", border: checked ? "none" : "2px solid #ccc", backgroundColor: checked ? "#e10102" : "white", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-                  {checked && <span style={{ color: "white", fontSize: "13px", fontWeight: "bold" }}>✓</span>}
-                </span>
-                {opt.label}
-              </div>
-            );
-          })}
+        {/* 来場手段（複数回答可） */}
+        <div style={{ marginBottom: "24px" }}>
+          <label style={{ fontWeight: "bold", fontSize: "15px", display: "block", marginBottom: "10px", color: "#000000" }}>
+            来場手段（複数回答可）
+          </label>
+          <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+            {TRANSPORT_OPTIONS.map((opt) => {
+              const checked = transports.includes(opt.value);
+              return (
+                <div key={opt.value} onClick={() => toggleTransport(opt.value)}
+                  style={{ 
+                    padding: "12px 16px", 
+                    borderRadius: "8px", 
+                    border: checked ? "2px solid #e10102" : "1px solid #dddddd", 
+                    backgroundColor: checked ? "#fff5f5" : "#ffffff", 
+                    cursor: "pointer", 
+                    display: "flex", 
+                    alignItems: "center", 
+                    gap: "10px", 
+                    fontSize: "15px",
+                    color: "#333333" // 文字色を固定
+                  }}>
+                  <span style={{ 
+                    width: "20px", 
+                    height: "20px", 
+                    borderRadius: "4px", 
+                    border: checked ? "none" : "2px solid #cccccc", 
+                    backgroundColor: checked ? "#e10102" : "#ffffff", 
+                    display: "flex", 
+                    alignItems: "center", 
+                    justifyContent: "center", 
+                    flexShrink: 0 
+                  }}>
+                    {checked && <span style={{ color: "#ffffff", fontSize: "13px", fontWeight: "bold" }}>✓</span>}
+                  </span>
+                  {opt.label}
+                </div>
+              );
+            })}
+          </div>
         </div>
-      </div>
 
-      {/* 性別 */}
-      <div style={{ marginBottom: "24px" }}>
-        <label style={{ fontWeight: "bold", fontSize: "15px", display: "block", marginBottom: "10px" }}>性別</label>
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px" }}>
-          {GENDER_OPTIONS.map((opt) => {
-            const selected = gender === opt.value;
-            return (
-              <div key={opt.value} onClick={() => setGender(opt.value)}
-                style={{ padding: "12px", borderRadius: "8px", border: selected ? "2px solid #e10102" : "1px solid #ddd", backgroundColor: selected ? "#fff5f5" : "white", cursor: "pointer", textAlign: "center", fontSize: "14px" }}>
-                {opt.label}
-              </div>
-            );
-          })}
+        {/* 性別 */}
+        <div style={{ marginBottom: "24px" }}>
+          <label style={{ fontWeight: "bold", fontSize: "15px", display: "block", marginBottom: "10px", color: "#000000" }}>性別</label>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px" }}>
+            {GENDER_OPTIONS.map((opt) => {
+              const selected = gender === opt.value;
+              return (
+                <div key={opt.value} onClick={() => setGender(opt.value)}
+                  style={{ 
+                    padding: "12px", 
+                    borderRadius: "8px", 
+                    border: selected ? "2px solid #e10102" : "1px solid #dddddd", 
+                    backgroundColor: selected ? "#fff5f5" : "#ffffff", 
+                    cursor: "pointer", 
+                    textAlign: "center", 
+                    fontSize: "14px",
+                    color: "#333333" // 文字色を固定
+                  }}>
+                  {opt.label}
+                </div>
+              );
+            })}
+          </div>
         </div>
-      </div>
 
-      {/* 年齢 */}
-      <div style={{ marginBottom: "28px" }}>
-        <label style={{ fontWeight: "bold", fontSize: "15px", display: "block", marginBottom: "10px" }}>年齢</label>
-        <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
-          {AGE_OPTIONS.map((opt) => {
-            const selected = age === opt.value;
-            return (
-              <div key={opt.value} onClick={() => setAge(opt.value)}
-                style={{ padding: "12px 16px", borderRadius: "8px", border: selected ? "2px solid #e10102" : "1px solid #ddd", backgroundColor: selected ? "#fff5f5" : "white", cursor: "pointer", fontSize: "15px" }}>
-                {opt.label}
-              </div>
-            );
-          })}
+        {/* 年齢 */}
+        <div style={{ marginBottom: "28px" }}>
+          <label style={{ fontWeight: "bold", fontSize: "15px", display: "block", marginBottom: "10px", color: "#000000" }}>年齢</label>
+          <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+            {AGE_OPTIONS.map((opt) => {
+              const selected = age === opt.value;
+              return (
+                <div key={opt.value} onClick={() => setAge(opt.value)}
+                  style={{ 
+                    padding: "12px 16px", 
+                    borderRadius: "8px", 
+                    border: selected ? "2px solid #e10102" : "1px solid #dddddd", 
+                    backgroundColor: selected ? "#fff5f5" : "#ffffff", 
+                    cursor: "pointer", 
+                    fontSize: "15px",
+                    color: "#333333" // 文字色を固定
+                  }}>
+                  {opt.label}
+                </div>
+              );
+            })}
+          </div>
         </div>
-      </div>
 
-      <button onClick={handleSubmit}
-        style={{ width: "100%", padding: "14px", fontSize: "16px", cursor: "pointer", backgroundColor: "#e10102", color: "white", border: "none", borderRadius: "8px" }}>
-        登録してホームへ
-      </button>
-    </main>
+        <button onClick={handleSubmit}
+          style={{ 
+            width: "100%", 
+            padding: "14px", 
+            fontSize: "16px", 
+            fontWeight: "bold",
+            cursor: "pointer", 
+            backgroundColor: "#e10102", 
+            color: "#ffffff", 
+            border: "none", 
+            borderRadius: "8px",
+            boxShadow: "0 2px 4px rgba(0,0,0,0.1)"
+          }}>
+          登録してホームへ
+        </button>
+      </main>
+    </div>
   );
 }
