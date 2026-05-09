@@ -33,6 +33,7 @@ export default function AdminPage() {
 
       <div style={{ display: "flex", flexDirection: "column", gap: "10px", marginBottom: "32px" }}>
         <a href="/admin/classes" style={linkStyle}>🏫 クラス管理</a>
+        <a href="/admin/vote-results" style={linkStyle}>🏫 クラス投票得票数</a>
         <a href="/event-admin"   style={linkStyle}>🎤 イベント出場者登録</a>
         <a href="/event-manage"  style={linkStyle}>📊 イベント管理（投票開始・得票数）</a>
         <a href="/staff/settings" style={linkStyle}>📷 係員スキャン設定</a>
