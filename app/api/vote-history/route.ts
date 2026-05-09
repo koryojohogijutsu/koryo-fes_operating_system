@@ -32,35 +32,30 @@ export async function GET(req: NextRequest) {
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
-  // クラスの表示名を取得
-  const classCodes = (data ?? [])
-    .filter((v) => v.vote_type === "class")
-    .map((v) => v.target_id);
+  const voteData = data ?? [];
 
+  // クラス表示名を取得
+  const classCodes = voteData.filter((v) => v.vote_type === "class").map((v) => v.target_id);
   let classMap: Record<string, string> = {};
   if (classCodes.length > 0) {
-    const { data: classes } = await supabase
-      .from("classes")
-      .select("code, label")
-      .in("code", classCodes);
+    const { data: classes } = await supabase.from("classes").select("code, label").in("code", classCodes);
     (classes ?? []).forEach((c) => { classMap[c.code] = c.label; });
   }
 
-  // イベント出場者の表示名を取得
-  const entryIds = (data ?? [])
-    .filter((v) => v.vote_type === "event")
-    .map((v) => v.target_id);
-
+  // イベント出場者名を取得（UUIDからnameに変換）
+  const entryIds = voteData.filter((v) => v.vote_type === "event").map((v) => v.target_id);
   let entryMap: Record<string, string> = {};
   if (entryIds.length > 0) {
     const { data: entries } = await supabase
       .from("event_entries")
-      .select("id, name")
+      .select("id, name, description")
       .in("id", entryIds);
-    (entries ?? []).forEach((e) => { entryMap[e.id] = e.name; });
+    (entries ?? []).forEach((e) => {
+      entryMap[e.id] = e.description ? `${e.name}（${e.description}）` : e.name;
+    });
   }
 
-  const votes = (data ?? []).map((v) => ({
+  const votes = voteData.map((v) => ({
     vote_type:      v.vote_type,
     category_label:
       v.vote_type === "class"
@@ -69,7 +64,7 @@ export async function GET(req: NextRequest) {
     target_label:
       v.vote_type === "class"
         ? `${v.target_id}${classMap[v.target_id] ? `（${classMap[v.target_id]}）` : ""}`
-        : entryMap[v.target_id] ?? v.target_id,
+        : entryMap[v.target_id] ?? "（不明）",
     voted_at: v.voted_at,
   }));
 
