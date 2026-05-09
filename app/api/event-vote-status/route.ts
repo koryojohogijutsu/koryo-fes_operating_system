@@ -6,7 +6,6 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 );
 
-// 投票ステータス確認
 export async function GET(req: NextRequest) {
   const eventKey = req.nextUrl.searchParams.get("eventKey");
   if (!eventKey) return NextResponse.json({ error: "eventKey missing" }, { status: 400 });
@@ -20,7 +19,6 @@ export async function GET(req: NextRequest) {
   return NextResponse.json({ is_open: data?.is_open ?? false });
 }
 
-// 投票開始・〆切
 export async function POST(req: Request) {
   const { eventKey, isOpen } = await req.json();
   if (!eventKey || typeof isOpen !== "boolean") {
