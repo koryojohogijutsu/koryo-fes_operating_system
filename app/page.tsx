@@ -130,7 +130,7 @@ function HomeInner() {
           </button>
           <button onClick={() => router.push("/vote")}
             style={{ padding: "16px", fontSize: "16px", cursor: "pointer", backgroundColor: "white", color: "#e10102", border: "2px solid #e10102", borderRadius: "10px" }}>
-            🗳️ 投票
+            🗳️ クラス投票
           </button>
           <button onClick={() => router.push("/event-enter")}
             style={{ padding: "16px", fontSize: "16px", cursor: "pointer", backgroundColor: "white", color: "#e10102", border: "2px solid #e10102", borderRadius: "10px" }}>
