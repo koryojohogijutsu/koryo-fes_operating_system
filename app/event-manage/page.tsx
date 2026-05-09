@@ -103,7 +103,7 @@ export default function EventManagePage() {
                 color: isOpen ? "#2e7d32" : "#c62828",
                 fontWeight: "bold",
               }}>
-                {isOpen ? "投票受付中" : "〆切"}
+                {isOpen ? "投票受付中" : "締切"}
               </span>
             </div>
 
@@ -130,7 +130,7 @@ export default function EventManagePage() {
                   cursor: loading ? "not-allowed" : "pointer",
                 }}
               >
-                {loading ? "処理中..." : isOpen ? "🔒 投票を〆切る" : "🟢 投票を開始する"}
+                {loading ? "処理中..." : isOpen ? "🔒 締め切る" : "🟢 投票を開始する"}
               </button>
 
               {/* 得票数表示 */}
