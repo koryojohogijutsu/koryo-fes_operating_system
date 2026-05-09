@@ -37,6 +37,7 @@ export default function AdminPage() {
         <a href="/event-admin"   style={linkStyle}>🎤 イベント出場者登録</a>
         <a href="/event-manage"  style={linkStyle}>📊 イベント管理（投票開始・得票数）</a>
         <a href="/staff/settings" style={linkStyle}>📷 係員スキャン設定</a>
+        <a href="/admin/info" style={linkStyle}>ℹ️ インフォメーション</a>
       </div>
 
       <h2 style={{ fontSize: "16px", marginBottom: "12px", borderBottom: "2px solid #e10102", paddingBottom: "6px" }}>入場一覧</h2>
