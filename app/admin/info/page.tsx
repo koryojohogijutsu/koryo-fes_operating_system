@@ -14,8 +14,10 @@ export default function AdminInfoPage() {
   const [authed,     setAuthed]     = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
-  // リクエスト排除用（5秒）
-  const lastReqRef = useRef<number>(0);
+  // リクエスト排除用（5秒）：操作ごとに独立管理
+  const lastNoticeRef = useRef<number>(0);
+  const lastLostRef   = useRef<number>(0);
+  const lastDeleteRef = useRef<number>(0);
 
   // notice form
   const [nTitle, setNTitle] = useState("");
@@ -40,19 +42,11 @@ export default function AdminInfoPage() {
     load();
   }, [router, load]);
 
-  const guardRequest = (): boolean => {
-    const now = Date.now();
-    if (now - lastReqRef.current < 5000) {
-      alert("操作が早すぎます。少し待ってから再試行してください。");
-      return false;
-    }
-    lastReqRef.current = now;
-    return true;
-  };
-
   const addNotice = async () => {
     if (!nTitle || !nBody) { alert("タイトルと本文を入力してください"); return; }
-    if (!guardRequest()) return;
+    const now = Date.now();
+    if (now - lastNoticeRef.current < 5000) { alert("操作が早すぎます"); return; }
+    lastNoticeRef.current = now;
     setSubmitting(true);
     const res = await fetch("/api/info/manage", {
       method: "POST", headers: { "Content-Type": "application/json" },
@@ -71,7 +65,9 @@ export default function AdminInfoPage() {
 
   const addLost = async () => {
     if (!lTime || !lPlace || !lMemo) { alert("すべての項目を入力してください"); return; }
-    if (!guardRequest()) return;
+    const now = Date.now();
+    if (now - lastLostRef.current < 5000) { alert("操作が早すぎます"); return; }
+    lastLostRef.current = now;
     setSubmitting(true);
     const res = await fetch("/api/info/manage", {
       method: "POST", headers: { "Content-Type": "application/json" },
@@ -89,7 +85,9 @@ export default function AdminInfoPage() {
 
   const deleteItem = async (type: "notice" | "lost", id: string) => {
     if (!confirm("削除しますか？")) return;
-    if (!guardRequest()) return;
+    const now = Date.now();
+    if (now - lastDeleteRef.current < 3000) { alert("操作が早すぎます"); return; }
+    lastDeleteRef.current = now;
     const res = await fetch("/api/info/manage", {
       method: "DELETE", headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ type, id }),
