@@ -243,7 +243,7 @@ function PuzzleInner() {
             </p>
             {/* 解説画像 */}
             <img
-              src={}
+              src={`/puzzle/correct${currentQ}.png`}
               alt="解説"
               style={{ width: "100%", borderRadius: "10px", marginBottom: "20px", display: "block" }}
             />
