@@ -136,6 +136,10 @@ function HomeInner() {
             style={{ padding: "16px", fontSize: "16px", cursor: "pointer", backgroundColor: "white", color: "#e10102", border: "2px solid #e10102", borderRadius: "10px" }}>
             🎤 イベント入場・投票
           </button>
+          <button onClick={() => router.push("/puzzle")}
+            style={{ padding: "16px", fontSize: "16px", cursor: "pointer", backgroundColor: "white", color: "#e10102", border: "2px solid #e10102", borderRadius: "10px" }}>
+            🕵️ 謎解き
+          </button>
           <button onClick={() => router.push("/info")}
             style={{ padding: "16px", fontSize: "16px", cursor: "pointer", backgroundColor: "white", color: "#e10102", border: "2px solid #e10102", borderRadius: "10px" }}>
             ℹ️ インフォメーション
@@ -161,7 +165,6 @@ function HomeInner() {
             <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
               {[
                 { label: "📋 履歴を見る",          path: "/history" },
-                { label: "🎒 落とし物・お知らせ",  path: "/info" },
                 { label: "🎇 ペンライト",           path: "/penlight" },
                 { label: "📊 混雑状況（準備中）",  path: null },
               ].map((item) => (
