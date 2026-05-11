@@ -6,7 +6,7 @@ import { useRouter, useParams, useSearchParams } from "next/navigation";
 const EVENT_LABELS: Record<string, string> = {
   nodojiman:    "🎤 のど自慢",
   coscon_solo:  "👗 コスコン（個人）",
-  coscon_group: "👥 コスコン（団体）",
+  coscon_group: "👥 コスコン（グループ）",
   m1:           "🎭 M1",
 };
 
@@ -32,7 +32,7 @@ function Inner() {
 
   useEffect(() => {
     if (!entryId) return;
-    fetch("/api/event-entries")
+    fetch("/api/event-entries", { cache: "no-store" })
       .then((r) => r.json())
       .then((data) => {
         const found = (data.entries ?? []).find((e: Entry) => e.id === entryId);
@@ -74,7 +74,7 @@ function Inner() {
         <div style={{ fontSize: "56px", marginBottom: "16px" }}>✅</div>
         <h1 style={{ fontSize: "20px", marginBottom: "8px" }}>投票完了！</h1>
         <p style={{ color: "#888", marginBottom: "24px" }}>ありがとうございました</p>
-        <a href="/" style={{ color: "#e10102", fontSize: "15px" }}>ホームに戻る</a>
+        <a href="/vote/event" style={{ color: "#e10102", fontSize: "15px" }}>イベント投票トップに戻る</a>
       </main>
     );
   }
