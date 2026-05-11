@@ -6,7 +6,7 @@ import { useRouter, useParams } from "next/navigation";
 const EVENT_LABELS: Record<string, string> = {
   nodojiman:    "🎤 のど自慢",
   coscon_solo:  "👗 コスコン（個人）",
-  coscon_group: "👥 コスコン（グループ）",
+  coscon_group: "👥 コスコン（団体）",
   m1:           "🎭 M1",
 };
 
