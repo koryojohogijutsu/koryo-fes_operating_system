@@ -6,7 +6,7 @@ import { useRouter, useParams } from "next/navigation";
 const EVENT_LABELS: Record<string, string> = {
   nodojiman:    "🎤 のど自慢",
   coscon_solo:  "👗 コスコン（個人）",
-  coscon_group: "👥 コスコン（団体）",
+  coscon_group: "👥 コスコン（グループ）",
   m1:           "🎭 M1",
 };
 
@@ -28,7 +28,7 @@ export default function VoteEventCategoryPage() {
     if (!visitorId) { router.push("/register"); return; }
 
     // このカテゴリの出場者のみ取得
-    fetch("/api/event-entries")
+    fetch("/api/event-entries", { cache: "no-store" })
       .then((r) => r.json())
       .then((data) => {
         const filtered = (data.entries ?? [])
