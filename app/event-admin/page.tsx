@@ -23,7 +23,7 @@ export default function EventAdminPage() {
 
   const load = useCallback(async () => {
     setLoading(true);
-    const res  = await fetch("/api/event-entries");
+    const res  = await fetch("/api/event-entries", { cache: "no-store" });
     const data = await res.json();
     setEntries(data.entries ?? []);
     setLoading(false);
