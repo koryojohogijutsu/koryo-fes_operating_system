@@ -1,402 +1,116 @@
 "use client";
 
-import { useEffect, useState, useCallback, Suspense } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 
-const TOTAL_Q = 6;
-const Q_LABELS = ["Q0", "Q1", "Q2", "Q3", "Q4", "Final"];
-
-// Q3はヒントなし
-const HAS_HINT = [true, true, true, false, true, true];
-// Q0のみ2枚
-const HINT_COUNT = [2, 1, 1, 0, 1, 1];
-
-const ANSWERS = [
-  process.env.NEXT_PUBLIC_PUZZLE_ANS_0 ?? "",
-  process.env.NEXT_PUBLIC_PUZZLE_ANS_1 ?? "",
-  process.env.NEXT_PUBLIC_PUZZLE_ANS_2 ?? "",
-  process.env.NEXT_PUBLIC_PUZZLE_ANS_3 ?? "",
-  process.env.NEXT_PUBLIC_PUZZLE_ANS_4 ?? "",
-  process.env.NEXT_PUBLIC_PUZZLE_ANS_5 ?? "",
+const EVENT_CATEGORIES = [
+  { key: "nodojiman",    label: "のど自慢" },
+  { key: "coscon_solo",  label: "コスコン（個人）" },
+  { key: "coscon_group", label: "コスコン（団体）" },
+  { key: "m1",           label: "M1" },
 ];
 
-type Progress = {
-  solved:   number[];
-  hints:    number[];   // 開封済みヒント（Q0-1枚目 + Q1,Q2,Q4,Q5）
-  hints0_2: boolean;    // Q0の2枚目ヒント開封済み
-  currentQ: number;
-};
+type Entry = { id: string; category: string; name: string; description: string; order_num: number };
 
-function getProgress(): Progress {
-  try {
-    const raw = document.cookie
-      .split("; ")
-      .find((r) => r.startsWith("puzzle_progress="))
-      ?.split("=")[1];
-    if (!raw) return { solved: [], hints: [], hints0_2: false, currentQ: 0 };
-    const p = JSON.parse(decodeURIComponent(raw));
-    return {
-      solved:   p.solved   ?? [],
-      hints:    p.hints    ?? [],
-      hints0_2: p.hints0_2 ?? false,
-      currentQ: p.currentQ ?? 0,
-    };
-  } catch {
-    return { solved: [], hints: [], hints0_2: false, currentQ: 0 };
-  }
-}
-
-function saveProgress(p: Progress) {
-  const expires = new Date();
-  expires.setDate(expires.getDate() + 180);
-  document.cookie = `puzzle_progress=${encodeURIComponent(JSON.stringify(p))}; path=/; expires=${expires.toUTCString()}; SameSite=Lax`;
-}
-
-const STYLE = `
-  body { background: #000 !important; }
-  .q-box {
-    width: 44px; height: 32px; border-radius: 6px;
-    display: flex; align-items: center; justify-content: center;
-    font-size: 11px; font-weight: bold;
-    border: 1px solid #444; transition: all 0.2s;
-    user-select: none;
-  }
-  .q-box.solved  { background: rgba(100,200,100,0.25); color: #7dff7d; border-color: #4a9; cursor: pointer; }
-  .q-box.final   { background: rgba(40,40,40,0.8); color: #888; border-color: #333; cursor: pointer; }
-  .q-box.current { border-color: #e10102 !important; color: #fff; background: rgba(225,1,2,0.15); cursor: default; }
-  .q-box.locked  { color: #333; cursor: not-allowed; border-color: #222; }
-  .q-box.open    { color: #aaa; cursor: pointer; }
-`;
-
-export default function PuzzlePage() {
-  return (
-    <Suspense fallback={<div style={{ background: "#000", minHeight: "100vh" }} />}>
-      <PuzzleInner />
-    </Suspense>
-  );
-}
-
-function PuzzleInner() {
+export default function EventAdminPage() {
   const router = useRouter();
+  const [entries,     setEntries]     = useState<Entry[]>([]);
+  const [category,    setCategory]    = useState("nodojiman");
+  const [name,        setName]        = useState("");
+  const [description, setDescription] = useState("");
+  const [loading,     setLoading]     = useState(true);
+  const [authed,      setAuthed]      = useState(false);
 
-  const [phase,       setPhase]       = useState<"cover" | "game">("cover");
-  const [currentQ,    setCurrentQ]    = useState(0);
-  const [progress,    setProgress]    = useState<Progress>({ solved: [], hints: [], hints0_2: false, currentQ: 0 });
-  const [answer,      setAnswer]      = useState("");
-  const [answerErr,   setAnswerErr]   = useState<string | null>(null);
-  const [showCorrect, setShowCorrect] = useState(false);
-  const [showEnding,  setShowEnding]  = useState(false);
-
-  const [hintOpen,  setHintOpen]  = useState(false);
-  const [ticket,    setTicket]    = useState<number | null>(null);
-  const [visitorId, setVisitorId] = useState<string | null>(null);
+  const load = useCallback(async () => {
+    setLoading(true);
+    const res  = await fetch("/api/event-entries", { cache: "no-store" });
+    const data = await res.json();
+    setEntries(data.entries ?? []);
+    setLoading(false);
+  }, []);
 
   useEffect(() => {
-    const id = document.cookie
-      .split("; ")
-      .find((r) => r.startsWith("visitor_id="))
-      ?.split("=")[1];
-    setVisitorId(id ?? null);
+    const auth = document.cookie.split("; ").find((r) => r.startsWith("admin_auth="))?.split("=")[1];
+    if (auth !== "1") { router.push("/admin/login"); return; }
+    setAuthed(true);
+    load();
+  }, [router, load]);
 
-    const p = getProgress();
-    setProgress(p);
-
-    // 進行中なら途中から
-    if (p.solved.length > 0 || p.currentQ > 0) {
-      setCurrentQ(p.currentQ);
-      setPhase("game");
-    }
-  }, []);
-
-  const fetchTicket = useCallback(async (vid: string, p: Progress) => {
-    const res  = await fetch(`/api/puzzle-ticket?visitorId=${vid}`);
-    const data = await res.json();
-    const total    = data.total ?? 0;
-    // ヒント消費数 = hints配列数 + hints0_2
-    const consumed = p.hints.length + (p.hints0_2 ? 1 : 0);
-    setTicket(Math.max(0, total - consumed));
-  }, []);
-
-  const openHintModal = async () => {
-    if (!visitorId) return;
-    await fetchTicket(visitorId, progress);
-    setHintOpen(true);
+  const handleAdd = async () => {
+    if (!name) { alert("氏名を入力してください"); return; }
+    const res = await fetch("/api/event-entries/register", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ category, name, description }),
+    });
+    if (res.ok) { setName(""); setDescription(""); await load(); }
+    else { const data = await res.json(); alert("エラー: " + data.error); }
   };
 
-  const unlockHint = (key: "hint1" | "hint0_2") => {
-    if (!ticket || ticket <= 0) { alert("チケットが足りません"); return; }
-    let newP = { ...progress };
-    if (key === "hint1") {
-      newP = { ...newP, hints: [...new Set([...newP.hints, currentQ])] };
+  const handleDelete = async (id: string) => {
+    if (!confirm("削除しますか？")) return;
+    const res = await fetch("/api/event-entries/register", {
+      method: "DELETE", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id }),
+    });
+    if (res.ok) {
+      // stateを直接更新して即時反映
+      setEntries((prev) => prev.filter((e) => e.id !== id));
     } else {
-      newP = { ...newP, hints0_2: true };
-    }
-    setProgress(newP);
-    saveProgress(newP);
-    setTicket((t) => (t ?? 1) - 1);
-  };
-
-  const goToQ = (q: number) => {
-    if (!progress.solved.includes(0) && q !== 0) return;
-    const newP = { ...progress, currentQ: q };
-    setProgress(newP);
-    saveProgress(newP);
-    setCurrentQ(q);
-    setAnswer("");
-    setAnswerErr(null);
-    setShowCorrect(false);
-    setHintOpen(false);
-  };
-
-  const handleSubmit = () => {
-    const correct = ANSWERS[currentQ];
-    if (!correct) { alert("この問題の答えは未設定です"); return; }
-    if (answer.trim().toLowerCase() === correct.toLowerCase()) {
-      const newSolved = [...new Set([...progress.solved, currentQ])];
-      const newP      = { ...progress, solved: newSolved };
-      setProgress(newP);
-      saveProgress(newP);
-      setAnswerErr(null);
-      if (newSolved.length === TOTAL_Q) {
-        setShowEnding(true);
-      } else {
-        setShowCorrect(true);
-      }
-    } else {
-      setAnswerErr("不正解です。もう一度試してください。");
+      const data = await res.json();
+      alert("エラー: " + data.error);
     }
   };
 
-  const goNext = () => {
-    setShowCorrect(false);
-    setAnswer("");
-    if (currentQ < TOTAL_Q - 1) goToQ(currentQ + 1);
-  };
+  if (!authed) return null;
 
-  const isSolved  = progress.solved.includes(currentQ);
-  const q0Solved  = progress.solved.includes(0);
-  const hint1Open = progress.hints.includes(currentQ);
-  const hint2Open = currentQ === 0 && progress.hints0_2;
-
-  // ── 表紙 ──
-  if (phase === "cover") {
-    return (
-      <>
-        <style>{STYLE}</style>
-        <main style={{ background: "#000", minHeight: "100vh", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "20px", position: "relative" }}>
-          <a href="/" style={{ position: "absolute", top: "20px", left: "20px", fontSize: "13px", color: "#666", textDecoration: "none" }}>← ホーム</a>
-          <img src="/puzzle/cover.png" alt="謎解き" style={{ maxWidth: "320px", width: "100%", borderRadius: "12px", marginBottom: "32px" }} />
-          <button
-            onClick={() => { setCurrentQ(progress.currentQ); setPhase("game"); }}
-            style={{ padding: "14px 40px", fontSize: "18px", fontWeight: "bold", backgroundColor: "#e10102", color: "white", border: "none", borderRadius: "10px", cursor: "pointer" }}
-          >
-            {progress.solved.length > 0 ? "途中から再開" : "はじめる"}
-          </button>
-        </main>
-      </>
-    );
-  }
-
-  // ── ゲーム ──
   return (
-    <>
-      <style>{STYLE}</style>
-      <main style={{ background: "#000", minHeight: "100vh", padding: "16px 12px 40px", color: "white", maxWidth: "480px", margin: "0 auto" }}>
+    <main style={{ padding: "24px 20px", maxWidth: "500px", margin: "0 auto" }}>
+      <a href="/admin" style={{ fontSize: "13px", color: "#888", textDecoration: "none", display: "block", marginBottom: "20px" }}>← 管理者メニューに戻る</a>
+      <h1 style={{ fontSize: "20px", marginBottom: "24px" }}>イベント出場者登録</h1>
 
-        {/* ヘッダー */}
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "14px" }}>
-          <a href="/" style={{ fontSize: "13px", color: "#666", textDecoration: "none" }}>← ホーム</a>
-          <span style={{ fontSize: "12px", color: "#444" }}>謎解き</span>
-        </div>
+      <div style={{ display: "flex", flexDirection: "column", gap: "8px", marginBottom: "32px", padding: "16px", border: "1px solid #eee", borderRadius: "10px" }}>
+        <select value={category} onChange={(e) => setCategory(e.target.value)}
+          style={{ padding: "10px", fontSize: "14px", borderRadius: "6px", border: "1px solid #ccc" }}>
+          {EVENT_CATEGORIES.map((c) => <option key={c.key} value={c.key}>{c.label}</option>)}
+        </select>
+        <input placeholder="氏名（例：山田太郎）" value={name} onChange={(e) => setName(e.target.value)}
+          style={{ padding: "10px", fontSize: "14px", borderRadius: "6px", border: "1px solid #ccc" }} />
+        <input placeholder="内容（例：〇〇の歌）" value={description} onChange={(e) => setDescription(e.target.value)}
+          style={{ padding: "10px", fontSize: "14px", borderRadius: "6px", border: "1px solid #ccc" }} />
+        <button onClick={handleAdd}
+          style={{ padding: "10px", fontSize: "15px", cursor: "pointer", backgroundColor: "#e10102", color: "white", border: "none", borderRadius: "6px" }}>
+          追加
+        </button>
+      </div>
 
-        {/* Qボックス */}
-        <div style={{ display: "flex", gap: "6px", justifyContent: "center", marginBottom: "16px", flexWrap: "wrap" }}>
-          {Q_LABELS.map((label, i) => {
-            const solved  = progress.solved.includes(i);
-            const isFinal = i === TOTAL_Q - 1;
-            const isCur   = i === currentQ;
-            const locked  = !q0Solved && i !== 0;
-
-            let cls = "q-box";
-            if (isCur)         cls += " current";
-            else if (solved)   cls += " solved";
-            else if (locked)   cls += " locked";
-            else if (isFinal)  cls += " final";
-            else               cls += " open";
-
-            return (
-              <div
-                key={i}
-                className={cls}
-                onClick={() => !locked && !isCur && goToQ(i)}
-                title={locked ? "Q0を先に解いてください" : ""}
-              >
-                {label}
-              </div>
-            );
-          })}
-        </div>
-
-        {/* 問題画像 */}
-        <div style={{ position: "relative", width: "100%" }}>
-          <img
-            src={`/puzzle/q${currentQ}.png`}
-            alt={`Q${currentQ}`}
-            style={{ width: "100%", borderRadius: "10px", display: "block" }}
-          />
-
-          {/* ヒントボタン（左下）Q3はなし */}
-          {HAS_HINT[currentQ] && (
-            <button
-              onClick={openHintModal}
-              style={{ position: "absolute", bottom: "10px", left: "10px", padding: "8px 14px", fontSize: "13px", backgroundColor: "rgba(0,0,0,0.75)", color: "#fff", border: "1px solid #555", borderRadius: "8px", cursor: "pointer" }}
-            >
-              💡 ヒント
-            </button>
-          )}
-
-          {/* 送信ボタン（右下） */}
-          {!isSolved && (
-            <button
-              onClick={handleSubmit}
-              style={{ position: "absolute", bottom: "10px", right: "10px", padding: "8px 14px", fontSize: "13px", backgroundColor: "#e10102", color: "#fff", border: "none", borderRadius: "8px", cursor: "pointer" }}
-            >
-              送信
-            </button>
-          )}
-        </div>
-
-        {/* 入力 */}
-        {!isSolved ? (
-          <div style={{ marginTop: "16px" }}>
-            <input
-              value={answer}
-              onChange={(e) => setAnswer(e.target.value)}
-              onKeyDown={(e) => { if (e.key === "Enter") handleSubmit(); }}
-              placeholder="答えを入力..."
-              style={{ width: "100%", padding: "12px", fontSize: "16px", borderRadius: "8px", border: "1px solid #444", backgroundColor: "#111", color: "white", boxSizing: "border-box" }}
-            />
-            {answerErr && (
-              <div style={{ marginTop: "10px", padding: "10px", backgroundColor: "rgba(225,1,2,0.2)", borderRadius: "8px", color: "#ff6666", textAlign: "center", fontSize: "14px" }}>
-                {answerErr}
-              </div>
-            )}
-          </div>
-        ) : (
-          <div style={{ marginTop: "16px", padding: "12px", backgroundColor: "rgba(100,200,100,0.15)", borderRadius: "8px", color: "#7dff7d", textAlign: "center", fontSize: "15px" }}>
-            ✅ この問題は正解済みです
-          </div>
-        )}
-      </main>
-
-      {/* 正解モーダル */}
-      {showCorrect && (
-        <div style={{ position: "fixed", inset: 0, backgroundColor: "rgba(0,0,0,0.92)", display: "flex", alignItems: "flex-start", justifyContent: "center", zIndex: 200, overflowY: "auto", padding: "20px 0" }}>
-          <div style={{ backgroundColor: "#111", borderRadius: "16px", padding: "24px 20px", textAlign: "center", maxWidth: "420px", width: "92%", border: "1px solid #333", margin: "auto" }}>
-            <div style={{ fontSize: "40px", marginBottom: "8px" }}>🎉</div>
-            <h2 style={{ color: "#7dff7d", fontSize: "20px", marginBottom: "4px" }}>正解！</h2>
-            <p style={{ color: "#aaa", fontSize: "13px", marginBottom: "16px" }}>{Q_LABELS[currentQ]} クリア！</p>
-            <img src={`/puzzle/correct${currentQ}.png`} alt="解説" style={{ width: "100%", borderRadius: "10px", marginBottom: "20px" }} />
-            <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
-              {currentQ < TOTAL_Q - 1 && (
-                <button onClick={goNext}
-                  style={{ padding: "13px", fontSize: "15px", backgroundColor: "#e10102", color: "white", border: "none", borderRadius: "8px", cursor: "pointer", fontWeight: "bold" }}>
-                  次へ進む →
-                </button>
+      {loading ? <p style={{ color: "#aaa" }}>読み込み中...</p> : (
+        EVENT_CATEGORIES.map((cat) => {
+          const catEntries = entries.filter((e) => e.category === cat.key).sort((a, b) => a.order_num - b.order_num);
+          return (
+            <section key={cat.key} style={{ marginBottom: "28px" }}>
+              <h2 style={{ fontSize: "14px", fontWeight: "bold", marginBottom: "8px", borderBottom: "2px solid #e10102", paddingBottom: "4px" }}>{cat.label}</h2>
+              {catEntries.length === 0 ? (
+                <p style={{ color: "#aaa", fontSize: "13px" }}>まだ登録されていません</p>
+              ) : (
+                <ul style={{ listStyle: "none", padding: 0, margin: 0 }}>
+                  {catEntries.map((e) => (
+                    <li key={e.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 0", borderBottom: "1px solid #f0f0f0" }}>
+                      <div>
+                        <span style={{ fontWeight: "bold", marginRight: "8px" }}>{e.name}</span>
+                        <span style={{ color: "#777", fontSize: "13px" }}>{e.description}</span>
+                      </div>
+                      <button onClick={() => handleDelete(e.id)}
+                        style={{ color: "#f44336", background: "none", border: "none", cursor: "pointer", fontSize: "13px", flexShrink: 0 }}>
+                        削除
+                      </button>
+                    </li>
+                  ))}
+                </ul>
               )}
-              <button onClick={() => setShowCorrect(false)}
-                style={{ padding: "12px", fontSize: "14px", backgroundColor: "#222", color: "#aaa", border: "1px solid #444", borderRadius: "8px", cursor: "pointer" }}>
-                閉じる
-              </button>
-            </div>
-          </div>
-        </div>
+            </section>
+          );
+        })
       )}
-
-      {/* エンディングモーダル */}
-      {showEnding && (
-        <div style={{ position: "fixed", inset: 0, backgroundColor: "rgba(0,0,0,0.97)", display: "flex", alignItems: "flex-start", justifyContent: "center", zIndex: 300, overflowY: "auto", padding: "20px 0" }}>
-          <div style={{ backgroundColor: "#111", borderRadius: "16px", padding: "24px 20px", textAlign: "center", maxWidth: "420px", width: "92%", border: "1px solid #555", margin: "auto" }}>
-            <div style={{ fontSize: "48px", marginBottom: "8px" }}>🏆</div>
-            <h2 style={{ color: "#ffd700", fontSize: "22px", marginBottom: "4px" }}>全問正解！</h2>
-            <p style={{ color: "#aaa", fontSize: "13px", marginBottom: "20px" }}>おめでとうございます！</p>
-            <img src="/puzzle/ending.png" alt="エンディング" style={{ width: "100%", borderRadius: "10px", marginBottom: "20px" }} />
-            <button onClick={() => { setShowEnding(false); router.push("/"); }}
-              style={{ padding: "13px", fontSize: "15px", backgroundColor: "#e10102", color: "white", border: "none", borderRadius: "8px", cursor: "pointer", width: "100%", fontWeight: "bold" }}>
-              ホームに戻る
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* ヒントモーダル */}
-      {hintOpen && (
-        <div style={{ position: "fixed", inset: 0, backgroundColor: "rgba(0,0,0,0.92)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 200, padding: "16px" }}>
-          <div style={{ backgroundColor: "#111", borderRadius: "16px", padding: "24px 20px", maxWidth: "380px", width: "100%", border: "1px solid #333", textAlign: "center", maxHeight: "90vh", overflowY: "auto" }}>
-            <h2 style={{ color: "white", fontSize: "18px", marginBottom: "16px" }}>💡 ヒント</h2>
-
-            {currentQ === 0 ? (
-              // Q0：2枚
-              <>
-                <p style={{ color: "#666", fontSize: "12px", marginBottom: "12px" }}>Q0にはヒントが2つあります</p>
-
-                {/* ヒント1 */}
-                <div style={{ marginBottom: "16px", textAlign: "left" }}>
-                  <p style={{ color: "#888", fontSize: "12px", marginBottom: "6px" }}>ヒント 1</p>
-                  {hint1Open ? (
-                    <img src="/puzzle/hint0-1.png" alt="ヒント1" style={{ width: "100%", borderRadius: "8px" }} />
-                  ) : (
-                    <div style={{ padding: "14px", backgroundColor: "#1a1a1a", borderRadius: "8px", border: "1px solid #333" }}>
-                      <p style={{ color: "#aaa", fontSize: "13px", marginBottom: "8px" }}>🎫 チケット1枚で開封</p>
-                      <button onClick={() => unlockHint("hint1")} disabled={!ticket || ticket <= 0}
-                        style={{ padding: "8px 20px", fontSize: "13px", backgroundColor: ticket && ticket > 0 ? "#e10102" : "#444", color: "white", border: "none", borderRadius: "6px", cursor: ticket && ticket > 0 ? "pointer" : "not-allowed" }}>
-                        使う（残り {ticket ?? "..."} 枚）
-                      </button>
-                    </div>
-                  )}
-                </div>
-
-                {/* ヒント2 */}
-                <div style={{ marginBottom: "16px", textAlign: "left" }}>
-                  <p style={{ color: "#888", fontSize: "12px", marginBottom: "6px" }}>ヒント 2</p>
-                  {hint2Open ? (
-                    <img src="/puzzle/hint0-2.png" alt="ヒント2" style={{ width: "100%", borderRadius: "8px" }} />
-                  ) : (
-                    <div style={{ padding: "14px", backgroundColor: "#1a1a1a", borderRadius: "8px", border: "1px solid #333" }}>
-                      <p style={{ color: "#aaa", fontSize: "13px", marginBottom: "8px" }}>🎫 チケット1枚で開封</p>
-                      <button onClick={() => unlockHint("hint0_2")} disabled={!ticket || ticket <= 0}
-                        style={{ padding: "8px 20px", fontSize: "13px", backgroundColor: ticket && ticket > 0 ? "#e10102" : "#444", color: "white", border: "none", borderRadius: "6px", cursor: ticket && ticket > 0 ? "pointer" : "not-allowed" }}>
-                        使う（残り {ticket ?? "..."} 枚）
-                      </button>
-                    </div>
-                  )}
-                </div>
-              </>
-            ) : (
-              // Q1,Q2,Q4,Q5：1枚
-              <div style={{ marginBottom: "16px" }}>
-                {hint1Open ? (
-                  <img src={`/puzzle/hint${currentQ}.png`} alt="ヒント" style={{ width: "100%", borderRadius: "8px" }} />
-                ) : (
-                  <div style={{ padding: "20px", backgroundColor: "#1a1a1a", borderRadius: "8px", border: "1px solid #333" }}>
-                    <p style={{ color: "#aaa", fontSize: "13px", marginBottom: "8px" }}>🎫 チケット1枚で開封</p>
-                    <p style={{ color: "#fff", fontSize: "20px", fontWeight: "bold", marginBottom: "12px" }}>残り {ticket ?? "..."} 枚</p>
-                    <button onClick={() => unlockHint("hint1")} disabled={!ticket || ticket <= 0}
-                      style={{ padding: "10px 28px", fontSize: "14px", backgroundColor: ticket && ticket > 0 ? "#e10102" : "#444", color: "white", border: "none", borderRadius: "8px", cursor: ticket && ticket > 0 ? "pointer" : "not-allowed" }}>
-                      チケットを使う
-                    </button>
-                  </div>
-                )}
-              </div>
-            )}
-
-            <button onClick={() => setHintOpen(false)}
-              style={{ padding: "10px", fontSize: "14px", backgroundColor: "#222", color: "#aaa", border: "1px solid #444", borderRadius: "8px", cursor: "pointer", width: "100%" }}>
-              閉じる
-            </button>
-          </div>
-        </div>
-      )}
-    </>
+    </main>
   );
 }
