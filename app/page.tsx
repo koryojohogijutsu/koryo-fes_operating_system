@@ -9,7 +9,6 @@ type Status =
   | { state: "ok"; visitorId: string; type: VisitorType }
   | { state: "error"; message: string };
 
-// MD5のインライン実装
 function md5(str: string): string {
   function safeAdd(x: number, y: number) { const lsw = (x & 0xffff) + (y & 0xffff); return (((x >> 16) + (y >> 16) + (lsw >> 16)) << 16) | (lsw & 0xffff); }
   function bitRotateLeft(num: number, cnt: number) { return (num << cnt) | (num >>> (32 - cnt)); }
@@ -58,7 +57,7 @@ function md5(str: string): string {
 
 export default function Home() {
   return (
-    <Suspense fallback={<main style={{ padding: "40px", textAlign: "center" }}><p style={{ color: "#aaa" }}>読み込み中...</p></main>}>
+    <Suspense fallback={<main style={{ padding:"40px", textAlign:"center" }}><p style={{ color:"#aaa" }}>読み込み中...</p></main>}>
       <HomeInner />
     </Suspense>
   );
@@ -67,13 +66,26 @@ export default function Home() {
 function HomeInner() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const [status,     setStatus]     = useState<Status>({ state: "loading" });
-  const [subModal,   setSubModal]   = useState(false);
+  const [status,   setStatus]   = useState<Status>({ state: "loading" });
+  const [subModal, setSubModal] = useState(false);
 
   useEffect(() => {
-    const idParam = searchParams.get("id");
-    const cdParam = searchParams.get("cd");
+    // URLのクエリパラメータを取得
+    // 形式1: /?id=1234&cd=xxxxx  （通常の&区切り）
+    // 形式2: /?id=1234,cd=xxxxx  （カンマ区切り）
+    let rawId = searchParams.get("id");
+    let cdParam = searchParams.get("cd");
 
+    // カンマ区切りの場合をパース: id=1234,cd=xxxxx
+    if (rawId && rawId.includes(",cd=")) {
+      const parts = rawId.split(",cd=");
+      rawId   = parts[0];
+      cdParam = parts[1];
+    }
+
+    const idParam = rawId;
+
+    // ── クエリなし：スマホ来場者 ──
     if (!idParam) {
       const visitorId = document.cookie.split("; ").find((row) => row.startsWith("visitor_id="))?.split("=")[1];
       if (!visitorId) { router.push("/register"); return; }
@@ -81,105 +93,110 @@ function HomeInner() {
       return;
     }
 
-    if (!cdParam) { setStatus({ state: "error", message: "無効なURLです（cdパラメータがありません）" }); return; }
+    // ── クエリあり：紙チケ or 前高生 ──
+    if (!cdParam) {
+      setStatus({ state: "error", message: "無効なURLです（cdパラメータがありません）" });
+      return;
+    }
 
-    const isStudent  = idParam.endsWith("m");
-    const numericId  = isStudent ? idParam.slice(0, -1) : idParam;
-    const salt       = isStudent ? "akagioroshi" : "kakouryubu";
-    const expectedHash = md5(`${numericId}${salt}`);
+    // cdの末尾で前高生判定
+    const isStudent = cdParam.endsWith("m");
+    const cdValue   = isStudent ? cdParam.slice(0, -1) : cdParam; // mを除いたハッシュ値
+    const salt      = isStudent ? "akagioroshi" : "kakouryubu";
+    const expectedHash = md5(`${idParam}${salt}`);
 
-    if (expectedHash !== cdParam) { setStatus({ state: "error", message: "チケットの認証に失敗しました。\nQRコードを正しく読み取ってください。" }); return; }
+    if (expectedHash !== cdValue) {
+      setStatus({ state: "error", message: "チケットの認証に失敗しました。\nQRコードを正しく読み取ってください。" });
+      return;
+    }
 
-    const visitorId = cdParam;
-    document.cookie = `visitor_id=${visitorId}; path=/; SameSite=Lax`;
+    // 検証OK → cdValue（ハッシュ）をvisitor_idとしてcookieに保存
+    const visitorId = cdValue;
+    const expires = new Date();
+    expires.setDate(expires.getDate() + 180);
+    document.cookie = `visitor_id=${visitorId}; path=/; expires=${expires.toUTCString()}; SameSite=Lax`;
+    // visitor_typeもcookieに保存（register APIで使用）
+    document.cookie = `visitor_type=${isStudent ? "student" : "paper"}; path=/; expires=${expires.toUTCString()}; SameSite=Lax`;
+
     setStatus({ state: "ok", visitorId, type: isStudent ? "student" : "paper" });
-  }, [searchParams]);
+  }, [searchParams, router]);
 
-  if (status.state === "loading") return <main style={{ padding: "40px", textAlign: "center" }}><p style={{ color: "#aaa" }}>読み込み中...</p></main>;
+  if (status.state === "loading") return <main style={{ padding:"40px", textAlign:"center" }}><p style={{ color:"#aaa" }}>読み込み中...</p></main>;
 
   if (status.state === "error") return (
-    <main style={{ padding: "40px 20px", textAlign: "center" }}>
-      <div style={{ fontSize: "48px", marginBottom: "16px" }}>⚠️</div>
-      <h1 style={{ fontSize: "20px", marginBottom: "12px" }}>認証エラー</h1>
-      <p style={{ color: "#888", whiteSpace: "pre-line", fontSize: "14px" }}>{status.message}</p>
+    <main style={{ padding:"40px 20px", textAlign:"center" }}>
+      <div style={{ fontSize:"48px", marginBottom:"16px" }}>⚠️</div>
+      <h1 style={{ fontSize:"20px", marginBottom:"12px" }}>認証エラー</h1>
+      <p style={{ color:"#888", whiteSpace:"pre-line", fontSize:"14px" }}>{status.message}</p>
     </main>
   );
 
-  const typeLabel = status.type === "student" ? "前高生" : status.type === "paper" ? "一般来場者（紙チケ）" : "一般来場者";
+  const typeLabel =
+    status.type === "student" ? "前高生" :
+    status.type === "paper"   ? "一般来場者（紙チケ）" : "一般来場者";
 
   return (
     <>
-      <main style={{ padding: "32px 20px 40px", textAlign: "center", maxWidth: "400px", margin: "0 auto", position: "relative" }}>
-
-        {/* サブメニューボタン（右上） */}
-        <button
-          onClick={() => setSubModal(true)}
-          style={{ position: "absolute", top: "20px", right: "20px", width: "40px", height: "40px", borderRadius: "50%", border: "1px solid #ddd", backgroundColor: "white", fontSize: "18px", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 2px 6px rgba(0,0,0,0.08)" }}
-        >
+      <main style={{ padding:"32px 20px 40px", textAlign:"center", maxWidth:"400px", margin:"0 auto", position:"relative" }}>
+        <button onClick={() => setSubModal(true)}
+          style={{ position:"absolute", top:"20px", right:"20px", width:"40px", height:"40px", borderRadius:"50%", border:"1px solid #ddd", backgroundColor:"white", fontSize:"18px", cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", boxShadow:"0 2px 6px rgba(0,0,0,0.08)" }}>
           ☰
         </button>
 
-        <h1 style={{ fontSize: "24px", marginBottom: "4px", marginTop: "8px" }}>蛟龍祭 場内サイト</h1>
-        <p style={{ color: "#888", fontSize: "13px", marginBottom: "36px" }}>{typeLabel}</p>
+        <h1 style={{ fontSize:"24px", marginBottom:"4px", marginTop:"8px" }}>蛟龍祭 場内サイト</h1>
+        <p style={{ color:"#888", fontSize:"13px", marginBottom:"36px" }}>{typeLabel}</p>
 
-        {/* メインボタン */}
-        <div style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
+        <div style={{ display:"flex", flexDirection:"column", gap:"14px" }}>
           <button onClick={() => router.push("/enter")}
-            style={{ padding: "18px", fontSize: "17px", cursor: "pointer", backgroundColor: "#e10102", color: "white", border: "none", borderRadius: "10px" }}>
+            style={{ padding:"18px", fontSize:"17px", cursor:"pointer", backgroundColor:"#e10102", color:"white", border:"none", borderRadius:"10px" }}>
             QRを表示する
           </button>
           <button onClick={() => router.push("/vote")}
-            style={{ padding: "16px", fontSize: "16px", cursor: "pointer", backgroundColor: "white", color: "#e10102", border: "2px solid #e10102", borderRadius: "10px" }}>
+            style={{ padding:"16px", fontSize:"16px", cursor:"pointer", backgroundColor:"white", color:"#e10102", border:"2px solid #e10102", borderRadius:"10px" }}>
             🗳️ クラス投票
           </button>
           <button onClick={() => router.push("/event-enter")}
-            style={{ padding: "16px", fontSize: "16px", cursor: "pointer", backgroundColor: "white", color: "#e10102", border: "2px solid #e10102", borderRadius: "10px" }}>
+            style={{ padding:"16px", fontSize:"16px", cursor:"pointer", backgroundColor:"white", color:"#e10102", border:"2px solid #e10102", borderRadius:"10px" }}>
             🎤 イベント入場・投票
           </button>
           <button onClick={() => router.push("/puzzle")}
-            style={{ padding: "16px", fontSize: "16px", cursor: "pointer", backgroundColor: "white", color: "#e10102", border: "2px solid #e10102", borderRadius: "10px" }}>
+            style={{ padding:"16px", fontSize:"16px", cursor:"pointer", backgroundColor:"white", color:"#e10102", border:"2px solid #e10102", borderRadius:"10px" }}>
             🕵️ 謎解き
           </button>
           <button onClick={() => router.push("/info")}
-            style={{ padding: "16px", fontSize: "16px", cursor: "pointer", backgroundColor: "white", color: "#e10102", border: "2px solid #e10102", borderRadius: "10px" }}>
+            style={{ padding:"16px", fontSize:"16px", cursor:"pointer", backgroundColor:"white", color:"#e10102", border:"2px solid #e10102", borderRadius:"10px" }}>
             ℹ️ インフォメーション
           </button>
         </div>
 
-        <div style={{ marginTop: "40px" }}>
-          <a href="/admin" style={{ fontSize: "12px", color: "#ccc", textDecoration: "none" }}>管理者ログイン</a>
+        <div style={{ marginTop:"40px" }}>
+          <a href="/admin" style={{ fontSize:"12px", color:"#ccc", textDecoration:"none" }}>管理者ログイン</a>
         </div>
       </main>
 
       {/* サブメニューモーダル */}
       {subModal && (
-        <div
-          onClick={() => setSubModal(false)}
-          style={{ position: "fixed", inset: 0, backgroundColor: "rgba(0,0,0,0.5)", zIndex: 200, display: "flex", alignItems: "flex-end", justifyContent: "center" }}
-        >
-          <div
-            onClick={(e) => e.stopPropagation()}
-            style={{ backgroundColor: "white", borderRadius: "20px 20px 0 0", padding: "24px 20px 40px", width: "100%", maxWidth: "480px" }}
-          >
-            <div style={{ width: "40px", height: "4px", backgroundColor: "#ddd", borderRadius: "2px", margin: "0 auto 20px" }} />
-            <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+        <div onClick={() => setSubModal(false)}
+          style={{ position:"fixed", inset:0, backgroundColor:"rgba(0,0,0,0.5)", zIndex:200, display:"flex", alignItems:"flex-end", justifyContent:"center" }}>
+          <div onClick={(e) => e.stopPropagation()}
+            style={{ backgroundColor:"white", borderRadius:"20px 20px 0 0", padding:"24px 20px 40px", width:"100%", maxWidth:"480px" }}>
+            <div style={{ width:"40px", height:"4px", backgroundColor:"#ddd", borderRadius:"2px", margin:"0 auto 20px" }} />
+            <div style={{ display:"flex", flexDirection:"column", gap:"10px" }}>
               {[
-                { label: "📋 履歴を見る",          path: "/history" },
-                { label: "🎇 ペンライト",           path: "/penlight" },
-                { label: "📊 混雑状況（準備中）",  path: null },
+                { label:"📋 履歴を見る",         path:"/history" },
+                { label:"🎇 ペンライト",          path:"/penlight" },
+                { label:"📊 混雑状況（準備中）", path:null },
               ].map((item) => (
-                <button
-                  key={item.label}
+                <button key={item.label}
                   onClick={() => { if (item.path) { router.push(item.path); setSubModal(false); } }}
                   disabled={!item.path}
-                  style={{ padding: "14px 16px", fontSize: "15px", cursor: item.path ? "pointer" : "not-allowed", backgroundColor: "white", color: item.path ? "#333" : "#aaa", border: "1px solid #eee", borderRadius: "8px", textAlign: "left" }}
-                >
+                  style={{ padding:"14px 16px", fontSize:"15px", cursor:item.path?"pointer":"not-allowed", backgroundColor:"white", color:item.path?"#333":"#aaa", border:"1px solid #eee", borderRadius:"8px", textAlign:"left" }}>
                   {item.label}
                 </button>
               ))}
             </div>
             <button onClick={() => setSubModal(false)}
-              style={{ marginTop: "16px", width: "100%", padding: "12px", fontSize: "14px", cursor: "pointer", backgroundColor: "#f5f5f5", color: "#555", border: "none", borderRadius: "8px" }}>
+              style={{ marginTop:"16px", width:"100%", padding:"12px", fontSize:"14px", cursor:"pointer", backgroundColor:"#f5f5f5", color:"#555", border:"none", borderRadius:"8px" }}>
               閉じる
             </button>
           </div>
