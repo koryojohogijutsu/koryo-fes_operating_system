@@ -9,24 +9,22 @@ export async function POST(req: Request) {
 
   const body = await req.json();
 
-  // cookieからvisitor_idを取得
   const cookie = req.headers.get("cookie");
-  const visitorId = cookie
-    ?.split("; ")
-    .find((row) => row.startsWith("visitor_id="))
-    ?.split("=")[1];
+  const visitorId = cookie?.split("; ").find((row) => row.startsWith("visitor_id="))?.split("=")[1];
+  // visitor_typeをcookieから取得（紙チケ来場者のみ設定されている）
+  const visitorType = cookie?.split("; ").find((row) => row.startsWith("visitor_type="))?.split("=")[1] ?? "smartphone";
 
   if (!visitorId) {
     return NextResponse.json({ error: "visitor_id missing" }, { status: 400 });
   }
 
-  // visitsテーブルにアンケート情報を記録
   const { error } = await supabase.from("visits").insert({
-    visitor_id: visitorId,
-    transport:  body.transport,
-    gender:     body.gender,
-    age:        body.age,
-    entered_at: new Date().toISOString(),
+    visitor_id:    visitorId,
+    transport:     body.transport,
+    gender:        body.gender,
+    age:           body.age,
+    visitor_type:  visitorType, // "student" | "paper" | "smartphone"
+    entered_at:    new Date().toISOString(),
   });
 
   if (error) {
@@ -34,7 +32,6 @@ export async function POST(req: Request) {
   }
 
   const response = NextResponse.json({ success: true });
-  // 半年（180日）有効
   const expires = new Date();
   expires.setDate(expires.getDate() + 180);
   response.cookies.set("visitor_id", visitorId, { path: "/", sameSite: "lax", expires });
