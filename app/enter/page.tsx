@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useState, useRef } from "react";
-import { useRouter } from "next/navigation";
+import { useEffect, useState, useRef, Suspense } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import QRCode from "qrcode";
 import { createClient } from "@supabase/supabase-js";
 
@@ -42,7 +42,17 @@ const CY = CX;
 const SVG_SIZE = CX * 2;
 
 export default function EnterPage() {
+  return (
+    <Suspense fallback={<main style={{ padding:"40px", textAlign:"center" }}><p style={{ color:"#aaa" }}>読み込み中...</p></main>}>
+      <EnterInner />
+    </Suspense>
+  );
+}
+
+function EnterInner() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const isRedeemMode = searchParams.get("mode") === "redeem";
   const [visitorId, setVisitorId] = useState<string | null>(null);
   const [qrDataUrl, setQrDataUrl] = useState<string | null>(null);
   const [now, setNow] = useState(new Date());
@@ -117,9 +127,11 @@ export default function EnterPage() {
       <style>{STYLE}</style>
 
       <main style={{ padding: "24px 20px", textAlign: "center", userSelect: "none" }}>
-        <h1 style={{ fontSize: "18px", marginBottom: "2px" }}>あなたのQRコード</h1>
+        <h1 style={{ fontSize: "18px", marginBottom: "2px" }}>
+          {isRedeemMode ? "🎁 景品引換QR" : "あなたのQRコード"}
+        </h1>
         <p style={{ color: "#888", fontSize: "12px", marginBottom: "16px" }}>
-          係員に向けてこの画面を見せてください
+          {isRedeemMode ? "係員にこのQRを見せて景品を受け取ってください" : "係員に向けてこの画面を見せてください"}
         </p>
 
         {/* 時刻表示 */}
