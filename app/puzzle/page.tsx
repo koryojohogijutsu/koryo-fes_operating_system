@@ -2,7 +2,6 @@
 
 import { useEffect, useState, useCallback, Suspense } from "react";
 import { useRouter } from "next/navigation";
-import QRCode from "qrcode";
 
 const TOTAL_Q = 6;
 const Q_LABELS = ["Q0", "Q1", "Q2", "Q3", "Q4", "Final"];
@@ -62,8 +61,6 @@ function PuzzleInner() {
   const [showCorrect, setShowCorrect] = useState(false);
   const [showEnding,  setShowEnding]  = useState(false);
   const [redeemed,    setRedeemed]    = useState(false); // 引換済み
-  const [showRedeemQR, setShowRedeemQR] = useState(false);
-  const [redeemQRUrl,  setRedeemQRUrl]  = useState<string|null>(null);
   const [hintOpen,    setHintOpen]    = useState(false);
   const [ticket,      setTicket]      = useState<number|null>(null);
   const [visitorId,   setVisitorId]   = useState<string|null>(null);
@@ -157,9 +154,7 @@ function PuzzleInner() {
       alert("この景品はすでに引き換え済みです。");
       return;
     }
-    const url = await QRCode.toDataURL(visitorId, { width:256, margin:2, color:{ dark:"#e10102", light:"#ffffff" } });
-    setRedeemQRUrl(url);
-    setShowRedeemQR(true);
+    router.push("/enter?mode=redeem");
   };
 
   const isSolved  = progress.solved.includes(currentQ);
@@ -265,7 +260,10 @@ function PuzzleInner() {
           <div style={{ backgroundColor:"#111",borderRadius:"16px",padding:"24px 20px",textAlign:"center",maxWidth:"420px",width:"92%",border:"1px solid #555",margin:"auto" }}>
             <div style={{ fontSize:"48px",marginBottom:"8px" }}>🏆</div>
             <h2 style={{ color:"#ffd700",fontSize:"22px",marginBottom:"4px" }}>全問正解！</h2>
-            <p style={{ color:"#aaa",fontSize:"13px",marginBottom:"20px" }}>おめでとうございます！</p>
+            <p style={{ color:"#aaa",fontSize:"13px",marginBottom:"8px" }}>おめでとうございます！</p>
+            <p style={{ color:"#ffd700",fontSize:"14px",fontWeight:"bold",marginBottom:"20px" }}>
+              🎁 景品交換は受付（正面玄関）にて
+            </p>
             <img src="/puzzle/ending.png" alt="エンディング" style={{ width:"100%",borderRadius:"10px",marginBottom:"20px" }} />
             <div style={{ display:"flex",flexDirection:"column",gap:"10px" }}>
               {redeemed ? (
@@ -287,21 +285,7 @@ function PuzzleInner() {
         </div>
       )}
 
-      {/* 景品引換QRモーダル */}
-      {showRedeemQR && (
-        <div style={{ position:"fixed",inset:0,backgroundColor:"rgba(0,0,0,0.95)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:400,padding:"20px" }}>
-          <div style={{ backgroundColor:"#111",borderRadius:"16px",padding:"24px 20px",textAlign:"center",maxWidth:"320px",width:"100%",border:"1px solid #555" }}>
-            <h2 style={{ color:"#ffd700",fontSize:"18px",marginBottom:"8px" }}>🎁 景品引換QR</h2>
-            <p style={{ color:"#888",fontSize:"12px",marginBottom:"16px" }}>係員にこのQRを見せてください</p>
-            {redeemQRUrl && <img src={redeemQRUrl} alt="引換QR" style={{ width:"220px",height:"220px",borderRadius:"8px",margin:"0 auto 16px",display:"block" }} />}
-            <p style={{ color:"#555",fontSize:"11px",marginBottom:"16px" }}>※一度しか使えません</p>
-            <button onClick={() => setShowRedeemQR(false)}
-              style={{ padding:"10px",fontSize:"14px",backgroundColor:"#222",color:"#aaa",border:"1px solid #444",borderRadius:"8px",cursor:"pointer",width:"100%" }}>
-              閉じる
-            </button>
-          </div>
-        </div>
-      )}
+
 
       {/* ヒントモーダル */}
       {hintOpen && (
