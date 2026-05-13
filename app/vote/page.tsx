@@ -65,7 +65,7 @@ export default function VotePage() {
           return;
         }
 
-        const entered = visitsData.classCodes ?? [];
+        const entered = (visitsData.classCodes ?? []).filter((c: unknown) => c !== null && c !== undefined && c !== "") as string[];
         const classes = classesData.classes ?? [];
         console.log("[vote] enteredClasses:", entered);
         console.log("[vote] allClasses sample:", classes.slice(0, 3));
