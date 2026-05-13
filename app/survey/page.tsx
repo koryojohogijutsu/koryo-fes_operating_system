@@ -25,18 +25,6 @@ const QUESTIONS = [
   },
 ] as const;
 
-// public/survey/ に入れた画像ファイル名リスト（増やす場合はここに追加）
-const THANKS_IMAGES = [
-  "/survey/thanks1.png",
-  "/survey/thanks2.png",
-  "/survey/thanks3.png",
-  "/survey/thanks4.png",
-  "/survey/thanks5.png",
-];
-
-function getRandomThanksImage() {
-  return THANKS_IMAGES[Math.floor(Math.random() * THANKS_IMAGES.length)];
-}
 // ============================================================
 
 type QuestionKey = typeof QUESTIONS[number]["key"];
@@ -66,7 +54,6 @@ export default function SurveyPage() {
   const [loading,      setLoading]      = useState(true);
   const [submitting,   setSubmitting]   = useState(false);
   const [error,        setError]        = useState<string | null>(null);
-  const [thanksImage,  setThanksImage]  = useState("");
 
   useEffect(() => {
     const id = document.cookie
@@ -153,9 +140,7 @@ export default function SurveyPage() {
 
     const data = await res.json();
     if (res.status === 409) {
-      // 既に送信済み
       setSubmitted((prev) => [...prev, selected.code]);
-      setThanksImage(getRandomThanksImage());
       setPhase("done");
       setSubmitting(false);
       return;
@@ -167,7 +152,6 @@ export default function SurveyPage() {
     }
 
     setSubmitted((prev) => [...prev, selected.code]);
-    setThanksImage(getRandomThanksImage());
     setPhase("done");
     setSubmitting(false);
   };
@@ -318,16 +302,6 @@ export default function SurveyPage() {
           <p style={{ color: "#888", fontSize: "13px", marginBottom: "20px" }}>
             アンケートを送信しました
           </p>
-
-          {/* 完了画像（ランダム） */}
-          {thanksImage && (
-            <img
-              src={thanksImage}
-              alt="ありがとうございました"
-              style={{ width: "100%", borderRadius: "12px", marginBottom: "24px" }}
-              onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
-            />
-          )}
 
           <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
             <button onClick={() => setPhase("select")}
