@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 
 type Class = { code: string; label: string };
 
@@ -21,31 +22,58 @@ const CATEGORIES = [
 
 export default function VotePage() {
   const router = useRouter();
+  const [visitorId,      setVisitorId]      = useState<string | null>(null);
   const [enteredClasses, setEnteredClasses] = useState<string[]>([]);
   const [allClasses,     setAllClasses]     = useState<Class[]>([]);
   const [selections,     setSelections]     = useState<Selections>({ grade1: "", grade2: "", grade3: "", decoration: "" });
   const [loading,        setLoading]        = useState(true);
+  const [error,          setError]          = useState<string | null>(null);
 
   useEffect(() => {
-    const visitorId = document.cookie
+    const id = document.cookie
       .split("; ")
       .find((row) => row.startsWith("visitor_id="))
       ?.split("=")[1];
-    if (!visitorId) { router.push("/register"); return; }
+
+    if (!id) { router.push("/register"); return; }
+    setVisitorId(id);
 
     const load = async () => {
-      const visitsRes = await fetch(`/api/get-entered-classes`, {
-        headers: { "x-visitor-id": visitorId },
-        cache: "no-store",
-      });
-      const visitsData = await visitsRes.json();
-      setEnteredClasses(visitsData.classCodes ?? []);
+      try {
+        // 並列で両APIを叩く
+        const [visitsRes, classesRes] = await Promise.all([
+          fetch("/api/get-entered-classes", {
+            headers: { "x-visitor-id": id },
+            cache: "no-store",
+          }),
+          fetch("/api/classes", { cache: "no-store" }),
+        ]);
 
-      const classesRes = await fetch("/api/classes", { cache: "no-store" });
-      const classesData = await classesRes.json();
-      setAllClasses(classesData.classes ?? []);
-      setLoading(false);
+        const [visitsData, classesData] = await Promise.all([
+          visitsRes.json(),
+          classesRes.json(),
+        ]);
+
+        if (!visitsRes.ok) {
+          setError(`入場履歴の取得に失敗しました: ${visitsData.error ?? visitsRes.status}`);
+          setLoading(false);
+          return;
+        }
+        if (!classesRes.ok) {
+          setError(`クラス一覧の取得に失敗しました: ${classesData.error ?? classesRes.status}`);
+          setLoading(false);
+          return;
+        }
+
+        setEnteredClasses(visitsData.classCodes ?? []);
+        setAllClasses(classesData.classes ?? []);
+      } catch (e) {
+        setError("通信エラーが発生しました。ページを再読み込みしてください。");
+      } finally {
+        setLoading(false);
+      }
     };
+
     load();
   }, [router]);
 
@@ -67,15 +95,35 @@ export default function VotePage() {
 
   const hasAnySelection = Object.values(selections).some((v) => v !== "");
 
-  if (loading) return <main style={{ padding: "40px", textAlign: "center" }}><p style={{ color: "#aaa" }}>読み込み中...</p></main>;
+  if (loading) return (
+    <main style={{ padding: "40px", textAlign: "center" }}>
+      <p style={{ color: "#aaa" }}>読み込み中...</p>
+    </main>
+  );
+
+  if (error) return (
+    <main style={{ padding: "40px 20px", textAlign: "center" }}>
+      <p style={{ color: "#f44336", fontSize: "14px", marginBottom: "16px" }}>{error}</p>
+      <button onClick={() => window.location.reload()}
+        style={{ padding: "10px 20px", fontSize: "14px", cursor: "pointer", backgroundColor: "#e10102", color: "white", border: "none", borderRadius: "8px" }}>
+        再読み込み
+      </button>
+    </main>
+  );
 
   return (
     <main style={{ padding: "24px 20px", maxWidth: "480px", margin: "0 auto" }}>
-      <a href="/" style={{ fontSize: "13px", color: "#888", textDecoration: "none", display: "block", marginBottom: "20px" }}>
+      <Link href="/" style={{ fontSize: "13px", color: "#888", textDecoration: "none", display: "block", marginBottom: "20px" }}>
         ← ホームに戻る
-      </a>
+      </Link>
       <h1 style={{ fontSize: "20px", marginBottom: "6px" }}>🏫 クラス企画投票</h1>
       <p style={{ color: "#888", fontSize: "13px", marginBottom: "28px" }}>入場したクラスのみ投票できます</p>
+
+      {enteredClasses.length === 0 && (
+        <div style={{ padding: "16px", backgroundColor: "#fff8e1", border: "1px solid #ffe082", borderRadius: "8px", marginBottom: "24px", fontSize: "13px", color: "#b8860b" }}>
+          ⚠️ まだどのクラスにも入場していません。クラスのQRを読み取ってから投票してください。
+        </div>
+      )}
 
       {CATEGORIES.map((cat) => {
         const classes = getClassesForCategory(cat.grade);
