@@ -172,6 +172,10 @@ function HomeInner() {
             style={{ padding:"16px", fontSize:"16px", cursor:"pointer", backgroundColor:"white", color:"#e10102", border:"2px solid #e10102", borderRadius:"10px", textDecoration:"none", display:"block" }}>
             🕵️ 謎解き
           </Link>
+          <Link href="/survey"
+            style={{ padding:"16px", fontSize:"16px", cursor:"pointer", backgroundColor:"white", color:"#e10102", border:"2px solid #e10102", borderRadius:"10px", textDecoration:"none", display:"block" }}>
+            📝 アンケート
+          </Link>
           <Link href="/info"
             style={{ padding:"16px", fontSize:"16px", cursor:"pointer", backgroundColor:"white", color:"#e10102", border:"2px solid #e10102", borderRadius:"10px", textDecoration:"none", display:"block" }}>
             ℹ️ インフォメーション
