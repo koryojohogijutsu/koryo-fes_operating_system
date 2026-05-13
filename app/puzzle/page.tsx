@@ -217,7 +217,7 @@ function PuzzleInner() {
               • 各問題の答えを入力して「送信」を押してください。
             </p>
             <p style={{ color:"#bbb",fontSize:"13px",lineHeight:"1.8",margin:"0 0 8px" }}>
-              • 困ったときはヒントを使おう（ヒントチケットが必要です）。
+              • 困ったときはヒントを使おう（クラス企画やイベントに参加するともらえるヒントチケットが必要です）。
             </p>
             <p style={{ color:"#bbb",fontSize:"13px",lineHeight:"1.8",margin:"0" }}>
               • 全問正解するとスペシャルな景品と交換できます！
