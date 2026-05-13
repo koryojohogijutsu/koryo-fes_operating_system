@@ -99,9 +99,9 @@ function HomeInner() {
       return;
     }
 
-    // cdの末尾で前高生判定
-    const isStudent = cdParam.endsWith("m");
-    const cdValue   = isStudent ? cdParam.slice(0, -1) : cdParam; // mを除いたハッシュ値
+    // cdの末尾で前高生判定（末尾がm$なら前高生）
+    const isStudent = cdParam.endsWith("m$");
+    const cdValue   = isStudent ? cdParam.slice(0, -2) : cdParam; // m$を除いたハッシュ値
     const salt      = isStudent ? "akagioroshi" : "kakouryubu";
     const expectedHash = md5(`${idParam}${salt}`);
 
