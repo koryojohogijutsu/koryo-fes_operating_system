@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback, Suspense } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 
 const TOTAL_Q = 6;
 const Q_LABELS = ["Q0", "Q1", "Q2", "Q3", "Q4", "Final"];
@@ -37,6 +38,9 @@ function saveProgress(p: Progress) {
   document.cookie = `puzzle_progress=${encodeURIComponent(JSON.stringify(p))}; path=/; expires=${expires.toUTCString()}; SameSite=Lax`;
 }
 
+// Q0〜Q5(Final)の表示ラベル（履歴用）
+const PROGRESS_LABELS = ["Q0", "Q1", "Q2", "Q3", "Q4", "Final", "Complete"];
+
 const STYLE = `
   body { background: #000 !important; }
   .q-box { width:44px;height:32px;border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:bold;border:1px solid #444;transition:all 0.2s;user-select:none; }
@@ -60,10 +64,11 @@ function PuzzleInner() {
   const [answerErr,   setAnswerErr]   = useState<string|null>(null);
   const [showCorrect, setShowCorrect] = useState(false);
   const [showEnding,  setShowEnding]  = useState(false);
-  const [redeemed,    setRedeemed]    = useState(false); // 引換済み
+  const [redeemed,    setRedeemed]    = useState(false);
   const [hintOpen,    setHintOpen]    = useState(false);
   const [ticket,      setTicket]      = useState<number|null>(null);
   const [visitorId,   setVisitorId]   = useState<string|null>(null);
+  const [clearCount,  setClearCount]  = useState<number|null>(null);
 
   useEffect(() => {
     const id = document.cookie.split("; ").find((r) => r.startsWith("visitor_id="))?.split("=")[1];
@@ -71,16 +76,19 @@ function PuzzleInner() {
     const p = getProgress();
     setProgress(p);
 
-    // 全問正解済みならエンディングへ
     if (p.solved.length === TOTAL_Q) {
       setCurrentQ(p.currentQ);
       setPhase("game");
-      // 引換済みか確認
       if (id) {
         fetch(`/api/puzzle-clear?visitorId=${id}`, { cache: "no-store" })
           .then((r) => r.json())
           .then((d) => { if (d.redeemed) setRedeemed(true); });
       }
+      // コンプリート者数取得
+      fetch("/api/puzzle-clear-count", { cache: "no-store" })
+        .then((r) => r.json())
+        .then((d) => { if (typeof d.count === "number") setClearCount(d.count); })
+        .catch(() => {});
       setShowEnding(true);
       return;
     }
@@ -88,7 +96,25 @@ function PuzzleInner() {
       setCurrentQ(p.currentQ);
       setPhase("game");
     }
+
+    // カバー表示時もコンプリート者数を取得（コンプリート済みの場合）
+    if (p.solved.length === TOTAL_Q) {
+      fetch("/api/puzzle-clear-count", { cache: "no-store" })
+        .then((r) => r.json())
+        .then((d) => { if (typeof d.count === "number") setClearCount(d.count); })
+        .catch(() => {});
+    }
   }, []);
+
+  // コンプリート済みでカバーを開いたときにも取得
+  useEffect(() => {
+    if (phase === "cover" && progress.solved.length === TOTAL_Q) {
+      fetch("/api/puzzle-clear-count", { cache: "no-store" })
+        .then((r) => r.json())
+        .then((d) => { if (typeof d.count === "number") setClearCount(d.count); })
+        .catch(() => {});
+    }
+  }, [phase, progress.solved.length]);
 
   const fetchTicket = useCallback(async (vid: string, p: Progress) => {
     const res  = await fetch(`/api/puzzle-ticket?visitorId=${vid}`, { cache: "no-store" });
@@ -128,10 +154,14 @@ function PuzzleInner() {
       setProgress(newP); saveProgress(newP);
       setAnswerErr(null);
       if (newSolved.length === TOTAL_Q) {
-        // クリア記録
         if (visitorId) {
           fetch("/api/puzzle-clear", { method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify({ visitorId }) });
         }
+        // コンプリート者数更新
+        fetch("/api/puzzle-clear-count", { cache: "no-store" })
+          .then((r) => r.json())
+          .then((d) => { if (typeof d.count === "number") setClearCount(d.count); })
+          .catch(() => {});
         setShowEnding(true);
       } else {
         setShowCorrect(true);
@@ -143,10 +173,8 @@ function PuzzleInner() {
 
   const goNext = () => { setShowCorrect(false); setAnswer(""); if (currentQ < TOTAL_Q-1) goToQ(currentQ+1); };
 
-  // 引換QR表示
   const openRedeemQR = async () => {
     if (!visitorId) return;
-    // 引換済みチェック
     const res  = await fetch(`/api/puzzle-clear?visitorId=${visitorId}`, { cache:"no-store" });
     const data = await res.json();
     if (data.redeemed) {
@@ -169,8 +197,41 @@ function PuzzleInner() {
       <>
         <style>{STYLE}</style>
         <main style={{ background:"#000",minHeight:"100vh",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",padding:"20px",position:"relative" }}>
-          <a href="/" style={{ position:"absolute",top:"20px",left:"20px",fontSize:"13px",color:"#666",textDecoration:"none" }}>← ホーム</a>
-          <img src="/puzzle/cover.png" alt="謎解き" style={{ maxWidth:"320px",width:"100%",borderRadius:"12px",marginBottom:"32px" }} />
+          {/* ホームへ戻る（上部） */}
+          <Link href="/" style={{ position:"absolute",top:"20px",left:"20px",fontSize:"13px",color:"#666",textDecoration:"none" }}>
+            ← ホーム
+          </Link>
+
+          <img src="/puzzle/cover.png" alt="謎解き" style={{ maxWidth:"320px",width:"100%",borderRadius:"12px",marginBottom:"24px" }} />
+
+          {/* 謎解きガイド説明文 */}
+          <div style={{ maxWidth:"320px",width:"100%",marginBottom:"28px",textAlign:"left",backgroundColor:"rgba(255,255,255,0.05)",borderRadius:"12px",padding:"16px 18px",border:"1px solid rgba(255,255,255,0.08)" }}>
+            <p style={{ color:"#fff",fontSize:"17px",fontWeight:"bold",marginBottom:"12px",textAlign:"center" }}>謎解きガイド</p>
+            <p style={{ color:"#bbb",fontSize:"13px",lineHeight:"1.8",margin:"0 0 8px" }}>
+              • Q0〜Q4とFinalの全6問に挑戦しよう！
+            </p>
+            <p style={{ color:"#bbb",fontSize:"13px",lineHeight:"1.8",margin:"0 0 8px" }}>
+              • まずQ0を解くと、Q1〜Finalが開放されます。
+            </p>
+            <p style={{ color:"#bbb",fontSize:"13px",lineHeight:"1.8",margin:"0 0 8px" }}>
+              • 各問題の答えを入力して「送信」を押してください。
+            </p>
+            <p style={{ color:"#bbb",fontSize:"13px",lineHeight:"1.8",margin:"0 0 8px" }}>
+              • 困ったときはヒントを使おう（ヒントチケットが必要です）。
+            </p>
+            <p style={{ color:"#bbb",fontSize:"13px",lineHeight:"1.8",margin:"0" }}>
+              • 全問正解するとスペシャルな景品と交換できます！
+            </p>
+          </div>
+
+          {/* コンプリート者数（コンプリート済みの場合のみ表示） */}
+          {allSolved && clearCount !== null && (
+            <div style={{ marginBottom:"16px",display:"inline-flex",alignItems:"center",gap:"6px",backgroundColor:"rgba(255,215,0,0.1)",border:"1px solid rgba(255,215,0,0.3)",borderRadius:"20px",padding:"6px 16px",fontSize:"13px",color:"#ffd700" }}>
+              <span>🏆</span>
+              <span>コンプリート達成者: <strong>{clearCount}人</strong></span>
+            </div>
+          )}
+
           <button onClick={() => { setCurrentQ(progress.currentQ); setPhase("game"); }}
             style={{ padding:"14px 40px",fontSize:"18px",fontWeight:"bold",backgroundColor:"#e10102",color:"white",border:"none",borderRadius:"10px",cursor:"pointer" }}>
             {progress.solved.length > 0 ? "途中から再開" : "はじめる"}
@@ -186,7 +247,7 @@ function PuzzleInner() {
       <style>{STYLE}</style>
       <main style={{ background:"#000",minHeight:"100vh",padding:"16px 12px 40px",color:"white",maxWidth:"480px",margin:"0 auto" }}>
         <div style={{ display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:"14px" }}>
-          <a href="/" style={{ fontSize:"13px",color:"#666",textDecoration:"none" }}>← ホーム</a>
+          <Link href="/" style={{ fontSize:"13px",color:"#666",textDecoration:"none" }}>← ホーム</Link>
           <span style={{ fontSize:"12px",color:"#444" }}>謎解き</span>
         </div>
 
@@ -206,6 +267,16 @@ function PuzzleInner() {
             return <div key={i} className={cls} onClick={() => !locked && !isCur && goToQ(i)} title={locked?"Q0を先に解いてください":""}>{label}</div>;
           })}
         </div>
+
+        {/* Q4バナー */}
+        {currentQ === 4 && (
+          <div style={{ marginBottom:"12px",padding:"10px 16px",backgroundColor:"rgba(255,200,0,0.12)",border:"1px solid rgba(255,200,0,0.35)",borderRadius:"8px",display:"flex",alignItems:"center",gap:"8px" }}>
+            <span style={{ fontSize:"18px" }}>🛍️</span>
+            <span style={{ fontSize:"13px",color:"#ffd700",fontWeight:"bold",lineHeight:"1.5" }}>
+              この教室で開催されるバザーも是非ご覧ください！
+            </span>
+          </div>
+        )}
 
         {/* 問題画像 */}
         <div style={{ position:"relative",width:"100%" }}>
@@ -260,7 +331,12 @@ function PuzzleInner() {
           <div style={{ backgroundColor:"#111",borderRadius:"16px",padding:"24px 20px",textAlign:"center",maxWidth:"420px",width:"92%",border:"1px solid #555",margin:"auto" }}>
             <div style={{ fontSize:"48px",marginBottom:"8px" }}>🏆</div>
             <h2 style={{ color:"#ffd700",fontSize:"22px",marginBottom:"4px" }}>全問正解！</h2>
-            <p style={{ color:"#aaa",fontSize:"13px",marginBottom:"8px" }}>おめでとうございます！</p>
+            <p style={{ color:"#aaa",fontSize:"13px",marginBottom:"4px" }}>おめでとうございます！</p>
+            {clearCount !== null && (
+              <p style={{ color:"#ffd700",fontSize:"13px",marginBottom:"4px" }}>
+                🏅 コンプリート達成者: <strong>{clearCount}人</strong>
+              </p>
+            )}
             <p style={{ color:"#ffd700",fontSize:"14px",fontWeight:"bold",marginBottom:"20px" }}>
               🎁 景品交換は受付（正面玄関）にて
             </p>
@@ -285,8 +361,6 @@ function PuzzleInner() {
         </div>
       )}
 
-
-
       {/* ヒントモーダル */}
       {hintOpen && (
         <div style={{ position:"fixed",inset:0,backgroundColor:"rgba(0,0,0,0.92)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:200,padding:"16px" }}>
@@ -295,7 +369,6 @@ function PuzzleInner() {
             {currentQ === 0 ? (
               <>
                 <p style={{ color:"#666",fontSize:"12px",marginBottom:"12px" }}>Q0にはヒントが2つあります</p>
-                {/* ヒント1 */}
                 <div style={{ marginBottom:"16px",textAlign:"left" }}>
                   <p style={{ color:"#888",fontSize:"12px",marginBottom:"6px" }}>ヒント 1</p>
                   {hint1Open ? (
@@ -310,7 +383,6 @@ function PuzzleInner() {
                     </div>
                   )}
                 </div>
-                {/* ヒント2 */}
                 <div style={{ marginBottom:"16px",textAlign:"left" }}>
                   <p style={{ color:"#888",fontSize:"12px",marginBottom:"6px" }}>ヒント 2</p>
                   {hint2Open ? (
