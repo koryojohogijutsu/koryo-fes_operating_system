@@ -1,6 +1,10 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 
+const NO_CACHE = {
+  headers: { "Cache-Control": "no-store, no-cache, must-revalidate" },
+};
+
 export async function GET() {
   const supabase = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -16,5 +20,5 @@ export async function GET() {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 
-  return NextResponse.json({ classes: data ?? [] });
+  return NextResponse.json({ classes: data ?? [] }, NO_CACHE);
 }
