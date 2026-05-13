@@ -2,6 +2,7 @@
 
 import { useEffect, useState, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import Link from "next/link";
 
 type VisitorType = "smartphone" | "paper" | "student";
 type Status =
@@ -66,17 +67,22 @@ export default function Home() {
 function HomeInner() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const [status,   setStatus]   = useState<Status>({ state: "loading" });
-  const [subModal, setSubModal] = useState(false);
+  const [status,        setStatus]        = useState<Status>({ state: "loading" });
+  const [subModal,      setSubModal]      = useState(false);
+  const [clearCount,    setClearCount]    = useState<number | null>(null);
+
+  // 謎解きコンプリート者数を取得
+  useEffect(() => {
+    fetch("/api/puzzle-clear-count", { cache: "no-store" })
+      .then((r) => r.json())
+      .then((d) => { if (typeof d.count === "number") setClearCount(d.count); })
+      .catch(() => {});
+  }, []);
 
   useEffect(() => {
-    // URLのクエリパラメータを取得
-    // 形式1: /?id=1234&cd=xxxxx  （通常の&区切り）
-    // 形式2: /?id=1234,cd=xxxxx  （カンマ区切り）
     let rawId = searchParams.get("id");
     let cdParam = searchParams.get("cd");
 
-    // カンマ区切りの場合をパース: id=1234,cd=xxxxx
     if (rawId && rawId.includes(",cd=")) {
       const parts = rawId.split(",cd=");
       rawId   = parts[0];
@@ -85,7 +91,6 @@ function HomeInner() {
 
     const idParam = rawId;
 
-    // ── クエリなし：スマホ来場者 ──
     if (!idParam) {
       const visitorId = document.cookie.split("; ").find((row) => row.startsWith("visitor_id="))?.split("=")[1];
       if (!visitorId) { router.push("/register"); return; }
@@ -93,15 +98,13 @@ function HomeInner() {
       return;
     }
 
-    // ── クエリあり：紙チケ or 前高生 ──
     if (!cdParam) {
       setStatus({ state: "error", message: "無効なURLです（cdパラメータがありません）" });
       return;
     }
 
-    // cdの末尾で前高生判定（末尾がm$なら前高生）
     const isStudent = cdParam.endsWith("m$");
-    const cdValue   = isStudent ? cdParam.slice(0, -2) : cdParam; // m$を除いたハッシュ値
+    const cdValue   = isStudent ? cdParam.slice(0, -2) : cdParam;
     const salt      = isStudent ? "akagioroshi" : "kakouryubu";
     const expectedHash = md5(`${idParam}${salt}`);
 
@@ -110,12 +113,10 @@ function HomeInner() {
       return;
     }
 
-    // 検証OK → cdValue（ハッシュ）をvisitor_idとしてcookieに保存
     const visitorId = cdValue;
     const expires = new Date();
     expires.setDate(expires.getDate() + 180);
     document.cookie = `visitor_id=${visitorId}; path=/; expires=${expires.toUTCString()}; SameSite=Lax`;
-    // visitor_typeもcookieに保存（register APIで使用）
     document.cookie = `visitor_type=${isStudent ? "student" : "paper"}; path=/; expires=${expires.toUTCString()}; SameSite=Lax`;
 
     setStatus({ state: "ok", visitorId, type: isStudent ? "student" : "paper" });
@@ -144,29 +145,37 @@ function HomeInner() {
         </button>
 
         <h1 style={{ fontSize:"24px", marginBottom:"4px", marginTop:"8px" }}>蛟龍祭 場内サイト</h1>
-        <p style={{ color:"#888", fontSize:"13px", marginBottom:"36px" }}>{typeLabel}</p>
+        <p style={{ color:"#888", fontSize:"13px", marginBottom:"24px" }}>{typeLabel}</p>
+
+        {/* 謎解きコンプリート者数バッジ */}
+        {clearCount !== null && (
+          <div style={{ marginBottom:"20px", display:"inline-flex", alignItems:"center", gap:"6px", backgroundColor:"#fff8e1", border:"1px solid #ffe082", borderRadius:"20px", padding:"6px 16px", fontSize:"13px", color:"#b8860b" }}>
+            <span>🏆</span>
+            <span>謎解きコンプリート: <strong>{clearCount}人</strong></span>
+          </div>
+        )}
 
         <div style={{ display:"flex", flexDirection:"column", gap:"14px" }}>
-          <button onClick={() => router.push("/enter")}
-            style={{ padding:"18px", fontSize:"17px", cursor:"pointer", backgroundColor:"#e10102", color:"white", border:"none", borderRadius:"10px" }}>
+          <Link href="/enter"
+            style={{ padding:"18px", fontSize:"17px", cursor:"pointer", backgroundColor:"#e10102", color:"white", border:"none", borderRadius:"10px", textDecoration:"none", display:"block" }}>
             QRを表示する
-          </button>
-          <button onClick={() => router.push("/vote")}
-            style={{ padding:"16px", fontSize:"16px", cursor:"pointer", backgroundColor:"white", color:"#e10102", border:"2px solid #e10102", borderRadius:"10px" }}>
+          </Link>
+          <Link href="/vote"
+            style={{ padding:"16px", fontSize:"16px", cursor:"pointer", backgroundColor:"white", color:"#e10102", border:"2px solid #e10102", borderRadius:"10px", textDecoration:"none", display:"block" }}>
             🗳️ クラス投票
-          </button>
-          <button onClick={() => router.push("/event-enter")}
-            style={{ padding:"16px", fontSize:"16px", cursor:"pointer", backgroundColor:"white", color:"#e10102", border:"2px solid #e10102", borderRadius:"10px" }}>
+          </Link>
+          <Link href="/event-enter"
+            style={{ padding:"16px", fontSize:"16px", cursor:"pointer", backgroundColor:"white", color:"#e10102", border:"2px solid #e10102", borderRadius:"10px", textDecoration:"none", display:"block" }}>
             🎤 イベント入場・投票
-          </button>
-          <button onClick={() => router.push("/puzzle")}
-            style={{ padding:"16px", fontSize:"16px", cursor:"pointer", backgroundColor:"white", color:"#e10102", border:"2px solid #e10102", borderRadius:"10px" }}>
+          </Link>
+          <Link href="/puzzle"
+            style={{ padding:"16px", fontSize:"16px", cursor:"pointer", backgroundColor:"white", color:"#e10102", border:"2px solid #e10102", borderRadius:"10px", textDecoration:"none", display:"block" }}>
             🕵️ 謎解き
-          </button>
-          <button onClick={() => router.push("/info")}
-            style={{ padding:"16px", fontSize:"16px", cursor:"pointer", backgroundColor:"white", color:"#e10102", border:"2px solid #e10102", borderRadius:"10px" }}>
+          </Link>
+          <Link href="/info"
+            style={{ padding:"16px", fontSize:"16px", cursor:"pointer", backgroundColor:"white", color:"#e10102", border:"2px solid #e10102", borderRadius:"10px", textDecoration:"none", display:"block" }}>
             ℹ️ インフォメーション
-          </button>
+          </Link>
         </div>
 
         <div style={{ marginTop:"40px" }}>
@@ -183,8 +192,8 @@ function HomeInner() {
             <div style={{ width:"40px", height:"4px", backgroundColor:"#ddd", borderRadius:"2px", margin:"0 auto 20px" }} />
             <div style={{ display:"flex", flexDirection:"column", gap:"10px" }}>
               {[
-                { label:"📋 履歴を見る",         path:"/history" },
-                { label:"🎇 ペンライト",          path:"/penlight" },
+                { label:"📋 履歴を見る", path:"/history" },
+                { label:"🎇 ペンライト",  path:"/penlight" },
                 { label:"📊 混雑状況（準備中）", path:null },
               ].map((item) => (
                 <button key={item.label}
