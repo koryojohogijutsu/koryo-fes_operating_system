@@ -2,12 +2,6 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { createClient } from "@supabase/supabase-js";
-
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-);
 
 type Class = { code: string; label: string };
 
@@ -40,13 +34,16 @@ export default function VotePage() {
     if (!visitorId) { router.push("/register"); return; }
 
     const load = async () => {
-      const { data: visits } = await supabase
-        .from("visits").select("class_code").eq("visitor_id", visitorId);
-      setEnteredClasses([...new Set((visits ?? []).map((v) => v.class_code))] as string[]);
+      const visitsRes = await fetch(`/api/get-entered-classes`, {
+        headers: { "x-visitor-id": visitorId },
+        cache: "no-store",
+      });
+      const visitsData = await visitsRes.json();
+      setEnteredClasses(visitsData.classCodes ?? []);
 
-      const { data: classes } = await supabase
-        .from("classes").select("code, label").order("code");
-      setAllClasses(classes ?? []);
+      const classesRes = await fetch("/api/classes", { cache: "no-store" });
+      const classesData = await classesRes.json();
+      setAllClasses(classesData.classes ?? []);
       setLoading(false);
     };
     load();
@@ -65,7 +62,7 @@ export default function VotePage() {
   const handleNext = () => {
     const params = new URLSearchParams();
     Object.entries(selections).forEach(([k, v]) => { if (v) params.set(k, v); });
-    router.push(`/vote/class/confirm?${params.toString()}`);
+    router.push(`/vote/confirm?${params.toString()}`);
   };
 
   const hasAnySelection = Object.values(selections).some((v) => v !== "");
