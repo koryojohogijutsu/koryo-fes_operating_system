@@ -18,7 +18,7 @@ export default function StaffSettingsPage() {
     if (stored) setSelected(stored);
 
     // クラス一覧を取得
-    fetch("/api/classes")
+    fetch("/api/classes", { cache: "no-store" })
       .then((res) => res.json())
       .then((data) => {
         setClasses(data.classes ?? []);
