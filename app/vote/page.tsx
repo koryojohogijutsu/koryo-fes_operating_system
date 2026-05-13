@@ -1,5 +1,4 @@
 "use client";
-
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
@@ -34,13 +33,11 @@ export default function VotePage() {
       .split("; ")
       .find((row) => row.startsWith("visitor_id="))
       ?.split("=")[1];
-
     if (!id) { router.push("/register"); return; }
     setVisitorId(id);
 
     const load = async () => {
       try {
-        // 並列で両APIを叩く
         const [visitsRes, classesRes] = await Promise.all([
           fetch("/api/get-entered-classes", {
             headers: { "x-visitor-id": id },
@@ -65,17 +62,13 @@ export default function VotePage() {
           return;
         }
 
-        const entered = (visitsData.classCodes ?? []).filter((c: unknown) => c !== null && c !== undefined && c !== "") as string[];
-        const classes = classesData.classes ?? [];
-        console.log("[vote] enteredClasses:", entered);
-        console.log("[vote] allClasses sample:", classes.slice(0, 3));
-        console.log("[vote] match check:", entered.map((code: string) => ({
-          code,
-          found: classes.some((c: { code: string }) => c.code === code),
-        })));
+        const entered = (visitsData.classCodes ?? []).filter(
+          (c: unknown) => c !== null && c !== undefined && c !== ""
+        ) as string[];
+
         setEnteredClasses(entered);
-        setAllClasses(classes);
-      } catch (e) {
+        setAllClasses(classesData.classes ?? []);
+      } catch {
         setError("通信エラーが発生しました。ページを再読み込みしてください。");
       } finally {
         setLoading(false);
@@ -126,18 +119,6 @@ export default function VotePage() {
       </Link>
       <h1 style={{ fontSize: "20px", marginBottom: "6px" }}>🏫 クラス企画投票</h1>
       <p style={{ color: "#888", fontSize: "13px", marginBottom: "28px" }}>入場したクラスのみ投票できます</p>
-
-      {/* ── デバッグ表示（原因特定後に削除） ── */}
-      <details style={{ marginBottom: "20px", fontSize: "12px", color: "#999", border: "1px solid #eee", borderRadius: "6px", padding: "8px" }}>
-        <summary style={{ cursor: "pointer" }}>🔍 デバッグ情報（確認後削除）</summary>
-        <div style={{ marginTop: "8px", wordBreak: "break-all" }}>
-          <p><b>入場済みクラスコード:</b> {enteredClasses.length === 0 ? "（なし）" : enteredClasses.join(", ")}</p>
-          <p><b>全クラス数:</b> {allClasses.length}件</p>
-          <p><b>全クラスのcode例（先頭5件）:</b> {allClasses.slice(0, 5).map(c => c.code).join(", ") || "（なし）"}</p>
-          <p><b>マッチ結果:</b> {enteredClasses.map(code => `${code}:${allClasses.some(c => c.code === code) ? "✅" : "❌"}`).join(", ") || "（なし）"}</p>
-        </div>
-      </details>
-      {/* ── /デバッグ ── */}
 
       {enteredClasses.length === 0 && (
         <div style={{ padding: "16px", backgroundColor: "#fff8e1", border: "1px solid #ffe082", borderRadius: "8px", marginBottom: "24px", fontSize: "13px", color: "#b8860b" }}>
