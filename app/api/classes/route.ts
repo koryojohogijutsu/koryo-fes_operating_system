@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 
+export const dynamic = "force-dynamic";
+
 const NO_CACHE = {
   headers: { "Cache-Control": "no-store, no-cache, must-revalidate" },
 };
