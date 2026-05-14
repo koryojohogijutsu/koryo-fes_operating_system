@@ -140,6 +140,7 @@ function PuzzleInner() {
 
   const goToQ = (q: number) => {
     if (!progress.solved.includes(0) && q !== 0) return;
+    if (q === TOTAL_Q - 1 && progress.solved.length < TOTAL_Q - 1) return;
     const newP = { ...progress, currentQ: q };
     setProgress(newP); saveProgress(newP);
     setCurrentQ(q); setAnswer(""); setAnswerErr(null); setShowCorrect(false); setHintOpen(false);
@@ -217,7 +218,7 @@ function PuzzleInner() {
               • 各問題の答えを入力して「送信」を押してください。
             </p>
             <p style={{ color:"#bbb",fontSize:"13px",lineHeight:"1.8",margin:"0 0 8px" }}>
-              • 困ったときはヒントを使おう（クラス企画やイベントに参加するともらえるヒントチケットが必要です）。
+              • 困ったときはヒントを使おう（ヒントチケットが必要です）。
             </p>
             <p style={{ color:"#bbb",fontSize:"13px",lineHeight:"1.8",margin:"0" }}>
               • 全問正解するとスペシャルな景品と交換できます！
@@ -257,14 +258,14 @@ function PuzzleInner() {
             const solved  = progress.solved.includes(i);
             const isFinal = i === TOTAL_Q-1;
             const isCur   = i === currentQ;
-            const locked  = !q0Solved && i !== 0;
+            const locked  = (!q0Solved && i !== 0) || (i === TOTAL_Q - 1 && progress.solved.length < TOTAL_Q - 1);
             let cls = "q-box";
             if (isCur) cls += " current";
             else if (solved) cls += " solved";
             else if (locked) cls += " locked";
             else if (isFinal) cls += " final";
             else cls += " open";
-            return <div key={i} className={cls} onClick={() => !locked && !isCur && goToQ(i)} title={locked?"Q0を先に解いてください":""}>{label}</div>;
+            return <div key={i} className={cls} onClick={() => !locked && !isCur && goToQ(i)} title={locked && i === TOTAL_Q - 1 && q0Solved ? "Q0〜Q4を全て解くと開放されます" : locked ? "Q0を先に解いてください" : ""}>{label}</div>;
           })}
         </div>
 
