@@ -85,7 +85,7 @@ function PuzzleInner() {
           .then((d) => { if (d.redeemed) setRedeemed(true); });
       }
       // コンプリート者数取得
-      fetch("/api/puzzle-clear-count", { cache: "no-store" })
+      fetch("/api/puzzle-clear?count=1", { cache: "no-store" })
         .then((r) => r.json())
         .then((d) => { if (typeof d.count === "number") setClearCount(d.count); })
         .catch(() => {});
@@ -99,7 +99,7 @@ function PuzzleInner() {
 
     // カバー表示時もコンプリート者数を取得（コンプリート済みの場合）
     if (p.solved.length === TOTAL_Q) {
-      fetch("/api/puzzle-clear-count", { cache: "no-store" })
+      fetch("/api/puzzle-clear?count=1", { cache: "no-store" })
         .then((r) => r.json())
         .then((d) => { if (typeof d.count === "number") setClearCount(d.count); })
         .catch(() => {});
@@ -109,7 +109,7 @@ function PuzzleInner() {
   // コンプリート済みでカバーを開いたときにも取得
   useEffect(() => {
     if (phase === "cover" && progress.solved.length === TOTAL_Q) {
-      fetch("/api/puzzle-clear-count", { cache: "no-store" })
+      fetch("/api/puzzle-clear?count=1", { cache: "no-store" })
         .then((r) => r.json())
         .then((d) => { if (typeof d.count === "number") setClearCount(d.count); })
         .catch(() => {});
@@ -156,10 +156,10 @@ function PuzzleInner() {
       setAnswerErr(null);
       if (newSolved.length === TOTAL_Q) {
         if (visitorId) {
-          fetch("/api/puzzle-clear", { method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify({ visitorId }) });
+          await fetch("/api/puzzle-clear", { method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify({ visitorId }) });
         }
-        // コンプリート者数更新
-        fetch("/api/puzzle-clear-count", { cache: "no-store" })
+        // POST完了後にコンプリート者数を更新
+        fetch("/api/puzzle-clear?count=1", { cache: "no-store" })
           .then((r) => r.json())
           .then((d) => { if (typeof d.count === "number") setClearCount(d.count); })
           .catch(() => {});
@@ -339,7 +339,7 @@ function PuzzleInner() {
               </p>
             )}
             <p style={{ color:"#ffd700",fontSize:"14px",fontWeight:"bold",marginBottom:"20px" }}>
-              🎁 景品交換は受付（正面玄関）にて
+              🎁 景品交換は受付（1階生徒玄関（1階東階段付近））にて
             </p>
             <img src="/puzzle/ending.png" alt="エンディング" style={{ width:"100%",borderRadius:"10px",marginBottom:"20px" }} />
             <div style={{ display:"flex",flexDirection:"column",gap:"10px" }}>
