@@ -89,7 +89,7 @@ export default function GymManagePage() {
     await fetch("/api/event-vote-status", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ eventKey, is_open: open }),
+      body: JSON.stringify({ eventKey, isOpen: open }),
     });
     setStatuses((prev) => ({ ...prev, [eventKey]: open }));
   };
