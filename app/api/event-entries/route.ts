@@ -1,20 +1,21 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 
-export async function GET() {
+export const dynamic = "force-dynamic";
+const NO_CACHE = { headers: { "Cache-Control": "no-store, no-cache, must-revalidate" } };
+
+export async function GET(req: NextRequest) {
   const supabase = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.SUPABASE_SERVICE_ROLE_KEY!
   );
 
-  const { data, error } = await supabase
-    .from("event_entries")
-    .select("*")
-    .order("order_num");
+  const category = req.nextUrl.searchParams.get("category");
 
-  if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
-  }
+  let query = supabase.from("event_entries").select("*").order("order_num");
+  if (category) query = query.eq("category", category);
 
-  return NextResponse.json({ entries: data ?? [] });
+  const { data, error } = await query;
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  return NextResponse.json({ entries: data ?? [] }, NO_CACHE);
 }
