@@ -42,7 +42,7 @@ export function useInfoNotifications() {
         const data = await res.json();
 
         const notices: NoticeItem[] = data.notices ?? [];
-        const losts:   LostItem[]   = data.losts   ?? [];
+        const losts:   LostItem[]   = data.lost   ?? [];
 
         const latestNotice = notices[0];
         const latestLost   = losts[0];
