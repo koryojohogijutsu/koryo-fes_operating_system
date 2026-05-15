@@ -146,7 +146,7 @@ function PuzzleInner() {
     setCurrentQ(q); setAnswer(""); setAnswerErr(null); setShowCorrect(false); setHintOpen(false);
   };
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     const correct: string[] = ANSWERS[currentQ];
     if (!correct || correct.length === 0) { alert("この問題の答えは未設定です"); return; }
     if (correct.some((c) => answer.trim().toLowerCase() === c.toLowerCase())) {
