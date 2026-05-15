@@ -12,7 +12,7 @@ const CROWD_ICONS = [
 const VENUE_LABELS: Record<string, string> = {
   gym:      "体育館",
   kinenkan: "記念館",
-  koryu:    "蛟龍館",
+  koryokan:    "蛟龍館",
 };
 
 type ClassCrowd = {
