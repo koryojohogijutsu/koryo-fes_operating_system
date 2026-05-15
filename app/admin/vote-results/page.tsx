@@ -3,8 +3,24 @@
 import { useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 
-type RankEntry = { code: string; label: string; count: number };
+type RankEntry      = { code: string; label: string; count: number; rank: number };
 type CategoryResult = { key: string; label: string; total: number; ranking: RankEntry[] };
+
+// 同点時に同じ順位を付ける
+function assignRanks<T extends { count: number }>(items: T[]): (T & { rank: number })[] {
+  let rank = 1;
+  return items.map((item, i, arr) => {
+    if (i > 0 && item.count < arr[i - 1].count) rank = i + 1;
+    return { ...item, rank };
+  });
+}
+
+function rankLabel(rank: number) {
+  if (rank === 1) return "🥇";
+  if (rank === 2) return "🥈";
+  if (rank === 3) return "🥉";
+  return `${rank}位`;
+}
 
 export default function VoteResultsPage() {
   const router = useRouter();
@@ -17,7 +33,12 @@ export default function VoteResultsPage() {
     setLoading(true);
     const res  = await fetch("/api/vote-results");
     const data = await res.json();
-    setResults(data.results ?? []);
+    // rankを付与
+    const withRank = (data.results ?? []).map((cat: CategoryResult) => ({
+      ...cat,
+      ranking: assignRanks(cat.ranking ?? []),
+    }));
+    setResults(withRank);
     setUpdatedAt(new Date());
     setLoading(false);
   }, []);
@@ -39,11 +60,8 @@ export default function VoteResultsPage() {
 
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "24px" }}>
         <h1 style={{ fontSize: "20px", margin: 0 }}>🏫 クラス投票 得票数</h1>
-        <button
-          onClick={load}
-          disabled={loading}
-          style={{ padding: "8px 16px", fontSize: "13px", cursor: loading ? "not-allowed" : "pointer", backgroundColor: loading ? "#ccc" : "#e10102", color: "white", border: "none", borderRadius: "6px" }}
-        >
+        <button onClick={load} disabled={loading}
+          style={{ padding: "8px 16px", fontSize: "13px", cursor: loading ? "not-allowed" : "pointer", backgroundColor: loading ? "#ccc" : "#e10102", color: "white", border: "none", borderRadius: "6px" }}>
           {loading ? "更新中..." : "🔄 更新"}
         </button>
       </div>
@@ -69,45 +87,46 @@ export default function VoteResultsPage() {
                 <p style={{ color: "#aaa", fontSize: "13px" }}>まだ投票がありません</p>
               ) : (
                 <ul style={{ listStyle: "none", padding: 0, margin: 0 }}>
-                  {cat.ranking.map((r, i) => (
-                    <li key={r.code} style={{ display: "flex", alignItems: "center", gap: "12px", padding: "10px 8px", borderBottom: "1px solid #f0f0f0" }}>
-                      {/* 順位 */}
-                      <span style={{
-                        width: "28px", height: "28px", borderRadius: "50%", flexShrink: 0,
-                        display: "flex", alignItems: "center", justifyContent: "center",
-                        fontSize: "13px", fontWeight: "bold",
-                        backgroundColor: i === 0 ? "#e10102" : i === 1 ? "#888" : i === 2 ? "#b87333" : "#eee",
-                        color: i < 3 ? "white" : "#555",
-                      }}>
-                        {i + 1}
-                      </span>
+                  {cat.ranking.map((r) => {
+                    const isTop = r.rank === 1;
+                    return (
+                      <li key={r.code} style={{ display: "flex", alignItems: "center", gap: "12px", padding: "10px 8px", borderBottom: "1px solid #f0f0f0" }}>
+                        {/* 順位 */}
+                        <span style={{
+                          width: "36px", height: "28px", borderRadius: "14px", flexShrink: 0,
+                          display: "flex", alignItems: "center", justifyContent: "center",
+                          fontSize: "12px", fontWeight: "bold",
+                          backgroundColor: r.rank === 1 ? "#e10102" : r.rank === 2 ? "#888" : r.rank === 3 ? "#b87333" : "#eee",
+                          color: r.rank <= 3 ? "white" : "#555",
+                        }}>
+                          {r.rank}位
+                        </span>
 
-                      {/* クラス名 */}
-                      <div style={{ flex: 1 }}>
-                        <span style={{ fontWeight: "bold", marginRight: "8px" }}>{r.code}</span>
-                        <span style={{ color: "#555", fontSize: "14px" }}>{r.label}</span>
-                      </div>
-
-                      {/* 得票数バー */}
-                      <div style={{ width: "120px", flexShrink: 0 }}>
-                        <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
-                          <div style={{
-                            flex: 1, height: "8px", borderRadius: "4px", backgroundColor: "#f0f0f0", overflow: "hidden",
-                          }}>
-                            <div style={{
-                              height: "100%", borderRadius: "4px",
-                              backgroundColor: i === 0 ? "#e10102" : "#aaa",
-                              width: cat.ranking[0]?.count > 0 ? `${(r.count / cat.ranking[0].count) * 100}%` : "0%",
-                              transition: "width 0.5s ease",
-                            }} />
-                          </div>
-                          <span style={{ fontSize: "14px", fontWeight: "bold", minWidth: "32px", textAlign: "right" }}>
-                            {r.count}票
-                          </span>
+                        {/* クラス名 */}
+                        <div style={{ flex: 1 }}>
+                          <span style={{ fontWeight: "bold", marginRight: "8px" }}>{r.code}</span>
+                          <span style={{ color: "#555", fontSize: "14px" }}>{r.label}</span>
                         </div>
-                      </div>
-                    </li>
-                  ))}
+
+                        {/* 得票数バー */}
+                        <div style={{ width: "120px", flexShrink: 0 }}>
+                          <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                            <div style={{ flex: 1, height: "8px", borderRadius: "4px", backgroundColor: "#f0f0f0", overflow: "hidden" }}>
+                              <div style={{
+                                height: "100%", borderRadius: "4px",
+                                backgroundColor: isTop ? "#e10102" : "#aaa",
+                                width: cat.ranking[0]?.count > 0 ? `${(r.count / cat.ranking[0].count) * 100}%` : "0%",
+                                transition: "width 0.5s ease",
+                              }} />
+                            </div>
+                            <span style={{ fontSize: "14px", fontWeight: "bold", minWidth: "32px", textAlign: "right" }}>
+                              {r.count}票
+                            </span>
+                          </div>
+                        </div>
+                      </li>
+                    );
+                  })}
                 </ul>
               )}
             </section>
