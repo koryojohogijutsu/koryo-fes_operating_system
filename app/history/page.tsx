@@ -1,7 +1,7 @@
 "use client";
-
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { createClient } from "@supabase/supabase-js";
 
 const supabase = createClient(
@@ -9,15 +9,29 @@ const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 );
 
+const Q_LABELS = ["Q0", "Q1", "Q2", "Q3", "Q4", "Final"];
+const TOTAL_Q  = 6;
+
 type Visit      = { class_code: string; entered_at: string };
 type EventVisit = { event_key: string; event_label: string; entered_at: string };
 type VoteRecord = { vote_type: string; category_label: string; target_label: string; voted_at: string };
+type PuzzleProgress = { solved: number[]; currentQ: number };
+
+function getPuzzleProgress(): PuzzleProgress {
+  try {
+    const raw = document.cookie.split("; ").find((r) => r.startsWith("puzzle_progress="))?.split("=")[1];
+    if (!raw) return { solved: [], currentQ: 0 };
+    const p = JSON.parse(decodeURIComponent(raw));
+    return { solved: p.solved ?? [], currentQ: p.currentQ ?? 0 };
+  } catch { return { solved: [], currentQ: 0 }; }
+}
 
 export default function HistoryPage() {
   const router = useRouter();
   const [visits,      setVisits]      = useState<Visit[]>([]);
   const [eventVisits, setEventVisits] = useState<EventVisit[]>([]);
   const [votes,       setVotes]       = useState<VoteRecord[]>([]);
+  const [puzzle,      setPuzzle]      = useState<PuzzleProgress>({ solved: [], currentQ: 0 });
   const [loading,     setLoading]     = useState(true);
   const [error,       setError]       = useState<string | null>(null);
 
@@ -33,13 +47,15 @@ export default function HistoryPage() {
       return;
     }
 
+    // 謎解き進捗はcookieから取得
+    setPuzzle(getPuzzleProgress());
+
     const fetchAll = async () => {
       const [classRes, eventRes, voteRes] = await Promise.all([
         supabase.from("visits").select("class_code, entered_at").eq("visitor_id", visitorId).order("entered_at"),
         fetch(`/api/event-enter?visitorId=${visitorId}`).then((r) => r.json()),
         fetch(`/api/vote-history?visitorId=${visitorId}`).then((r) => r.json()),
       ]);
-
       if (classRes.error) { setError("データの取得に失敗しました"); }
       else {
         setVisits(classRes.data ?? []);
@@ -48,7 +64,6 @@ export default function HistoryPage() {
       }
       setLoading(false);
     };
-
     fetchAll();
   }, []);
 
@@ -61,8 +76,9 @@ export default function HistoryPage() {
     </main>
   );
 
-  const classVotes  = votes.filter((v) => v.vote_type === "class");
-  const eventVotes  = votes.filter((v) => v.vote_type === "event");
+  const classVotes = votes.filter((v) => v.vote_type === "class");
+  const eventVotes = votes.filter((v) => v.vote_type === "event");
+  const allSolved  = puzzle.solved.length === TOTAL_Q;
 
   return (
     <main style={{ padding: "24px 20px", maxWidth: "480px", margin: "0 auto" }}>
@@ -127,9 +143,38 @@ export default function HistoryPage() {
         )}
       </Section>
 
-      {/* 謎解き履歴（未実装） */}
+      {/* 謎解き進捗 */}
       <Section title="🔍 謎解き">
-        <Empty text="準備中" />
+        {puzzle.solved.length === 0 ? (
+          <Empty text="まだ謎解きを始めていません" />
+        ) : (
+          <>
+            {allSolved ? (
+              <div style={{ marginBottom: "12px", padding: "10px 14px", backgroundColor: "#fff8e1", border: "1px solid #ffe082", borderRadius: "8px", fontSize: "14px", color: "#b8860b", fontWeight: "bold" }}>
+                🏆 コンプリート達成！
+              </div>
+            ) : (
+              <p style={{ fontSize: "13px", color: "#888", marginBottom: "10px" }}>
+                {puzzle.solved.length} / {TOTAL_Q} 問正解
+              </p>
+            )}
+            <div style={{ display: "flex", gap: "6px", flexWrap: "wrap" }}>
+              {Q_LABELS.map((label, i) => {
+                const solved = puzzle.solved.includes(i);
+                return (
+                  <div key={i} style={{
+                    padding: "6px 12px", borderRadius: "6px", fontSize: "12px", fontWeight: "bold",
+                    backgroundColor: solved ? "rgba(100,200,100,0.15)" : "#f5f5f5",
+                    color: solved ? "#2e7d32" : "#aaa",
+                    border: solved ? "1px solid #81c784" : "1px solid #eee",
+                  }}>
+                    {label} {solved ? "✅" : ""}
+                  </div>
+                );
+              })}
+            </div>
+          </>
+        )}
       </Section>
     </main>
   );
