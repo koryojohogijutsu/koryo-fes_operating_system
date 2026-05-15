@@ -14,7 +14,7 @@ type VoteResult = { id: string; name: string; count: number; rank: number };
 type StatusMap  = Record<string, boolean>;
 
 // 同点時に同じ順位を付ける
-function assignRanks<T extends { count: number }>(items: T[]): (T & { rank: number })[] {
+function assignRanks(items: Omit<VoteResult, "rank">[]): VoteResult[] {
   let rank = 1;
   return items.map((item, i, arr) => {
     if (i > 0 && item.count < arr[i - 1].count) rank = i + 1;
