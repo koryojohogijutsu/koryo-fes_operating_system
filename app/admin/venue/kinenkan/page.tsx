@@ -56,7 +56,7 @@ export default function KinenkanManagePage() {
   };
 
   const toggleVote = async (open: boolean) => {
-    await fetch("/api/event-vote-status", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ eventKey: EVENT.key, is_open: open }) });
+    await fetch("/api/event-vote-status", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ eventKey: EVENT.key, isOpen: open }) });
     setIsOpen(open);
   };
 
