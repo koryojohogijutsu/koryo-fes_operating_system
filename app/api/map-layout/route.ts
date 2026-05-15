@@ -23,7 +23,7 @@ export async function GET(req: NextRequest) {
 
   const { data, error } = await supabase
     .from("map_layout")
-    .select("class_code, x, y, capacity, thresh_mid, thresh_high, thresh_full");
+    .select("class_code, x, y, capacity, stay_minutes, thresh_mid, thresh_high, thresh_full");
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   return NextResponse.json({ layouts: data ?? [] }, NO_CACHE);
 }
@@ -60,6 +60,7 @@ export async function POST(req: Request) {
           x:           layout.x,
           y:           layout.y,
           capacity:    layout.capacity,
+          stay_minutes: layout.stay_minutes,
           thresh_mid:  layout.thresh_mid,
           thresh_high: layout.thresh_high,
           thresh_full: layout.thresh_full,
