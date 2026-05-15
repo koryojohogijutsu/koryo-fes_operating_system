@@ -8,9 +8,23 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 );
 
-// クリア状態確認
+// GET:
+//   ?visitorId=xxx → 個人のクリア状態
+//   ?count=1       → コンプリート総人数（visitorId不要）
 export async function GET(req: NextRequest) {
   const visitorId = req.nextUrl.searchParams.get("visitorId");
+  const countOnly = req.nextUrl.searchParams.get("count");
+
+  // count=1 の場合はvisitorId不要で総人数を返す
+  if (countOnly === "1") {
+    const { count, error } = await supabase
+      .from("puzzle_clears")
+      .select("*", { count: "exact", head: true });
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ count: count ?? 0 }, NO_CACHE);
+  }
+
+  // 個人のクリア状態
   if (!visitorId) return NextResponse.json({ error: "visitorId missing" }, { status: 400 });
 
   const { data } = await supabase
@@ -20,17 +34,16 @@ export async function GET(req: NextRequest) {
     .single();
 
   return NextResponse.json({
-    cleared:    !!data,
-    redeemed:   !!data?.redeemed_at,
+    cleared:  !!data,
+    redeemed: !!data?.redeemed_at,
   }, NO_CACHE);
 }
 
-// クリア記録
+// POST: クリア記録
 export async function POST(req: Request) {
   const { visitorId } = await req.json();
   if (!visitorId) return NextResponse.json({ error: "visitorId missing" }, { status: 400 });
 
-  // 既存チェック（二重登録防止）
   const { data: existing } = await supabase
     .from("puzzle_clears")
     .select("id")
