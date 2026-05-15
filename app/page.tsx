@@ -3,6 +3,7 @@
 import { useEffect, useState, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
+import { useInfoNotifications, NotificationBanners } from "@/lib/useInfoNotifications";
 
 type VisitorType = "smartphone" | "paper" | "student";
 type Status =
@@ -69,6 +70,7 @@ function HomeInner() {
   const searchParams = useSearchParams();
   const [status,        setStatus]        = useState<Status>({ state: "loading" });
   const [subModal,      setSubModal]      = useState(false);
+  const { banners, dismissBanner } = useInfoNotifications();
   const [clearCount,    setClearCount]    = useState<number | null>(null);
 
   // 謎解きコンプリート者数を取得
@@ -138,6 +140,7 @@ function HomeInner() {
 
   return (
     <>
+      <NotificationBanners banners={banners} dismiss={dismissBanner} />
       <main style={{ padding:"32px 20px 40px", textAlign:"center", maxWidth:"400px", margin:"0 auto", position:"relative" }}>
         <button onClick={() => setSubModal(true)}
           style={{ position:"absolute", top:"20px", right:"20px", width:"40px", height:"40px", borderRadius:"50%", border:"1px solid #ddd", backgroundColor:"white", fontSize:"18px", cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", boxShadow:"0 2px 6px rgba(0,0,0,0.08)" }}>
