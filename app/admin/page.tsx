@@ -45,7 +45,7 @@ export default function AdminPage() {
       <div style={{ display: "flex", flexDirection: "column", gap: "10px", marginBottom: "32px" }}>
         <a href="/admin/venue/gym"      style={{ ...linkStyle, borderLeft: "4px solid #e10102" }}>🏟️ 体育館（のど自慢・コスコン）</a>
         <a href="/admin/venue/kinenkan" style={{ ...linkStyle, borderLeft: "4px solid #e10102" }}>🏛️ 記念館（M1）</a>
-        <a href="/admin/venue/koryu"    style={{ ...linkStyle, borderLeft: "4px solid #e10102" }}>🏢 蛟龍館</a>
+        <a href="/admin/venue/koryo"    style={{ ...linkStyle, borderLeft: "4px solid #e10102" }}>🏢 蛟龍館</a>
       </div>
 
       {/* 入場一覧 */}
