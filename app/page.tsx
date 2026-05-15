@@ -73,7 +73,7 @@ function HomeInner() {
 
   // 謎解きコンプリート者数を取得
   useEffect(() => {
-    fetch("/api/puzzle-clear-count", { cache: "no-store" })
+    fetch("/api/puzzle-clear?count=1", { cache: "no-store" })
       .then((r) => r.json())
       .then((d) => { if (typeof d.count === "number") setClearCount(d.count); })
       .catch(() => {});
@@ -198,7 +198,7 @@ function HomeInner() {
               {[
                 { label:"📋 履歴を見る", path:"/history" },
                 { label:"🎇 ペンライト",  path:"/penlight" },
-                { label:"📊 混雑状況（準備中）", path:null },
+                { label:"📊 混雑状況", path:"/map" },
               ].map((item) => (
                 <button key={item.label}
                   onClick={() => { if (item.path) { router.push(item.path); setSubModal(false); } }}
