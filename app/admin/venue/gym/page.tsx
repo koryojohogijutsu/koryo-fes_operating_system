@@ -3,6 +3,14 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 
+function assignRanks<T extends { count: number }>(items: T[]): (T & { rank: number })[] {
+  let rank = 1;
+  return items.map((item, i, arr) => {
+    if (i > 0 && item.count < arr[i - 1].count) rank = i + 1;
+    return { ...item, rank };
+  });
+}
+
 const VENUE_KEY = "gym";
 const VENUE_LABEL = "体育館";
 
@@ -58,7 +66,7 @@ export default function GymManagePage() {
       ]);
       statusMap[ev.key] = statusRes.is_open ?? false;
       entryMap[ev.key]  = entryRes.entries ?? [];
-      voteMap[ev.key]   = voteRes.results ?? [];
+      voteMap[ev.key]   = assignRanks(voteRes.results ?? []);
     }));
 
     setStatuses(statusMap);
@@ -156,9 +164,10 @@ export default function GymManagePage() {
           {(votes[ev.key] ?? []).length > 0 && (
             <div style={{ marginBottom: "16px" }}>
               <p style={{ fontSize: "13px", color: "#888", marginBottom: "6px" }}>得票数</p>
-              {(votes[ev.key] ?? []).sort((a, b) => b.count - a.count).map((v, i) => (
-                <div key={i} style={{ display: "flex", justifyContent: "space-between", padding: "6px 0", borderBottom: "1px solid #f0f0f0", fontSize: "14px" }}>
-                  <span>{i + 1}. {v.name}</span>
+              {(votes[ev.key] ?? []).map((v: any) => (
+                <div key={v.id ?? v.name} style={{ display: "flex", alignItems: "center", gap: "8px", padding: "6px 0", borderBottom: "1px solid #f0f0f0", fontSize: "14px" }}>
+                  <span style={{ width: "32px", height: "20px", borderRadius: "10px", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "11px", fontWeight: "bold", backgroundColor: v.rank === 1 ? "#e10102" : v.rank === 2 ? "#888" : v.rank === 3 ? "#b87333" : "#eee", color: v.rank <= 3 ? "white" : "#555", flexShrink: 0 }}>{v.rank}位</span>
+                  <span style={{ flex: 1 }}>{v.name}</span>
                   <strong>{v.count}票</strong>
                 </div>
               ))}
