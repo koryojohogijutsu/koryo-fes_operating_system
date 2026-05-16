@@ -38,7 +38,7 @@ export default function GymManagePage() {
 
   useEffect(() => {
     loadAll();
-  }, [router]);
+  }, []);
 
   const loadAll = async () => {
     // 混雑状況
