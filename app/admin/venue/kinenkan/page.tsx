@@ -25,7 +25,7 @@ export default function KinenkanManagePage() {
 
   useEffect(() => {
     loadAll();
-  }, [router]);
+  }, []);
 
   const loadAll = async () => {
     const [crowdRes, statusRes, entryRes, voteRes] = await Promise.all([
