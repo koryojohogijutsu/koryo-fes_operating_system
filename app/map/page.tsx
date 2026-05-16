@@ -140,11 +140,11 @@ export default function MapPage() {
         )}
       </div>
 
-      {/* 体育館・記念館・蛟龍館マップ */}
-      <h2 style={{ fontSize: "15px", fontWeight: "bold", marginBottom: "8px", color: "#333" }}>🏟️ 会場</h2>
-      <div style={{ position: "relative", width: "100%", marginBottom: "32px", border: "1px solid #ddd", borderRadius: "8px", overflow: "hidden" }}>
-        <img src="/venue-map.png" alt="会場マップ" style={{ width: "100%", display: "block" }} />
-        {venueLayouts.map((layout) => {
+      {/* 体育館・記念館マップ */}
+      <h2 style={{ fontSize: "15px", fontWeight: "bold", marginBottom: "8px", color: "#333" }}>🏟️ 体育館・記念館</h2>
+      <div style={{ position: "relative", width: "100%", marginBottom: "24px", border: "1px solid #ddd", borderRadius: "8px", overflow: "hidden" }}>
+        <img src="/venue-map-gym-kinenkan.png" alt="体育館・記念館マップ" style={{ width: "100%", display: "block" }} />
+        {venueLayouts.filter(l => l.venue_key !== "koryokan").map((layout) => {
           const crowd = venueCrowds.find((v) => v.venue_key === layout.venue_key);
           const level = crowd?.level ?? 0;
           const icon  = getCrowdIcon(level);
@@ -153,11 +153,28 @@ export default function MapPage() {
               style={{ position: "absolute", left: `${layout.x}%`, top: `${layout.y}%`, transform: "translate(-50%, -100%)", textAlign: "center", pointerEvents: "none" }}>
               <img src={icon.src} alt={icon.label} style={{ width: "36px", height: "36px", objectFit: "contain", display: "block", margin: "0 auto" }}
                 onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }} />
-              <div style={{
-                backgroundColor: icon.color, color: "white", borderRadius: "12px",
-                padding: "2px 8px", fontSize: "11px", fontWeight: "bold", whiteSpace: "nowrap",
-                boxShadow: "0 2px 4px rgba(0,0,0,0.2)",
-              }}>
+              <div style={{ backgroundColor: icon.color, color: "white", borderRadius: "12px", padding: "2px 8px", fontSize: "11px", fontWeight: "bold", whiteSpace: "nowrap", boxShadow: "0 2px 4px rgba(0,0,0,0.2)" }}>
+                {VENUE_LABELS[layout.venue_key] ?? layout.venue_key}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* 蛟龍館マップ */}
+      <h2 style={{ fontSize: "15px", fontWeight: "bold", marginBottom: "8px", color: "#333" }}>🏢 蛟龍館</h2>
+      <div style={{ position: "relative", width: "100%", marginBottom: "32px", border: "1px solid #ddd", borderRadius: "8px", overflow: "hidden" }}>
+        <img src="/venue-map-koryu.png" alt="蛟龍館マップ" style={{ width: "100%", display: "block" }} />
+        {venueLayouts.filter(l => l.venue_key === "koryokan").map((layout) => {
+          const crowd = venueCrowds.find((v) => v.venue_key === layout.venue_key);
+          const level = crowd?.level ?? 0;
+          const icon  = getCrowdIcon(level);
+          return (
+            <div key={layout.venue_key}
+              style={{ position: "absolute", left: `${layout.x}%`, top: `${layout.y}%`, transform: "translate(-50%, -100%)", textAlign: "center", pointerEvents: "none" }}>
+              <img src={icon.src} alt={icon.label} style={{ width: "36px", height: "36px", objectFit: "contain", display: "block", margin: "0 auto" }}
+                onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }} />
+              <div style={{ backgroundColor: icon.color, color: "white", borderRadius: "12px", padding: "2px 8px", fontSize: "11px", fontWeight: "bold", whiteSpace: "nowrap", boxShadow: "0 2px 4px rgba(0,0,0,0.2)" }}>
                 {VENUE_LABELS[layout.venue_key] ?? layout.venue_key}
               </div>
             </div>
