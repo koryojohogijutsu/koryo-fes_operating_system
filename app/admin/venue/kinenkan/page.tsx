@@ -1,7 +1,5 @@
 "use client";
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
-import Link from "next/link";
 
 const VENUE_KEY   = "kinenkan";
 const VENUE_LABEL = "記念館";
@@ -17,8 +15,6 @@ const CROWD_LEVELS = [
 type EntryItem = { id: string; name: string; description: string; order_num: number };
 
 export default function KinenkanManagePage() {
-  const router = useRouter();
-  const [authed,     setAuthed]     = useState(false);
   const [crowdLevel, setCrowdLevel] = useState(0);
   const [isOpen,     setIsOpen]     = useState(false);
   const [entries,    setEntries]    = useState<EntryItem[]>([]);
@@ -28,9 +24,6 @@ export default function KinenkanManagePage() {
   const [newDesc,    setNewDesc]    = useState("");
 
   useEffect(() => {
-    const auth = document.cookie.split("; ").find((r) => r.startsWith("admin_auth="))?.split("=")[1];
-    if (auth !== "1") { router.push("/admin/login"); return; }
-    setAuthed(true);
     loadAll();
   }, [router]);
 
@@ -71,12 +64,8 @@ export default function KinenkanManagePage() {
     await fetch("/api/event-entries/register", { method: "DELETE", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id }) });
     loadAll();
   };
-
-  if (!authed) return null;
-
   return (
     <main style={{ padding: "20px", maxWidth: "600px", margin: "0 auto" }}>
-      <Link href="/admin" style={{ fontSize: "13px", color: "#888", textDecoration: "none", display: "block", marginBottom: "16px" }}>← 管理者メニュー</Link>
       <h1 style={{ fontSize: "20px", marginBottom: "24px" }}>🏛️ {VENUE_LABEL}管理</h1>
 
       {/* 混雑状況 */}
