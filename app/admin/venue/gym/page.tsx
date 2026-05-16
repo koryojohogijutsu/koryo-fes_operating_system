@@ -1,7 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import Link from "next/link";
 
 function assignRanks<T extends { count: number }>(items: T[]): (T & { rank: number })[] {
   let rank = 1;
@@ -121,7 +120,6 @@ export default function GymManagePage() {
 
   return (
     <main style={{ padding: "20px", maxWidth: "600px", margin: "0 auto" }}>
-      <Link href="/admin" style={{ fontSize: "13px", color: "#888", textDecoration: "none", display: "block", marginBottom: "16px" }}>← 管理者メニュー</Link>
       <h1 style={{ fontSize: "20px", marginBottom: "24px" }}>🏟️ {VENUE_LABEL}管理</h1>
 
       {/* 混雑状況 */}
