@@ -24,7 +24,7 @@ export default function KoryuManagePage() {
         const venue = (data.venues ?? []).find((v: any) => v.venue_key === VENUE_KEY);
         if (venue) setCrowdLevel(venue.level);
       });
-  }, [router]);
+  }, []);
 
   const updateCrowd = async (level: number) => {
     setSaving(true);
