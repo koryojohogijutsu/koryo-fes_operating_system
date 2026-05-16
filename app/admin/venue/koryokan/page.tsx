@@ -1,9 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
-import Link from "next/link";
 
-const VENUE_KEY   = "koryu";
+const VENUE_KEY   = "koryokan";
 const VENUE_LABEL = "蛟龍館";
 
 const CROWD_LEVELS = [
@@ -14,16 +12,11 @@ const CROWD_LEVELS = [
 ];
 
 export default function KoryuManagePage() {
-  const router = useRouter();
-  const [authed,     setAuthed]     = useState(false);
   const [crowdLevel, setCrowdLevel] = useState(0);
   const [saving,     setSaving]     = useState(false);
   const [saved,      setSaved]      = useState(false);
 
   useEffect(() => {
-    const auth = document.cookie.split("; ").find((r) => r.startsWith("admin_auth="))?.split("=")[1];
-    if (auth !== "1") { router.push("/admin/login"); return; }
-    setAuthed(true);
 
     fetch("/api/crowd?type=venue", { cache: "no-store" })
       .then((r) => r.json())
@@ -41,14 +34,10 @@ export default function KoryuManagePage() {
     setSaved(true);
     setTimeout(() => setSaved(false), 2000);
   };
-
-  if (!authed) return null;
-
   const current = CROWD_LEVELS[crowdLevel];
 
   return (
     <main style={{ padding: "20px", maxWidth: "480px", margin: "0 auto" }}>
-      <Link href="/admin" style={{ fontSize: "13px", color: "#888", textDecoration: "none", display: "block", marginBottom: "16px" }}>← 管理者メニュー</Link>
       <h1 style={{ fontSize: "20px", marginBottom: "8px" }}>🏢 {VENUE_LABEL}管理</h1>
       <p style={{ color: "#888", fontSize: "13px", marginBottom: "24px" }}>混雑状況を手動で設定します</p>
 
