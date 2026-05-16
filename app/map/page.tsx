@@ -164,7 +164,7 @@ export default function MapPage() {
       {/* 蛟龍館マップ */}
       <h2 style={{ fontSize: "15px", fontWeight: "bold", marginBottom: "8px", color: "#333" }}>🏢 蛟龍館</h2>
       <div style={{ position: "relative", width: "100%", marginBottom: "32px", border: "1px solid #ddd", borderRadius: "8px", overflow: "hidden" }}>
-        <img src="/venue-map-koryu.png" alt="蛟龍館マップ" style={{ width: "100%", display: "block" }} />
+        <img src="/venue-map-koryokan.png" alt="蛟龍館マップ" style={{ width: "100%", display: "block" }} />
         {venueLayouts.filter(l => l.venue_key === "koryokan").map((layout) => {
           const crowd = venueCrowds.find((v) => v.venue_key === layout.venue_key);
           const level = crowd?.level ?? 0;
