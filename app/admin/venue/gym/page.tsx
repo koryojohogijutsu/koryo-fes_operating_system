@@ -1,6 +1,5 @@
 "use client";
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
 
 function assignRanks<T extends { count: number }>(items: T[]): (T & { rank: number })[] {
   let rank = 1;
@@ -30,8 +29,6 @@ type EventStatus = { event_key: string; is_open: boolean };
 type EntryItem   = { id: string; name: string; description: string; order_num: number };
 
 export default function GymManagePage() {
-  const router = useRouter();
-  const [authed,       setAuthed]       = useState(false);
   const [crowdLevel,   setCrowdLevel]   = useState(0);
   const [statuses,     setStatuses]     = useState<Record<string, boolean>>({});
   const [entries,      setEntries]      = useState<Record<string, EntryItem[]>>({});
@@ -40,9 +37,6 @@ export default function GymManagePage() {
   const [newEntry,     setNewEntry]     = useState<Record<string, { name: string; description: string }>>({});
 
   useEffect(() => {
-    const auth = document.cookie.split("; ").find((r) => r.startsWith("admin_auth="))?.split("=")[1];
-    if (auth !== "1") { router.push("/admin/login"); return; }
-    setAuthed(true);
     loadAll();
   }, [router]);
 
@@ -115,9 +109,6 @@ export default function GymManagePage() {
     });
     loadAll();
   };
-
-  if (!authed) return null;
-
   return (
     <main style={{ padding: "20px", maxWidth: "600px", margin: "0 auto" }}>
       <h1 style={{ fontSize: "20px", marginBottom: "24px" }}>🏟️ {VENUE_LABEL}管理</h1>
