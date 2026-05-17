@@ -25,7 +25,7 @@ export default function AdminInfoPage() {
   const [lMemo,  setLMemo]  = useState("");
 
   const load = useCallback(async () => {
-    const res = await fetch("/api/info", { cache: "no-store" });
+    const res = await fetch(`/api/info?_t=${Date.now()}`, { cache: "no-store" });
     const d   = await res.json();
     setNotices(d.notices ?? []);
     setLost(d.lost ?? []);
