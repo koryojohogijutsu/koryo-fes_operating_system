@@ -1,21 +1,35 @@
 "use client";
 import { useEffect, useState } from "react";
 
-function assignRanks<T extends { count: number }>(items: T[]): (T & { rank: number })[] {
-  let rank = 1;
-  return items.map((item, i, arr) => {
-    if (i > 0 && item.count < arr[i - 1].count) rank = i + 1;
-    return { ...item, rank };
-  });
-}
-
 const VENUE_KEY = "gym";
-const VENUE_LABEL = "体育館";
 
-const EVENTS = [
-  { key: "nodojiman",    label: "のど自慢" },
-  { key: "coscon_solo",  label: "コスコン（個人）" },
-  { key: "coscon_group", label: "コスコン（団体）" },
+// のど自慢・コスコンのサブイベント定義
+const EVENT_GROUPS = [
+  {
+    base: "nodojiman",
+    label: "🎤 のど自慢",
+    subs: [
+      { key: "nodojiman-1", label: "１日目" },
+      { key: "nodojiman-2", label: "２日目①" },
+      { key: "nodojiman-3", label: "２日目②" },
+    ],
+  },
+  {
+    base: "coscon_solo",
+    label: "👗 コスコン（個人）",
+    subs: [
+      { key: "coscon_solo-1", label: "１日目" },
+      { key: "coscon_solo-2", label: "２日目" },
+    ],
+  },
+  {
+    base: "coscon_group",
+    label: "👥 コスコン（グループ）",
+    subs: [
+      { key: "coscon_group-1", label: "１日目" },
+      { key: "coscon_group-2", label: "２日目" },
+    ],
+  },
 ];
 
 const CROWD_LEVELS = [
@@ -25,93 +39,72 @@ const CROWD_LEVELS = [
   { level: 3, label: "大変混雑",   color: "#7b1fa2", bg: "#f3e5f5" },
 ];
 
-type EventStatus = { event_key: string; is_open: boolean };
-type EntryItem   = { id: string; name: string; description: string; order_num: number };
+type VoteResult = { id: string; name: string; count: number; rank: number };
+
+function assignRanks(items: Omit<VoteResult, "rank">[]): VoteResult[] {
+  let rank = 1;
+  return items.map((item, i, arr) => {
+    if (i > 0 && item.count < arr[i - 1].count) rank = i + 1;
+    return { ...item, rank };
+  });
+}
 
 export default function GymManagePage() {
   const [crowdLevel,   setCrowdLevel]   = useState(0);
-  const [statuses,     setStatuses]     = useState<Record<string, boolean>>({});
-  const [entries,      setEntries]      = useState<Record<string, EntryItem[]>>({});
-  const [votes,        setVotes]        = useState<Record<string, { name: string; count: number }[]>>({});
   const [saving,       setSaving]       = useState(false);
-  const [newEntry,     setNewEntry]     = useState<Record<string, { name: string; description: string }>>({});
+  // サブイベントごとの選択・ステータス・得票数
+  const [selectedSub,  setSelectedSub]  = useState<Record<string, string>>({});
+  const [statuses,     setStatuses]     = useState<Record<string, boolean>>({});
+  const [votes,        setVotes]        = useState<Record<string, VoteResult[]>>({});
+  const [showVotes,    setShowVotes]    = useState<Record<string, boolean>>({});
+  const [voteLoading,  setVoteLoading]  = useState<Record<string, boolean>>({});
 
   useEffect(() => {
-    loadAll();
+    // 混雑状況取得
+    fetch("/api/crowd?type=venue", { cache: "no-store" }).then((r) => r.json()).then((data) => {
+      const venue = (data.venues ?? []).find((v: any) => v.venue_key === VENUE_KEY);
+      if (venue) setCrowdLevel(venue.level);
+    });
+
+    // 各サブイベントの初期選択と投票ステータス取得
+    const initSubs: Record<string, string> = {};
+    EVENT_GROUPS.forEach((g) => { initSubs[g.base] = g.subs[0].key; });
+    setSelectedSub(initSubs);
+
+    // 全サブイベントのステータス取得
+    const allKeys = EVENT_GROUPS.flatMap((g) => g.subs.map((s) => s.key));
+    Promise.all(allKeys.map(async (key) => {
+      const res = await fetch(`/api/event-vote-status?eventKey=${key}`, { cache: "no-store" });
+      const data = await res.json();
+      return [key, data.is_open ?? false] as [string, boolean];
+    })).then((entries) => setStatuses(Object.fromEntries(entries)));
   }, []);
-
-  const loadAll = async () => {
-    // 混雑状況
-    const crowdRes = await fetch("/api/crowd?type=venue", { cache: "no-store" }).then((r) => r.json());
-    const venue = (crowdRes.venues ?? []).find((v: any) => v.venue_key === VENUE_KEY);
-    if (venue) setCrowdLevel(venue.level);
-
-    // 各イベントのステータス・出場者・得票数
-    const statusMap: Record<string, boolean> = {};
-    const entryMap:  Record<string, EntryItem[]> = {};
-    const voteMap:   Record<string, { name: string; count: number }[]> = {};
-
-    await Promise.all(EVENTS.map(async (ev) => {
-      const [statusRes, entryRes, voteRes] = await Promise.all([
-        fetch(`/api/event-vote-status?eventKey=${ev.key}`, { cache: "no-store" }).then((r) => r.json()),
-        fetch(`/api/event-entries?category=${ev.key}`, { cache: "no-store" }).then((r) => r.json()),
-        fetch(`/api/event-vote-count?eventKey=${ev.key}`, { cache: "no-store" }).then((r) => r.json()),
-      ]);
-      statusMap[ev.key] = statusRes.is_open ?? false;
-      entryMap[ev.key]  = entryRes.entries ?? [];
-      voteMap[ev.key]   = assignRanks(voteRes.results ?? []);
-    }));
-
-    setStatuses(statusMap);
-    setEntries(entryMap);
-    setVotes(voteMap);
-  };
 
   const updateCrowd = async (level: number) => {
     setSaving(true);
-    await fetch("/api/crowd", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ venueKey: VENUE_KEY, level }),
-    });
+    await fetch("/api/crowd", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ venueKey: VENUE_KEY, level }) });
     setCrowdLevel(level);
     setSaving(false);
   };
 
-  const toggleVoteStatus = async (eventKey: string, open: boolean) => {
-    await fetch("/api/event-vote-status", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ eventKey, isOpen: open }),
-    });
-    setStatuses((prev) => ({ ...prev, [eventKey]: open }));
+  const toggleVote = async (key: string, open: boolean) => {
+    await fetch("/api/event-vote-status", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ eventKey: key, isOpen: open }) });
+    setStatuses((prev) => ({ ...prev, [key]: open }));
   };
 
-  const addEntry = async (eventKey: string) => {
-    const e = newEntry[eventKey];
-    if (!e?.name) return;
-    const res = await fetch("/api/event-entries/register", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ category: eventKey, name: e.name, description: e.description ?? "" }),
-    });
-    if (res.ok) {
-      setNewEntry((prev) => ({ ...prev, [eventKey]: { name: "", description: "" } }));
-      loadAll();
-    }
+  const fetchVotes = async (key: string) => {
+    if (showVotes[key]) { setShowVotes((prev) => ({ ...prev, [key]: false })); return; }
+    setVoteLoading((prev) => ({ ...prev, [key]: true }));
+    const res  = await fetch(`/api/event-vote-count?eventKey=${key}`, { cache: "no-store" });
+    const data = await res.json();
+    setVotes((prev) => ({ ...prev, [key]: assignRanks(data.results ?? []) }));
+    setShowVotes((prev) => ({ ...prev, [key]: true }));
+    setVoteLoading((prev) => ({ ...prev, [key]: false }));
   };
 
-  const deleteEntry = async (id: string) => {
-    await fetch("/api/event-entries/register", {
-      method: "DELETE",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ id }),
-    });
-    loadAll();
-  };
   return (
     <main style={{ padding: "20px", maxWidth: "600px", margin: "0 auto" }}>
-      <h1 style={{ fontSize: "20px", marginBottom: "24px" }}>🏟️ {VENUE_LABEL}管理</h1>
+      <h1 style={{ fontSize: "20px", marginBottom: "24px" }}>🏟️ 体育館管理</h1>
 
       {/* 混雑状況 */}
       <section style={{ marginBottom: "32px", padding: "16px", border: "1px solid #ddd", borderRadius: "10px" }}>
@@ -119,85 +112,81 @@ export default function GymManagePage() {
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px" }}>
           {CROWD_LEVELS.map((cl) => (
             <button key={cl.level} onClick={() => updateCrowd(cl.level)} disabled={saving}
-              style={{
-                padding: "12px", borderRadius: "8px", fontSize: "14px", fontWeight: "bold", cursor: "pointer",
-                border: crowdLevel === cl.level ? `3px solid ${cl.color}` : "2px solid #eee",
-                backgroundColor: crowdLevel === cl.level ? cl.bg : "white",
-                color: crowdLevel === cl.level ? cl.color : "#888",
-              }}>
-              {cl.label}
-              {crowdLevel === cl.level && " ✓"}
+              style={{ padding: "12px", borderRadius: "8px", fontSize: "14px", fontWeight: "bold", cursor: "pointer", border: crowdLevel === cl.level ? `3px solid ${cl.color}` : "2px solid #eee", backgroundColor: crowdLevel === cl.level ? cl.bg : "white", color: crowdLevel === cl.level ? cl.color : "#888" }}>
+              {cl.label}{crowdLevel === cl.level && " ✓"}
             </button>
           ))}
         </div>
       </section>
 
       {/* 各イベント */}
-      {EVENTS.map((ev) => (
-        <section key={ev.key} style={{ marginBottom: "32px", padding: "16px", border: "1px solid #ddd", borderRadius: "10px" }}>
-          <h2 style={{ fontSize: "16px", marginBottom: "12px", borderBottom: "2px solid #e10102", paddingBottom: "6px" }}>🎤 {ev.label}</h2>
+      {EVENT_GROUPS.map((group) => {
+        const currentKey = selectedSub[group.base] ?? group.subs[0].key;
+        const isOpen     = statuses[currentKey] ?? false;
+        const voteData   = votes[currentKey] ?? [];
+        const maxCount   = voteData[0]?.count ?? 1;
 
-          {/* 投票ステータス */}
-          <div style={{ display: "flex", gap: "8px", marginBottom: "16px" }}>
-            <button onClick={() => toggleVoteStatus(ev.key, true)}
-              style={{ flex: 1, padding: "10px", borderRadius: "8px", border: "none", cursor: "pointer", backgroundColor: statuses[ev.key] ? "#4caf50" : "#eee", color: statuses[ev.key] ? "white" : "#888", fontWeight: "bold" }}>
-              ▶ 投票開始
-            </button>
-            <button onClick={() => toggleVoteStatus(ev.key, false)}
-              style={{ flex: 1, padding: "10px", borderRadius: "8px", border: "none", cursor: "pointer", backgroundColor: !statuses[ev.key] ? "#f44336" : "#eee", color: !statuses[ev.key] ? "white" : "#888", fontWeight: "bold" }}>
-              ■ 投票締切
-            </button>
-          </div>
+        return (
+          <section key={group.base} style={{ marginBottom: "32px", padding: "16px", border: "1px solid #ddd", borderRadius: "10px" }}>
+            <h2 style={{ fontSize: "16px", marginBottom: "12px", borderBottom: "2px solid #e10102", paddingBottom: "6px" }}>{group.label}</h2>
 
-          {/* 得票数 */}
-          {(votes[ev.key] ?? []).length > 0 && (
-            <div style={{ marginBottom: "16px" }}>
-              <p style={{ fontSize: "13px", color: "#888", marginBottom: "6px" }}>得票数</p>
-              {(votes[ev.key] ?? []).map((v: any) => (
-                <div key={v.id ?? v.name} style={{ display: "flex", alignItems: "center", gap: "8px", padding: "6px 0", borderBottom: "1px solid #f0f0f0", fontSize: "14px" }}>
-                  <span style={{ width: "32px", height: "20px", borderRadius: "10px", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "11px", fontWeight: "bold", backgroundColor: v.rank === 1 ? "#e10102" : v.rank === 2 ? "#888" : v.rank === 3 ? "#b87333" : "#eee", color: v.rank <= 3 ? "white" : "#555", flexShrink: 0 }}>{v.rank}位</span>
-                  <span style={{ flex: 1 }}>{v.name}</span>
-                  <strong>{v.count}票</strong>
-                </div>
-              ))}
+            {/* プルダウン */}
+            <div style={{ marginBottom: "12px" }}>
+              <select value={currentKey}
+                onChange={(e) => setSelectedSub((prev) => ({ ...prev, [group.base]: e.target.value }))}
+                style={{ padding: "8px 12px", fontSize: "14px", borderRadius: "8px", border: "1px solid #ddd", width: "100%", cursor: "pointer" }}>
+                {group.subs.map((s) => (
+                  <option key={s.key} value={s.key}>{s.label}</option>
+                ))}
+              </select>
             </div>
-          )}
 
-          {/* 出場者一覧 */}
-          <div style={{ marginBottom: "12px" }}>
-            <p style={{ fontSize: "13px", color: "#888", marginBottom: "6px" }}>出場者</p>
-            {(entries[ev.key] ?? []).length === 0
-              ? <p style={{ color: "#aaa", fontSize: "13px" }}>登録なし</p>
-              : (entries[ev.key] ?? []).map((entry) => (
-                <div key={entry.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 0", borderBottom: "1px solid #f0f0f0" }}>
-                  <div>
-                    <span style={{ fontWeight: "bold", fontSize: "14px" }}>{entry.name}</span>
-                    {entry.description && <span style={{ color: "#888", fontSize: "12px", marginLeft: "8px" }}>{entry.description}</span>}
-                  </div>
-                  <button onClick={() => deleteEntry(entry.id)}
-                    style={{ padding: "4px 10px", fontSize: "12px", cursor: "pointer", backgroundColor: "#f44336", color: "white", border: "none", borderRadius: "6px" }}>
-                    削除
-                  </button>
-                </div>
-              ))
-            }
-          </div>
+            {/* 投票ステータス */}
+            <div style={{ display: "flex", gap: "8px", marginBottom: "12px" }}>
+              <button onClick={() => toggleVote(currentKey, true)}
+                style={{ flex: 1, padding: "10px", borderRadius: "8px", border: "none", cursor: "pointer", backgroundColor: isOpen ? "#4caf50" : "#eee", color: isOpen ? "white" : "#888", fontWeight: "bold" }}>
+                ▶ 投票開始
+              </button>
+              <button onClick={() => toggleVote(currentKey, false)}
+                style={{ flex: 1, padding: "10px", borderRadius: "8px", border: "none", cursor: "pointer", backgroundColor: !isOpen ? "#f44336" : "#eee", color: !isOpen ? "white" : "#888", fontWeight: "bold" }}>
+                ■ 投票締切
+              </button>
+            </div>
 
-          {/* 出場者追加 */}
-          <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
-            <input placeholder="名前" value={newEntry[ev.key]?.name ?? ""}
-              onChange={(e) => setNewEntry((prev) => ({ ...prev, [ev.key]: { ...prev[ev.key], name: e.target.value } }))}
-              style={{ flex: 2, padding: "8px", borderRadius: "6px", border: "1px solid #ddd", fontSize: "13px" }} />
-            <input placeholder="内容（任意）" value={newEntry[ev.key]?.description ?? ""}
-              onChange={(e) => setNewEntry((prev) => ({ ...prev, [ev.key]: { ...prev[ev.key], description: e.target.value } }))}
-              style={{ flex: 3, padding: "8px", borderRadius: "6px", border: "1px solid #ddd", fontSize: "13px" }} />
-            <button onClick={() => addEntry(ev.key)}
-              style={{ padding: "8px 16px", fontSize: "13px", cursor: "pointer", backgroundColor: "#e10102", color: "white", border: "none", borderRadius: "6px" }}>
-              追加
+            {/* 得票数表示ボタン */}
+            <button onClick={() => fetchVotes(currentKey)} disabled={voteLoading[currentKey]}
+              style={{ width: "100%", padding: "10px", fontSize: "13px", borderRadius: "8px", border: "1px solid #e10102", backgroundColor: "white", color: "#e10102", cursor: "pointer", marginBottom: "8px" }}>
+              {voteLoading[currentKey] ? "取得中..." : showVotes[currentKey] ? "📊 得票数を閉じる" : "📊 得票数を表示"}
             </button>
-          </div>
-        </section>
-      ))}
+
+            {/* 得票数一覧 */}
+            {showVotes[currentKey] && (
+              <div style={{ backgroundColor: "#fafafa", borderRadius: "8px", padding: "12px" }}>
+                {voteData.length === 0 ? (
+                  <p style={{ color: "#aaa", fontSize: "13px", margin: 0 }}>まだ投票がありません</p>
+                ) : (
+                  <ul style={{ listStyle: "none", padding: 0, margin: 0 }}>
+                    {voteData.map((r) => (
+                      <li key={r.id} style={{ display: "flex", alignItems: "center", gap: "10px", padding: "8px 0", borderBottom: "1px solid #eee" }}>
+                        <span style={{ width: "36px", height: "24px", borderRadius: "12px", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "11px", fontWeight: "bold", backgroundColor: r.rank === 1 ? "#e10102" : r.rank === 2 ? "#888" : r.rank === 3 ? "#b87333" : "#eee", color: r.rank <= 3 ? "white" : "#555", flexShrink: 0 }}>
+                          {r.rank}位
+                        </span>
+                        <span style={{ flex: 1, fontSize: "14px" }}>{r.name}</span>
+                        <div style={{ width: "80px", display: "flex", alignItems: "center", gap: "4px" }}>
+                          <div style={{ flex: 1, height: "6px", borderRadius: "3px", backgroundColor: "#eee", overflow: "hidden" }}>
+                            <div style={{ height: "100%", borderRadius: "3px", backgroundColor: r.rank === 1 ? "#e10102" : "#aaa", width: maxCount > 0 ? `${(r.count / maxCount) * 100}%` : "0%", transition: "width 0.5s" }} />
+                          </div>
+                          <span style={{ fontWeight: "bold", fontSize: "13px", minWidth: "28px", textAlign: "right" }}>{r.count}</span>
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            )}
+          </section>
+        );
+      })}
     </main>
   );
 }
