@@ -43,7 +43,10 @@ export default function AdminPage() {
       {/* 会場管理 */}
       <h2 style={{ fontSize: "16px", marginBottom: "12px", borderBottom: "2px solid #e10102", paddingBottom: "6px" }}>会場管理（混雑状況）</h2>
       <div style={{ display: "flex", flexDirection: "column", gap: "10px", marginBottom: "32px" }}>
-        <a href="/admin/venue/gym"      style={{ ...linkStyle, borderLeft: "4px solid #e10102" }}>🏟️ 体育館（のど自慢・コスコン）</a>
+        <a href="/admin/venue/gym"      style={{ ...linkStyle, borderLeft: "4px solid #e10102" }}>🏟️ 体育館（混雑状況）</a>
+        <a href="/admin/venue/gym/nodojiman"          style={{ ...linkStyle, borderLeft: "2px solid #e10102", marginLeft: "16px", fontSize: "14px" }}>　🎤 のど自慢</a>
+        <a href="/admin/venue/gym/coscon_performance" style={{ ...linkStyle, borderLeft: "2px solid #e10102", marginLeft: "16px", fontSize: "14px" }}>　👗 コスコン（パフォーマンス）</a>
+        <a href="/admin/venue/gym/coscon_runway"      style={{ ...linkStyle, borderLeft: "2px solid #e10102", marginLeft: "16px", fontSize: "14px" }}>　🏃 コスコン（ランウェイ）</a>
         <a href="/admin/venue/kinenkan" style={{ ...linkStyle, borderLeft: "4px solid #e10102" }}>🏛️ 記念館（M1）</a>
         <a href="/admin/venue/koryokan"    style={{ ...linkStyle, borderLeft: "4px solid #e10102" }}>🏢 蛟龍館</a>
       </div>
