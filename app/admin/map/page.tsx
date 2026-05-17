@@ -279,6 +279,22 @@ export default function AdminMapPage() {
                 {koryoVenue.label}
               </div>
             )}
+            {/* 蛟龍館マップ上のクラスアイコン */}
+            {placedLayouts.map((l) => (
+              <div key={`koryo-class-${l.class_code}`}
+                onMouseDown={(e) => { e.preventDefault(); startDrag(koryoMapRef, l.class_code, l.x, l.y, e.clientX, e.clientY, false); }}
+                onTouchStart={(e) => { const t = e.touches[0]; startDrag(koryoMapRef, l.class_code, l.x, l.y, t.clientX, t.clientY, false); }}
+                style={{
+                  position: "absolute", left: `${l.x}%`, top: `${l.y}%`, transform: "translate(-50%, -50%)",
+                  backgroundColor: selected === l.class_code ? "#1976d2" : "#e10102",
+                  color: "white", borderRadius: "20px", padding: "4px 10px", fontSize: "12px", fontWeight: "bold",
+                  cursor: "grab", boxShadow: selected === l.class_code ? "0 0 0 3px #90caf9" : "0 2px 6px rgba(0,0,0,0.3)",
+                  whiteSpace: "nowrap", zIndex: selected === l.class_code ? 10 : 1, touchAction: "none",
+                  display: l.x >= 0 && l.y >= 0 ? "block" : "none",
+                }}>
+                {l.class_code}
+              </div>
+            ))}
             {koryoVenue && (koryoVenue.x < 0 || koryoVenue.y < 0) && (
               <div style={{ position: "absolute", top: "8px", right: "8px" }}>
                 <button onClick={() => setVenueLayouts((prev) => prev.map((item) => item.venue_key === "koryokan" ? { ...item, x: 50, y: 50 } : item))}
