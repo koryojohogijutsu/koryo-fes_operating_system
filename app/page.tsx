@@ -136,7 +136,7 @@ function HomeInner() {
 
   const typeLabel =
     status.type === "student" ? "前高生" :
-    status.type === "paper"   ? "一般来場者（紙チケ）" : "一般来場者";
+    status.type === "paper"   ? "一般来場者（紙チケ）" : "第60回 蛟龍祭";
 
   return (
     <>
@@ -188,6 +188,7 @@ function HomeInner() {
         <div style={{ marginTop:"40px" }}>
           <a href="/admin" style={{ fontSize:"12px", color:"#ccc", textDecoration:"none" }}>管理者ログイン</a>
         </div>
+        <p style={{ marginTop:"16px", fontSize:"11px", color:"#ccc", textAlign:"center" }}>©Koryo Festival Committee All Rights Reserved.</p>
       </main>
 
       {/* サブメニューモーダル */}
