@@ -4,6 +4,7 @@ import { useEffect, useState, useRef, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import QRCode from "qrcode";
 import { createClient } from "@supabase/supabase-js";
+import Link from "next/link";
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -31,6 +32,17 @@ const STYLE = `
     from { opacity: 0; transform: scale(0.8); }
     to   { opacity: 1; transform: scale(1); }
   }
+  .time-display {
+    font-size: 38px;
+    font-weight: bold;
+    font-variant-numeric: tabular-nums;
+    letter-spacing: 3px;
+    color: #111;
+  }
+  @media (prefers-color-scheme: dark) {
+    .time-display { color: #fff; }
+    .date-display { color: #aaa; }
+  }
 `;
 
 const QR_SIZE = 240;
@@ -53,13 +65,12 @@ function EnterInner() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const isRedeemMode = searchParams.get("mode") === "redeem";
-  const [visitorId, setVisitorId] = useState<string | null>(null);
-  const [qrDataUrl, setQrDataUrl] = useState<string | null>(null);
-  const [now, setNow] = useState(new Date());
+  const [visitorId,    setVisitorId]    = useState<string | null>(null);
+  const [qrDataUrl,    setQrDataUrl]    = useState<string | null>(null);
+  const [now,          setNow]          = useState(new Date());
   const [notification, setNotification] = useState<{ classCode: string } | null>(null);
   const channelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
 
-  // 時計（1秒ごと更新）
   useEffect(() => {
     const timer = setInterval(() => setNow(new Date()), 1000);
     return () => clearInterval(timer);
@@ -71,10 +82,7 @@ function EnterInner() {
       .find((row) => row.startsWith("visitor_id="))
       ?.split("=")[1];
 
-    if (!id) {
-      router.push("/register");
-      return;
-    }
+    if (!id) { router.push("/register"); return; }
 
     setVisitorId(id);
 
@@ -86,17 +94,11 @@ function EnterInner() {
       .then((url) => setQrDataUrl(url))
       .catch(console.error);
 
-    // Supabase Realtime：自分への入場記録を監視
     const channel = supabase
       .channel(`visits:${id}`)
       .on(
         "postgres_changes",
-        {
-          event: "INSERT",
-          schema: "public",
-          table: "visits",
-          filter: `visitor_id=eq.${id}`,
-        },
+        { event: "INSERT", schema: "public", table: "visits", filter: `visitor_id=eq.${id}` },
         (payload) => {
           setNotification({ classCode: payload.new.class_code });
           setTimeout(() => setNotification(null), 5000);
@@ -108,12 +110,8 @@ function EnterInner() {
     return () => { channel.unsubscribe(); };
   }, [router]);
 
-  const timeStr = now.toLocaleTimeString("ja-JP", {
-    hour: "2-digit", minute: "2-digit", second: "2-digit",
-  });
-  const dateStr = now.toLocaleDateString("ja-JP", {
-    year: "numeric", month: "long", day: "numeric", weekday: "short",
-  });
+  const timeStr = now.toLocaleTimeString("ja-JP", { hour: "2-digit", minute: "2-digit", second: "2-digit" });
+  const dateStr = now.toLocaleDateString("ja-JP", { year: "numeric", month: "long", day: "numeric", weekday: "short" });
 
   const cornerPositions = [
     [CX - QR_SIZE / 2 - GAP / 2, CY - QR_SIZE / 2 - GAP / 2, "0s"],
@@ -126,7 +124,15 @@ function EnterInner() {
     <>
       <style>{STYLE}</style>
 
-      <main style={{ padding: "24px 20px", textAlign: "center", userSelect: "none" }}>
+      <main style={{ padding: "16px 20px 40px", textAlign: "center", userSelect: "none", maxWidth: "480px", margin: "0 auto" }}>
+
+        {/* 上部ホームリンク */}
+        <div style={{ textAlign: "left", marginBottom: "12px" }}>
+          <Link href="/" style={{ fontSize: "13px", color: "#888", textDecoration: "none" }}>
+            ← ホームに戻る
+          </Link>
+        </div>
+
         <h1 style={{ fontSize: "18px", marginBottom: "2px" }}>
           {isRedeemMode ? "🎁 景品引換QR" : "あなたのQRコード"}
         </h1>
@@ -136,178 +142,72 @@ function EnterInner() {
 
         {/* 時刻表示 */}
         <div style={{ marginBottom: "20px" }}>
-          <div style={{
-            fontSize: "38px",
-            fontWeight: "bold",
-            fontVariantNumeric: "tabular-nums",
-            letterSpacing: "3px",
-            color: "#111",
-          }}>
-            {timeStr}
-          </div>
-          <div style={{ fontSize: "13px", color: "#888", marginTop: "4px" }}>
-            {dateStr}
-          </div>
+          <div className="time-display">{timeStr}</div>
+          <div className="date-display" style={{ fontSize: "13px", color: "#888", marginTop: "4px" }}>{dateStr}</div>
         </div>
 
-        {/* QR + アニメーション（SVGはQRの外側のみ） */}
+        {/* QR + アニメーション */}
         <div style={{ width: "100%", display: "flex", justifyContent: "center", overflow: "hidden" }}>
-        <div style={{
-          position: "relative",
-          width: `${SVG_SIZE}px`,
-          height: `${SVG_SIZE}px`,
-          flexShrink: 0,
-          transform: `scale(${Math.min(1, 340 / SVG_SIZE)})`,
-          transformOrigin: "top center",
-        }}>
-          {/* SVGアニメーション */}
-          <svg
-            width={SVG_SIZE}
-            height={SVG_SIZE}
-            viewBox={`0 0 ${SVG_SIZE} ${SVG_SIZE}`}
-            style={{ position: "absolute", top: 0, left: 0, pointerEvents: "none" }}
-          >
-            {/* 内リング（時計回り破線） */}
-            <circle
-              cx={CX} cy={CY} r={R1}
-              fill="none"
-              stroke="#e10102"
-              strokeWidth="2"
-              strokeDasharray="8 6"
-              style={{
-                transformOrigin: `${CX}px ${CY}px`,
-                animation: "spin 8s linear infinite",
-              }}
-            />
-            {/* 外リング（反時計回り） */}
-            <circle
-              cx={CX} cy={CY} r={R2}
-              fill="none"
-              stroke="#e10102"
-              strokeWidth="1.5"
-              strokeDasharray="3 12"
-              opacity="0.35"
-              style={{
-                transformOrigin: `${CX}px ${CY}px`,
-                animation: "spin-rev 12s linear infinite",
-              }}
-            />
-            {/* 四隅の点滅ドット */}
-            {cornerPositions.map(([x, y, delay], i) => (
-              <circle
-                key={i}
-                cx={x as number}
-                cy={y as number}
-                r={4.5}
-                fill="#e10102"
-                style={{ animation: `corner-blink 1.6s ease-in-out ${delay} infinite` }}
-              />
-            ))}
-            {/* 上下左右の脈動ドット */}
-            {[0, 90, 180, 270].map((deg, i) => {
-              const rad = (deg * Math.PI) / 180;
-              const r = R1 + 8;
-              return (
-                <circle
-                  key={i}
-                  cx={CX + r * Math.sin(rad)}
-                  cy={CY - r * Math.cos(rad)}
-                  r={3}
-                  fill="#e10102"
-                  opacity="0.65"
-                  style={{ animation: `pulse-dot 2s ease-in-out ${i * 0.5}s infinite` }}
-                />
-              );
-            })}
-          </svg>
-
-          {/* QR本体（SVGの中央・アニメと重ならない） */}
           <div style={{
-            position: "absolute",
-            top: "50%",
-            left: "50%",
-            transform: "translate(-50%, -50%)",
+            position: "relative",
+            width: `${SVG_SIZE}px`,
+            height: `${SVG_SIZE}px`,
+            flexShrink: 0,
+            transform: `scale(${Math.min(1, 340 / SVG_SIZE)})`,
+            transformOrigin: "top center",
           }}>
-            {qrDataUrl ? (
-              <img
-                src={qrDataUrl}
-                alt="QRコード"
-                width={QR_SIZE}
-                height={QR_SIZE}
-                draggable={false}
-                style={{ display: "block", borderRadius: "4px" }}
-              />
-            ) : (
-              <div style={{
-                width: QR_SIZE,
-                height: QR_SIZE,
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                color: "#ccc",
-              }}>
-                生成中...
-              </div>
-            )}
+            <svg
+              width={SVG_SIZE}
+              height={SVG_SIZE}
+              viewBox={`0 0 ${SVG_SIZE} ${SVG_SIZE}`}
+              style={{ position: "absolute", top: 0, left: 0, pointerEvents: "none" }}
+            >
+              <circle cx={CX} cy={CY} r={R1} fill="none" stroke="#e10102" strokeWidth="2" strokeDasharray="8 6"
+                style={{ transformOrigin: `${CX}px ${CY}px`, animation: "spin 8s linear infinite" }} />
+              <circle cx={CX} cy={CY} r={R2} fill="none" stroke="#e10102" strokeWidth="1.5" strokeDasharray="3 12" opacity="0.35"
+                style={{ transformOrigin: `${CX}px ${CY}px`, animation: "spin-rev 12s linear infinite" }} />
+              {cornerPositions.map(([x, y, delay], i) => (
+                <circle key={i} cx={x as number} cy={y as number} r={4.5} fill="#e10102"
+                  style={{ animation: `corner-blink 1.6s ease-in-out ${delay} infinite` }} />
+              ))}
+              {[0, 90, 180, 270].map((deg, i) => {
+                const rad = (deg * Math.PI) / 180;
+                const r = R1 + 8;
+                return (
+                  <circle key={i} cx={CX + r * Math.sin(rad)} cy={CY - r * Math.cos(rad)} r={3}
+                    fill="#e10102" opacity="0.65"
+                    style={{ animation: `pulse-dot 2s ease-in-out ${i * 0.5}s infinite` }} />
+                );
+              })}
+            </svg>
+
+            <div style={{ position: "absolute", top: "50%", left: "50%", transform: "translate(-50%, -50%)" }}>
+              {qrDataUrl ? (
+                <img src={qrDataUrl} alt="QRコード" width={QR_SIZE} height={QR_SIZE}
+                  draggable={false} style={{ display: "block", borderRadius: "4px" }} />
+              ) : (
+                <div style={{ width: QR_SIZE, height: QR_SIZE, display: "flex", alignItems: "center", justifyContent: "center", color: "#ccc" }}>
+                  生成中...
+                </div>
+              )}
+            </div>
           </div>
-        </div>
         </div>
 
         <p style={{ fontSize: "11px", color: "#ccc", marginTop: "16px" }}>
           ID: {visitorId?.slice(0, 8)}...
         </p>
-
-        <button
-          onClick={() => router.push("/")}
-          style={{
-            marginTop: "10px",
-            padding: "10px 24px",
-            fontSize: "14px",
-            cursor: "pointer",
-            backgroundColor: "white",
-            color: "#555",
-            border: "1px solid #ddd",
-            borderRadius: "6px",
-          }}
-        >
-          ホームに戻る
-        </button>
       </main>
 
       {/* 読み取り通知オーバーレイ */}
       {notification && (
-        <div
-          onClick={() => setNotification(null)}
-          style={{
-            position: "fixed",
-            inset: 0,
-            backgroundColor: "rgba(0,0,0,0.65)",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            zIndex: 1000,
-          }}
-        >
-          <div style={{
-            backgroundColor: "white",
-            borderRadius: "20px",
-            padding: "40px 32px",
-            textAlign: "center",
-            maxWidth: "300px",
-            width: "88%",
-            boxShadow: "0 12px 40px rgba(0,0,0,0.25)",
-            animation: "notify-in 0.3s ease",
-          }}>
+        <div onClick={() => setNotification(null)}
+          style={{ position: "fixed", inset: 0, backgroundColor: "rgba(0,0,0,0.65)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000 }}>
+          <div style={{ backgroundColor: "white", borderRadius: "20px", padding: "40px 32px", textAlign: "center", maxWidth: "300px", width: "88%", boxShadow: "0 12px 40px rgba(0,0,0,0.25)", animation: "notify-in 0.3s ease" }}>
             <div style={{ fontSize: "56px", marginBottom: "12px" }}>✅</div>
-            <div style={{ fontSize: "20px", fontWeight: "bold", marginBottom: "8px" }}>
-              読み取られました！
-            </div>
-            <div style={{ fontSize: "15px", color: "#555" }}>
-              クラス: <strong>{notification.classCode}</strong>
-            </div>
-            <div style={{ fontSize: "12px", color: "#aaa", marginTop: "20px" }}>
-              タップで閉じる
-            </div>
+            <div style={{ fontSize: "20px", fontWeight: "bold", marginBottom: "8px" }}>読み取られました！</div>
+            <div style={{ fontSize: "15px", color: "#555" }}>クラス: <strong>{notification.classCode}</strong></div>
+            <div style={{ fontSize: "12px", color: "#aaa", marginTop: "20px" }}>タップで閉じる</div>
           </div>
         </div>
       )}
