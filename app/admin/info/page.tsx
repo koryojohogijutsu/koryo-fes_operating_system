@@ -14,22 +14,18 @@ export default function AdminInfoPage() {
   const [authed,     setAuthed]     = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
-  // リクエスト排除用（5秒）：操作ごとに独立管理
   const lastNoticeRef = useRef<number>(0);
   const lastLostRef   = useRef<number>(0);
   const lastDeleteRef = useRef<number>(0);
 
-  // notice form
   const [nTitle, setNTitle] = useState("");
   const [nBody,  setNBody]  = useState("");
-
-  // lost form
   const [lTime,  setLTime]  = useState("");
   const [lPlace, setLPlace] = useState("");
   const [lMemo,  setLMemo]  = useState("");
 
   const load = useCallback(async () => {
-    const res = await fetch("/api/info");
+    const res = await fetch("/api/info", { cache: "no-store" });
     const d   = await res.json();
     setNotices(d.notices ?? []);
     setLost(d.lost ?? []);
@@ -54,7 +50,6 @@ export default function AdminInfoPage() {
     });
     if (res.ok) {
       setNTitle(""); setNBody("");
-      // DB反映を待ってから再取得
       await load();
     } else {
       const d = await res.json();
@@ -88,17 +83,24 @@ export default function AdminInfoPage() {
     const now = Date.now();
     if (now - lastDeleteRef.current < 3000) { alert("操作が早すぎます"); return; }
     lastDeleteRef.current = now;
+
+    // 即時stateを更新（楽観的更新）
+    if (type === "notice") setNotices((prev) => prev.filter((n) => n.id !== id));
+    else                   setLost((prev) => prev.filter((l) => l.id !== id));
+
     const res = await fetch("/api/info/manage", {
       method: "DELETE", headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ type, id }),
     });
+
     if (res.ok) {
-      // stateを即時更新して反映
-      if (type === "notice") setNotices((prev) => prev.filter((n) => n.id !== id));
-      else                   setLost((prev) => prev.filter((l) => l.id !== id));
+      // DB反映後に再取得して確実に同期
+      await load();
     } else {
       const d = await res.json();
       alert("エラー: " + d.error);
+      // 失敗したら元に戻すために再取得
+      await load();
     }
   };
 
@@ -109,7 +111,6 @@ export default function AdminInfoPage() {
       <a href="/admin" style={{ fontSize: "13px", color: "#888", textDecoration: "none", display: "block", marginBottom: "20px" }}>← 管理者メニューに戻る</a>
       <h1 style={{ fontSize: "20px", marginBottom: "20px" }}>インフォメーション管理</h1>
 
-      {/* タブ */}
       <div style={{ display: "flex", marginBottom: "20px", borderBottom: "2px solid #eee" }}>
         {[{ key: "notice", label: "📢 お知らせ" }, { key: "lost", label: "🎒 落とし物" }].map((t) => (
           <button key={t.key} onClick={() => setTab(t.key as "notice" | "lost")}
