@@ -3,13 +3,14 @@
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Html5Qrcode } from "html5-qrcode";
+import Link from "next/link";
 
-const EVENT_KEYS = ["nodojiman", "coscon_solo", "coscon_group", "m1"];
+const EVENT_KEYS = ["nodojiman", "coscon_performance", "coscon_runway", "m1"];
 const EVENT_LABELS: Record<string, string> = {
-  nodojiman:    "のど自慢",
-  coscon_solo:  "コスコン（個人）",
-  coscon_group: "コスコン（団体）",
-  m1:           "M1",
+  nodojiman:          "のど自慢",
+  coscon_performance: "コスコン（パフォーマンス）",
+  coscon_runway:      "コスコン（ランウェイ）",
+  m1:                 "M1",
 };
 
 async function sha256(text: string): Promise<string> {
@@ -53,9 +54,7 @@ export default function EventEnterPage() {
     fetchHistory(id);
 
     return () => {
-      if (scannerRef.current) {
-        scannerRef.current.stop().catch(() => {});
-      }
+      if (scannerRef.current) scannerRef.current.stop().catch(() => {});
     };
   }, [router]);
 
@@ -69,7 +68,6 @@ export default function EventEnterPage() {
 
   const handleScan = async (scanned: string) => {
     if (scanningRef.current || !visitorId) return;
-
     const now = Date.now();
     if (lastScanRef.current && lastScanRef.current.hash === scanned && now - lastScanRef.current.time < 10000) return;
     lastScanRef.current = { hash: scanned, time: now };
@@ -84,8 +82,7 @@ export default function EventEnterPage() {
     }
 
     const res  = await fetch("/api/event-enter", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
+      method: "POST", headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ visitorId, eventKey }),
     });
     const data = await res.json();
@@ -105,30 +102,14 @@ export default function EventEnterPage() {
     if (isInitializing || scanning) return;
     setIsInitializing(true);
     setMessage(null);
-
-    // 先にscanningをtrueにしてDOMを描画させる
     setScanning(true);
-
-    // DOMの描画を待つ
     await new Promise((resolve) => setTimeout(resolve, 200));
-
     try {
-      if (scannerRef.current) {
-        await scannerRef.current.stop().catch(() => {});
-        scannerRef.current = null;
-      }
-
+      if (scannerRef.current) { await scannerRef.current.stop().catch(() => {}); scannerRef.current = null; }
       const scanner = new Html5Qrcode("event-reader");
       scannerRef.current = scanner;
-
-      await scanner.start(
-        { facingMode: "environment" },
-        { fps: 10, qrbox: { width: 250, height: 250 } },
-        handleScan,
-        () => {}
-      );
-    } catch (err) {
-      console.error("Scanner Error:", err);
+      await scanner.start({ facingMode: "environment" }, { fps: 10, qrbox: { width: 250, height: 250 } }, handleScan, () => {});
+    } catch {
       setMessage({ text: "カメラを起動できませんでした。許可設定を確認してください。", ok: false });
       setScanning(false);
     } finally {
@@ -138,10 +119,7 @@ export default function EventEnterPage() {
 
   const stopScanner = async () => {
     if (scannerRef.current) {
-      try {
-        await scannerRef.current.stop();
-        scannerRef.current.clear();
-      } catch {}
+      try { await scannerRef.current.stop(); scannerRef.current.clear(); } catch {}
       scannerRef.current = null;
     }
     scanningRef.current = false;
@@ -152,100 +130,51 @@ export default function EventEnterPage() {
   const handleVoteButton = async () => {
     if (!visitorId) return;
     setVoting(true);
-
     const res  = await fetch(`/api/event-enter?visitorId=${visitorId}`, { cache: "no-store" });
     const data = await res.json();
     const visits: EventVisit[] = data.visits ?? [];
-
-    if (visits.length === 0) {
-      alert("まだイベントに入場していません");
-      setVoting(false);
-      return;
-    }
-
+    if (visits.length === 0) { alert("まだイベントに入場していません"); setVoting(false); return; }
     const latest   = visits[visits.length - 1];
     const category = latest.event_key;
-
     const statusRes  = await fetch(`/api/event-vote-status?eventKey=${category}`, { cache: "no-store" });
     const statusData = await statusRes.json();
-
-    if (!statusData.is_open) {
-      alert(`「${EVENT_LABELS[category]}」の投票はまだ開始されていません`);
-      setVoting(false);
-      return;
-    }
-
+    if (!statusData.is_open) { alert(`「${EVENT_LABELS[category]}」の投票はまだ開始されていません`); setVoting(false); return; }
     router.push(`/vote/event/${category}`);
     setVoting(false);
   };
 
   return (
     <main style={{ padding: "24px 20px", maxWidth: "480px", margin: "0 auto" }}>
-      <a href="/" style={{ fontSize: "13px", color: "#888", textDecoration: "none", display: "block", marginBottom: "20px" }}>
+      <Link href="/" style={{ fontSize: "13px", color: "#888", textDecoration: "none", display: "block", marginBottom: "20px" }}>
         ← ホームに戻る
-      </a>
-
+      </Link>
       <h1 style={{ fontSize: "20px", marginBottom: "6px" }}>🎤 イベント</h1>
-      <p style={{ color: "#888", fontSize: "13px", marginBottom: "24px" }}>
-        会場のQRを読み取って入場記録、または投票できます
-      </p>
+      <p style={{ color: "#888", fontSize: "13px", marginBottom: "24px" }}>会場のQRを読み取って入場記録、または投票できます</p>
 
       <div style={{ display: "flex", flexDirection: "column", gap: "12px", marginBottom: "24px" }}>
-        <button
-          onClick={scanning ? stopScanner : startScanner}
-          disabled={isInitializing}
-          style={{
-            padding: "14px", fontSize: "16px",
-            cursor: isInitializing ? "not-allowed" : "pointer",
-            backgroundColor: scanning ? "#555" : "#e10102",
-            color: "white", border: "none", borderRadius: "8px",
-          }}
-        >
+        <button onClick={scanning ? stopScanner : startScanner} disabled={isInitializing}
+          style={{ padding: "14px", fontSize: "16px", cursor: isInitializing ? "not-allowed" : "pointer", backgroundColor: scanning ? "#555" : "#e10102", color: "white", border: "none", borderRadius: "8px" }}>
           {isInitializing ? "カメラ起動中..." : scanning ? "📷 スキャン中（タップで停止）" : "📷 QRを読み取る"}
         </button>
-
-        <button
-          onClick={handleVoteButton}
-          disabled={voting || scanning}
-          style={{
-            padding: "14px", fontSize: "16px",
-            cursor: (voting || scanning) ? "not-allowed" : "pointer",
-            backgroundColor: "white", color: "#e10102",
-            border: "2px solid #e10102", borderRadius: "8px",
-            opacity: scanning ? 0.5 : 1,
-          }}
-        >
+        <button onClick={handleVoteButton} disabled={voting || scanning}
+          style={{ padding: "14px", fontSize: "16px", cursor: (voting || scanning) ? "not-allowed" : "pointer", backgroundColor: "white", color: "#e10102", border: "2px solid #e10102", borderRadius: "8px", opacity: scanning ? 0.5 : 1 }}>
           {voting ? "確認中..." : "🗳️ 投票する"}
         </button>
       </div>
 
-      {/* カメラ映像：常にDOMに配置し、scanningで表示切り替え */}
-      <div style={{
-        display: scanning ? "block" : "none",
-        width: "100%", maxWidth: "320px",
-        margin: "0 auto 20px",
-        borderRadius: "12px", overflow: "hidden",
-        border: "2px solid #e10102",
-      }}>
+      <div style={{ display: scanning ? "block" : "none", width: "100%", maxWidth: "320px", margin: "0 auto 20px", borderRadius: "12px", overflow: "hidden", border: "2px solid #e10102" }}>
         <div id="event-reader" style={{ width: "100%", minHeight: "250px" }} />
       </div>
-      {/* scanningがfalseでもDOMに残す */}
       {!scanning && <div id="event-reader" style={{ display: "none" }} />}
 
       {message && (
-        <div style={{
-          padding: "12px 16px", borderRadius: "8px",
-          backgroundColor: message.ok ? "#4caf50" : "#f44336",
-          color: "white", fontSize: "15px", textAlign: "center", marginBottom: "16px",
-        }}>
+        <div style={{ padding: "12px 16px", borderRadius: "8px", backgroundColor: message.ok ? "#4caf50" : "#f44336", color: "white", fontSize: "15px", textAlign: "center", marginBottom: "16px" }}>
           {message.text}
         </div>
       )}
 
       <section style={{ marginTop: "12px" }}>
-        <h2 style={{ fontSize: "15px", fontWeight: "bold", marginBottom: "10px", borderBottom: "2px solid #e10102", paddingBottom: "6px" }}>
-          入場履歴
-        </h2>
+        <h2 style={{ fontSize: "15px", fontWeight: "bold", marginBottom: "10px", borderBottom: "2px solid #e10102", paddingBottom: "6px" }}>入場履歴</h2>
         {loadingHistory ? (
           <p style={{ color: "#aaa", fontSize: "13px" }}>読み込み中...</p>
         ) : eventVisits.length === 0 ? (
