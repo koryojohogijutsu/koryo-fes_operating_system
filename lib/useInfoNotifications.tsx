@@ -34,7 +34,7 @@ export function useInfoNotifications() {
 
     const check = async () => {
       try {
-        const res  = await fetch("/api/info", { cache: "no-store" });
+        const res  = await fetch(`/api/info?_t=${Date.now()}`, { cache: "no-store" });
         if (!res.ok) return;
         const data = await res.json();
 
