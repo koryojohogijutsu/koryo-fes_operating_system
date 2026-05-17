@@ -5,8 +5,8 @@ import { useRouter } from "next/navigation";
 
 const EVENT_CATEGORIES = [
   { key: "nodojiman",    label: "🎤 のど自慢" },
-  { key: "coscon_solo",  label: "👗 コスコン（個人）" },
-  { key: "coscon_group", label: "👥 コスコン（団体）" },
+  { key: "coscon_performance",  label: "👗 コスコン（パフォーマンス）" },
+  { key: "coscon_runway", label: "👥 コスコン（ランウェイ）" },
   { key: "m1",           label: "🎭 M1" },
 ];
 
