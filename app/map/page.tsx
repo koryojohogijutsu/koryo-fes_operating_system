@@ -12,7 +12,7 @@ const CROWD_ICONS = [
 const VENUE_LABELS: Record<string, string> = {
   gym:      "体育館",
   kinenkan: "記念館",
-  koryokan:    "蛟龍館",
+  koryokan:    "ライブ",
 };
 
 type ClassCrowd = {
@@ -165,6 +165,27 @@ export default function MapPage() {
       <h2 style={{ fontSize: "15px", fontWeight: "bold", marginBottom: "8px", color: "#333" }}>🏢 蛟龍館</h2>
       <div style={{ position: "relative", width: "100%", marginBottom: "32px", border: "1px solid #ddd", borderRadius: "8px", overflow: "hidden" }}>
         <img src="/venue-map-koryokan.png" alt="蛟龍館マップ" style={{ width: "100%", display: "block" }} />
+      {/* 蛟龍館クラス（将棋部・囲碁部）*/}
+      {(() => {
+        const KORYO_CLASS_CODES = ["将棋部", "囲碁部"];
+        const koryoClasses = classLayouts.filter((l) => KORYO_CLASS_CODES.includes(l.class_code));
+        if (koryoClasses.length === 0) return null;
+        return koryoClasses.map((layout) => {
+          const crowd = classCrowds.find((c) => c.class_code === layout.class_code);
+          const level = crowd?.level ?? 0;
+          const icon  = getCrowdIcon(level);
+          return (
+            <div key={layout.class_code}
+              style={{ position: "absolute", left: `${layout.x}%`, top: `${layout.y}%`, transform: "translate(-50%, -100%)", textAlign: "center", pointerEvents: "none" }}>
+              <img src={icon.src} alt={icon.label} style={{ width: "32px", height: "32px", objectFit: "contain", display: "block", margin: "0 auto" }}
+                onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }} />
+              <div style={{ backgroundColor: icon.color, color: "white", borderRadius: "12px", padding: "2px 6px", fontSize: "10px", fontWeight: "bold", whiteSpace: "nowrap", boxShadow: "0 2px 4px rgba(0,0,0,0.2)" }}>
+                {layout.class_code}
+              </div>
+            </div>
+          );
+        });
+      })()}
         {venueLayouts.filter(l => l.venue_key === "koryokan").map((layout) => {
           const crowd = venueCrowds.find((v) => v.venue_key === layout.venue_key);
           const level = crowd?.level ?? 0;
