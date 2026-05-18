@@ -85,6 +85,7 @@ export default function MapPage() {
   );
 
   return (
+    <>
     <main style={{ padding: "20px 16px 40px", maxWidth: "600px", margin: "0 auto" }}>
       <Link href="/" style={{ fontSize: "13px", color: "#888", textDecoration: "none", display: "block", marginBottom: "16px" }}>← ホームに戻る</Link>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "8px" }}>
@@ -244,7 +245,7 @@ export default function MapPage() {
       </div>
     </main>
 
-      {/* クラスコメントモーダル */}
+        {/* クラスコメントモーダル */}
       {modalClass && (
         <div onClick={() => setModalClass(null)}
           style={{ position: "fixed", inset: 0, backgroundColor: "rgba(0,0,0,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 500, padding: "20px" }}>
@@ -272,5 +273,6 @@ export default function MapPage() {
           </div>
         </div>
       )}
+    </>
   );
 }
