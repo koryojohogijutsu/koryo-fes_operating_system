@@ -281,7 +281,7 @@ function PuzzleInner() {
 
         {/* 問題画像 */}
         <div style={{ position:"relative",width:"100%" }}>
-          <img src={`/puzzle/q${currentQ}.png`} alt={`Q${currentQ}`} style={{ width:"100%",borderRadius:"10px",display:"block" }} />
+          <img src={isSolved ? `/puzzle/correct${currentQ}.png` : `/puzzle/q${currentQ}.png`} alt={`Q${currentQ}`} style={{ width:"100%",borderRadius:"10px",display:"block" }} />
           {HAS_HINT[currentQ] && (
             <button onClick={openHintModal}
               style={{ position:"absolute",bottom:"10px",left:"10px",padding:"8px 14px",fontSize:"13px",backgroundColor:"rgba(0,0,0,0.75)",color:"#fff",border:"1px solid #555",borderRadius:"8px",cursor:"pointer" }}>
