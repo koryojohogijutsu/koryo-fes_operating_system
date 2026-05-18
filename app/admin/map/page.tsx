@@ -279,8 +279,8 @@ export default function AdminMapPage() {
                 {koryoVenue.label}
               </div>
             )}
-            {/* 蛟龍館マップ上のクラスアイコン */}
-            {placedLayouts.map((l) => (
+            {/* 蛟龍館マップ上のクラスアイコン（将棋部・囲碁部のみ） */}
+            {placedLayouts.filter((l) => ["将棋部", "囲碁部"].includes(l.class_code)).map((l) => (
               <div key={`koryo-class-${l.class_code}`}
                 onMouseDown={(e) => { e.preventDefault(); startDrag(koryoMapRef, l.class_code, l.x, l.y, e.clientX, e.clientY, false); }}
                 onTouchStart={(e) => { const t = e.touches[0]; startDrag(koryoMapRef, l.class_code, l.x, l.y, t.clientX, t.clientY, false); }}
