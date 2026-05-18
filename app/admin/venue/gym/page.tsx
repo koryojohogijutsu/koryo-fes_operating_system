@@ -1,6 +1,5 @@
 "use client";
 import { useEffect, useState } from "react";
-import Link from "next/link";
 
 const VENUE_KEY = "gym";
 
@@ -55,18 +54,6 @@ export default function GymManagePage() {
         ))}
       </div>
 
-      <h2 style={{ fontSize: "16px", marginBottom: "12px", borderBottom: "2px solid #e10102", paddingBottom: "6px" }}>イベント投開票管理</h2>
-      <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
-        <Link href="/admin/venue/gym/nodojiman" style={linkStyle}>🎤 のど自慢</Link>
-        <Link href="/admin/venue/gym/coscon_performance" style={linkStyle}>👗 コスコン（パフォーマンス）</Link>
-        <Link href="/admin/venue/gym/coscon_runway" style={linkStyle}>🏃 コスコン（ランウェイ）</Link>
-      </div>
     </main>
   );
 }
-
-const linkStyle: React.CSSProperties = {
-  display: "block", padding: "14px 16px", borderRadius: "8px",
-  border: "1px solid #ddd", textDecoration: "none", color: "#333",
-  fontSize: "15px", backgroundColor: "white",
-};
