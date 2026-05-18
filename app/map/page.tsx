@@ -23,6 +23,8 @@ type ClassCrowd = {
   level:      number;
 };
 
+type ClassInfo = { code: string; label: string; comment: string };
+
 type VenueCrowd = {
   venue_key:  string;
   level:      number;
@@ -48,17 +50,21 @@ export default function MapPage() {
   const [venueLayouts,  setVenueLayouts]  = useState<VenueLayout[]>([]);
   const [loading,       setLoading]       = useState(true);
   const [lastUpdated,   setLastUpdated]   = useState<Date | null>(null);
+  const [classInfos,    setClassInfos]    = useState<ClassInfo[]>([]);
+  const [modalClass,    setModalClass]    = useState<{ crowd: ClassCrowd; info: ClassInfo | null } | null>(null);
 
   const loadData = useCallback(async () => {
-    const [crowdRes, classLayoutRes, venueLayoutRes] = await Promise.all([
+    const [crowdRes, classLayoutRes, venueLayoutRes, classRes] = await Promise.all([
       fetch("/api/crowd?type=all", { cache: "no-store" }).then((r) => r.json()),
       fetch("/api/map-layout", { cache: "no-store" }).then((r) => r.json()),
       fetch("/api/map-layout?type=venue", { cache: "no-store" }).then((r) => r.json()),
+      fetch("/api/classes", { cache: "no-store" }).then((r) => r.json()),
     ]);
     setClassCrowds(crowdRes.classes ?? []);
     setVenueCrowds(crowdRes.venues  ?? []);
     setClassLayouts(classLayoutRes.layouts ?? []);
     setVenueLayouts(venueLayoutRes.layouts ?? []);
+    setClassInfos(classRes.classes ?? []);
     setLastUpdated(new Date());
     setLoading(false);
   }, []);
@@ -115,7 +121,12 @@ export default function MapPage() {
           const icon  = getCrowdIcon(level);
           return (
             <div key={layout.class_code}
-              style={{ position: "absolute", left: `${layout.x}%`, top: `${layout.y}%`, transform: "translate(-50%, -100%)", textAlign: "center", pointerEvents: "none" }}>
+              onClick={() => {
+                const crowd = classCrowds.find((c) => c.class_code === layout.class_code);
+                const info  = classInfos.find((c) => c.code === layout.class_code) ?? null;
+                if (crowd) setModalClass({ crowd, info });
+              }}
+              style={{ position: "absolute", left: `${layout.x}%`, top: `${layout.y}%`, transform: "translate(-50%, -100%)", textAlign: "center", cursor: "pointer" }}>
               <img src={icon.src} alt={icon.label} style={{ width: "32px", height: "32px", objectFit: "contain", display: "block", margin: "0 auto" }}
                 onError={(e) => {
                   // 画像がない場合は色付き丸で代替
@@ -150,7 +161,12 @@ export default function MapPage() {
           const icon  = getCrowdIcon(level);
           return (
             <div key={layout.venue_key}
-              style={{ position: "absolute", left: `${layout.x}%`, top: `${layout.y}%`, transform: "translate(-50%, -100%)", textAlign: "center", pointerEvents: "none" }}>
+              onClick={() => {
+                const crowd = classCrowds.find((c) => c.class_code === layout.class_code);
+                const info  = classInfos.find((c) => c.code === layout.class_code) ?? null;
+                if (crowd) setModalClass({ crowd, info });
+              }}
+              style={{ position: "absolute", left: `${layout.x}%`, top: `${layout.y}%`, transform: "translate(-50%, -100%)", textAlign: "center", cursor: "pointer" }}>
               <img src={icon.src} alt={icon.label} style={{ width: "36px", height: "36px", objectFit: "contain", display: "block", margin: "0 auto" }}
                 onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }} />
               <div style={{ backgroundColor: icon.color, color: "white", borderRadius: "12px", padding: "2px 8px", fontSize: "11px", fontWeight: "bold", whiteSpace: "nowrap", boxShadow: "0 2px 4px rgba(0,0,0,0.2)" }}>
@@ -176,7 +192,12 @@ export default function MapPage() {
           const icon  = getCrowdIcon(level);
           return (
             <div key={layout.class_code}
-              style={{ position: "absolute", left: `${layout.x}%`, top: `${layout.y}%`, transform: "translate(-50%, -100%)", textAlign: "center", pointerEvents: "none" }}>
+              onClick={() => {
+                const crowd = classCrowds.find((c) => c.class_code === layout.class_code);
+                const info  = classInfos.find((c) => c.code === layout.class_code) ?? null;
+                if (crowd) setModalClass({ crowd, info });
+              }}
+              style={{ position: "absolute", left: `${layout.x}%`, top: `${layout.y}%`, transform: "translate(-50%, -100%)", textAlign: "center", cursor: "pointer" }}>
               <img src={icon.src} alt={icon.label} style={{ width: "32px", height: "32px", objectFit: "contain", display: "block", margin: "0 auto" }}
                 onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }} />
               <div style={{ backgroundColor: icon.color, color: "white", borderRadius: "12px", padding: "2px 6px", fontSize: "10px", fontWeight: "bold", whiteSpace: "nowrap", boxShadow: "0 2px 4px rgba(0,0,0,0.2)" }}>
@@ -192,7 +213,12 @@ export default function MapPage() {
           const icon  = getCrowdIcon(level);
           return (
             <div key={layout.venue_key}
-              style={{ position: "absolute", left: `${layout.x}%`, top: `${layout.y}%`, transform: "translate(-50%, -100%)", textAlign: "center", pointerEvents: "none" }}>
+              onClick={() => {
+                const crowd = classCrowds.find((c) => c.class_code === layout.class_code);
+                const info  = classInfos.find((c) => c.code === layout.class_code) ?? null;
+                if (crowd) setModalClass({ crowd, info });
+              }}
+              style={{ position: "absolute", left: `${layout.x}%`, top: `${layout.y}%`, transform: "translate(-50%, -100%)", textAlign: "center", cursor: "pointer" }}>
               <img src={icon.src} alt={icon.label} style={{ width: "36px", height: "36px", objectFit: "contain", display: "block", margin: "0 auto" }}
                 onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }} />
               <div style={{ backgroundColor: icon.color, color: "white", borderRadius: "12px", padding: "2px 8px", fontSize: "11px", fontWeight: "bold", whiteSpace: "nowrap", boxShadow: "0 2px 4px rgba(0,0,0,0.2)" }}>
@@ -217,5 +243,34 @@ export default function MapPage() {
         })}
       </div>
     </main>
+
+      {/* クラスコメントモーダル */}
+      {modalClass && (
+        <div onClick={() => setModalClass(null)}
+          style={{ position: "fixed", inset: 0, backgroundColor: "rgba(0,0,0,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 500, padding: "20px" }}>
+          <div onClick={(e) => e.stopPropagation()}
+            style={{ backgroundColor: "white", borderRadius: "16px", padding: "24px 20px", maxWidth: "320px", width: "100%", boxShadow: "0 8px 32px rgba(0,0,0,0.2)" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "12px" }}>
+              <div>
+                <p style={{ fontWeight: "bold", fontSize: "16px", margin: 0 }}>{modalClass.info?.code ?? modalClass.crowd.class_code}</p>
+                <p style={{ color: "#888", fontSize: "13px", margin: "2px 0 0" }}>{modalClass.info?.label}</p>
+              </div>
+              {(() => {
+                const icon = getCrowdIcon(modalClass.crowd.level);
+                return <span style={{ fontWeight: "bold", color: icon.color, fontSize: "13px" }}>{icon.label}</span>;
+              })()}
+            </div>
+            {modalClass.info?.comment ? (
+              <p style={{ fontSize: "14px", color: "#444", lineHeight: "1.7", margin: "0 0 16px" }}>{modalClass.info.comment}</p>
+            ) : (
+              <p style={{ fontSize: "13px", color: "#bbb", margin: "0 0 16px" }}>コメントはありません</p>
+            )}
+            <button onClick={() => setModalClass(null)}
+              style={{ width: "100%", padding: "10px", fontSize: "14px", cursor: "pointer", backgroundColor: "#f5f5f5", color: "#555", border: "none", borderRadius: "8px" }}>
+              閉じる
+            </button>
+          </div>
+        </div>
+      )}
   );
 }
