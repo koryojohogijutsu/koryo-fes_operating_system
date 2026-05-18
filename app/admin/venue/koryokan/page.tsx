@@ -2,7 +2,7 @@
 import { useEffect, useState } from "react";
 
 const VENUE_KEY   = "koryokan";
-const VENUE_LABEL = "蛟龍館";
+const VENUE_LABEL = "ライブ";
 
 const CROWD_LEVELS = [
   { level: 0, label: "混雑なし",   color: "#4caf50", bg: "#f1f8e9" },
@@ -38,7 +38,7 @@ export default function KoryuManagePage() {
 
   return (
     <main style={{ padding: "20px", maxWidth: "480px", margin: "0 auto" }}>
-      <h1 style={{ fontSize: "20px", marginBottom: "8px" }}>🏢 {VENUE_LABEL}管理</h1>
+      <h1 style={{ fontSize: "20px", marginBottom: "8px" }}>🎵 {VENUE_LABEL}管理</h1>
       <p style={{ color: "#888", fontSize: "13px", marginBottom: "24px" }}>混雑状況を手動で設定します</p>
 
       {/* 現在の状況表示 */}
