@@ -265,7 +265,7 @@ export default function AdminMapPage() {
             onTouchMove={(e) => { const t = e.touches[0]; moveDrag(koryoMapRef, t.clientX, t.clientY); }}
             onTouchEnd={() => setDragging(null)}
           >
-            <img src="/venue-map-koryu.png" alt="蛟龍館マップ" style={{ width: "100%", display: "block" }} draggable={false} />
+            <img src="/venue-map-koryokan.png" alt="蛟龍館マップ" style={{ width: "100%", display: "block" }} draggable={false} />
             {koryoVenue && koryoVenue.x >= 0 && koryoVenue.y >= 0 && (
               <div
                 onMouseDown={(e) => { e.preventDefault(); startDrag(koryoMapRef, koryoVenue.venue_key, koryoVenue.x, koryoVenue.y, e.clientX, e.clientY, true); }}
