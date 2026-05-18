@@ -10,9 +10,9 @@ const CROWD_ICONS = [
 ];
 
 const VENUE_LABELS: Record<string, string> = {
-  gym:      "体育館",
-  kinenkan: "記念館",
-  koryokan:    "ライブ",
+  gym:　　　"体育館",
+  kinenkan:"記念館",
+  koryokan:"ライブ",
 };
 
 type ClassCrowd = {
