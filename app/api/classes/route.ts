@@ -2,10 +2,7 @@ import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 
 export const dynamic = "force-dynamic";
-
-const NO_CACHE = {
-  headers: { "Cache-Control": "no-store, no-cache, must-revalidate" },
-};
+const NO_CACHE = { headers: { "Cache-Control": "no-store, no-cache, must-revalidate" } };
 
 export async function GET() {
   const supabase = createClient(
@@ -15,12 +12,9 @@ export async function GET() {
 
   const { data, error } = await supabase
     .from("classes")
-    .select("code, label")
+    .select("code, label, comment")
     .order("code");
 
-  if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
-  }
-
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   return NextResponse.json({ classes: data ?? [] }, NO_CACHE);
 }
