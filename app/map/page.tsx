@@ -122,11 +122,6 @@ export default function MapPage() {
           const icon  = getCrowdIcon(level);
           return (
             <div key={layout.class_code}
-              onClick={() => {
-                const crowd = classCrowds.find((c) => c.class_code === layout.class_code);
-                const info  = classInfos.find((c) => c.code === layout.class_code) ?? null;
-                if (crowd) setModalClass({ crowd, info });
-              }}
               style={{ position: "absolute", left: `${layout.x}%`, top: `${layout.y}%`, transform: "translate(-50%, -100%)", textAlign: "center", cursor: "pointer" }}>
               <img src={icon.src} alt={icon.label} style={{ width: "32px", height: "32px", objectFit: "contain", display: "block", margin: "0 auto" }}
                 onError={(e) => {
@@ -162,12 +157,7 @@ export default function MapPage() {
           const icon  = getCrowdIcon(level);
           return (
             <div key={layout.venue_key}
-              onClick={() => {
-                const crowd = classCrowds.find((c) => c.class_code === layout.class_code);
-                const info  = classInfos.find((c) => c.code === layout.class_code) ?? null;
-                if (crowd) setModalClass({ crowd, info });
-              }}
-              style={{ position: "absolute", left: `${layout.x}%`, top: `${layout.y}%`, transform: "translate(-50%, -100%)", textAlign: "center", cursor: "pointer" }}>
+              style={{ position: "absolute", left: `${layout.x}%`, top: `${layout.y}%`, transform: "translate(-50%, -100%)", textAlign: "center", pointerEvents: "none" }}>
               <img src={icon.src} alt={icon.label} style={{ width: "36px", height: "36px", objectFit: "contain", display: "block", margin: "0 auto" }}
                 onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }} />
               <div style={{ backgroundColor: icon.color, color: "white", borderRadius: "12px", padding: "2px 8px", fontSize: "11px", fontWeight: "bold", whiteSpace: "nowrap", boxShadow: "0 2px 4px rgba(0,0,0,0.2)" }}>
@@ -193,11 +183,6 @@ export default function MapPage() {
           const icon  = getCrowdIcon(level);
           return (
             <div key={layout.class_code}
-              onClick={() => {
-                const crowd = classCrowds.find((c) => c.class_code === layout.class_code);
-                const info  = classInfos.find((c) => c.code === layout.class_code) ?? null;
-                if (crowd) setModalClass({ crowd, info });
-              }}
               style={{ position: "absolute", left: `${layout.x}%`, top: `${layout.y}%`, transform: "translate(-50%, -100%)", textAlign: "center", cursor: "pointer" }}>
               <img src={icon.src} alt={icon.label} style={{ width: "32px", height: "32px", objectFit: "contain", display: "block", margin: "0 auto" }}
                 onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }} />
@@ -214,12 +199,7 @@ export default function MapPage() {
           const icon  = getCrowdIcon(level);
           return (
             <div key={layout.venue_key}
-              onClick={() => {
-                const crowd = classCrowds.find((c) => c.class_code === layout.class_code);
-                const info  = classInfos.find((c) => c.code === layout.class_code) ?? null;
-                if (crowd) setModalClass({ crowd, info });
-              }}
-              style={{ position: "absolute", left: `${layout.x}%`, top: `${layout.y}%`, transform: "translate(-50%, -100%)", textAlign: "center", cursor: "pointer" }}>
+              style={{ position: "absolute", left: `${layout.x}%`, top: `${layout.y}%`, transform: "translate(-50%, -100%)", textAlign: "center", pointerEvents: "none" }}>
               <img src={icon.src} alt={icon.label} style={{ width: "36px", height: "36px", objectFit: "contain", display: "block", margin: "0 auto" }}
                 onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }} />
               <div style={{ backgroundColor: icon.color, color: "white", borderRadius: "12px", padding: "2px 8px", fontSize: "11px", fontWeight: "bold", whiteSpace: "nowrap", boxShadow: "0 2px 4px rgba(0,0,0,0.2)" }}>
