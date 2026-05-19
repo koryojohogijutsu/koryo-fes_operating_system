@@ -188,7 +188,7 @@ function HomeInner() {
         <div style={{ marginTop:"40px" }}>
           <a href="/admin" style={{ fontSize:"12px", color:"#ccc", textDecoration:"none" }}>管理者ログイン</a>
         </div>
-        <p style={{ marginTop:"16px", fontSize:"11px", color:"#ccc", textAlign:"center" }}>©Koryo Festival Committee　All Rights Reserved.</p>
+        <p style={{ marginTop:"16px", fontSize:"11px", color:"#ccc", textAlign:"center" }}>©Koryo Festival Committee　　All Rights Reserved.</p>
       </main>
 
       {/* サブメニューモーダル */}
@@ -202,7 +202,7 @@ function HomeInner() {
               {[
                 { label:"📋 履歴を見る", path:"/history" },
                 { label:"🎇 ペンライト",  path:"/penlight" },
-                { label:"📊 混雑状況", path:"/map" },
+                { label:"📍 マップ", path:"/map" },
               ].map((item) => (
                 <button key={item.label}
                   onClick={() => { if (item.path) { router.push(item.path); setSubModal(false); } }}
