@@ -12,7 +12,11 @@ export async function GET(req: NextRequest) {
 
   const category = req.nextUrl.searchParams.get("category");
 
-  let query = supabase.from("event_entries").select("*").order("order_num");
+  let query = supabase
+    .from("event_entries")
+    .select("id, category, name, description, comment, order_num")
+    .order("order_num");
+
   if (category) query = query.eq("category", category);
 
   const { data, error } = await query;
