@@ -1,10 +1,9 @@
 "use client";
-
 import { useEffect, useState, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
 
 type Notice = { id: string; title: string; body: string; created_at: string };
-type Lost   = { id: string; time: string; place: string; memo: string; created_at: string };
+type Lost   = { id: string; time: string; place: string; memo: string; created_at: string; image_url?: string };
 
 export default function AdminInfoPage() {
   const router = useRouter();
@@ -13,16 +12,16 @@ export default function AdminInfoPage() {
   const [tab,        setTab]        = useState<"notice" | "lost">("notice");
   const [authed,     setAuthed]     = useState(false);
   const [submitting, setSubmitting] = useState(false);
-
   const lastNoticeRef = useRef<number>(0);
   const lastLostRef   = useRef<number>(0);
   const lastDeleteRef = useRef<number>(0);
-
   const [nTitle, setNTitle] = useState("");
   const [nBody,  setNBody]  = useState("");
   const [lTime,  setLTime]  = useState("");
   const [lPlace, setLPlace] = useState("");
   const [lMemo,  setLMemo]  = useState("");
+  const [lImage, setLImage] = useState<File | null>(null);
+  const [uploadingId, setUploadingId] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     const res = await fetch(`/api/info?_t=${Date.now()}`, { cache: "no-store" });
@@ -48,13 +47,8 @@ export default function AdminInfoPage() {
       method: "POST", headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ type: "notice", title: nTitle, body: nBody }),
     });
-    if (res.ok) {
-      setNTitle(""); setNBody("");
-      await load();
-    } else {
-      const d = await res.json();
-      alert("エラー: " + d.error);
-    }
+    if (res.ok) { setNTitle(""); setNBody(""); await load(); }
+    else { const d = await res.json(); alert("エラー: " + d.error); }
     setSubmitting(false);
   };
 
@@ -64,12 +58,24 @@ export default function AdminInfoPage() {
     if (now - lastLostRef.current < 5000) { alert("操作が早すぎます"); return; }
     lastLostRef.current = now;
     setSubmitting(true);
+
     const res = await fetch("/api/info/manage", {
       method: "POST", headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ type: "lost", time: lTime, place: lPlace, memo: lMemo }),
     });
+
     if (res.ok) {
-      setLTime(""); setLPlace(""); setLMemo("");
+      const d = await res.json();
+      // 画像がある場合はアップロード
+      if (lImage && d.id) {
+        setUploadingId(d.id);
+        const form = new FormData();
+        form.append("file", lImage);
+        form.append("lostId", d.id);
+        await fetch("/api/info/manage", { method: "POST", body: form });
+        setUploadingId(null);
+      }
+      setLTime(""); setLPlace(""); setLMemo(""); setLImage(null);
       await load();
     } else {
       const d = await res.json();
@@ -78,30 +84,30 @@ export default function AdminInfoPage() {
     setSubmitting(false);
   };
 
+  const uploadImage = async (lostId: string, file: File) => {
+    setUploadingId(lostId);
+    const form = new FormData();
+    form.append("file", file);
+    form.append("lostId", lostId);
+    const res = await fetch("/api/info/manage", { method: "POST", body: form });
+    if (res.ok) await load();
+    else { const d = await res.json(); alert("画像アップロードエラー: " + d.error); }
+    setUploadingId(null);
+  };
+
   const deleteItem = async (type: "notice" | "lost", id: string) => {
     if (!confirm("削除しますか？")) return;
     const now = Date.now();
     if (now - lastDeleteRef.current < 3000) { alert("操作が早すぎます"); return; }
     lastDeleteRef.current = now;
-
-    // 即時stateを更新（楽観的更新）
     if (type === "notice") setNotices((prev) => prev.filter((n) => n.id !== id));
     else                   setLost((prev) => prev.filter((l) => l.id !== id));
-
     const res = await fetch("/api/info/manage", {
       method: "DELETE", headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ type, id }),
     });
-
-    if (res.ok) {
-      // DB反映後に再取得して確実に同期
-      await load();
-    } else {
-      const d = await res.json();
-      alert("エラー: " + d.error);
-      // 失敗したら元に戻すために再取得
-      await load();
-    }
+    if (!res.ok) { const d = await res.json(); alert("エラー: " + d.error); }
+    await load();
   };
 
   if (!authed) return null;
@@ -160,24 +166,46 @@ export default function AdminInfoPage() {
               style={{ padding: "10px", fontSize: "14px", borderRadius: "6px", border: "1px solid #ccc" }} />
             <textarea placeholder="特徴メモ（例：黒い財布、カード複数枚入り）" value={lMemo} onChange={(e) => setLMemo(e.target.value)} rows={3}
               style={{ padding: "10px", fontSize: "14px", borderRadius: "6px", border: "1px solid #ccc", resize: "vertical" }} />
+            <div>
+              <p style={{ fontSize: "13px", color: "#888", marginBottom: "6px" }}>画像（任意）</p>
+              <input type="file" accept="image/*"
+                onChange={(e) => setLImage(e.target.files?.[0] ?? null)}
+                style={{ fontSize: "13px" }} />
+              {lImage && <p style={{ fontSize: "12px", color: "#4caf50", marginTop: "4px" }}>✅ {lImage.name}</p>}
+            </div>
             <button onClick={addLost} disabled={submitting}
               style={{ padding: "10px", fontSize: "14px", cursor: submitting ? "not-allowed" : "pointer", backgroundColor: submitting ? "#ccc" : "#e10102", color: "white", border: "none", borderRadius: "6px" }}>
-              {submitting ? "送信中..." : "追加"}
+              {submitting ? (uploadingId ? "画像アップロード中..." : "送信中...") : "追加"}
             </button>
           </div>
           <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
             {lost.length === 0 && <p style={{ color: "#aaa", fontSize: "13px" }}>まだ登録がありません</p>}
             {lost.map((l) => (
-              <div key={l.id} style={{ padding: "12px 16px", borderRadius: "8px", border: "1px solid #eee", display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
-                <div>
-                  <div style={{ fontSize: "12px", color: "#888", marginBottom: "4px" }}>🕐 {l.time}　📍 {l.place}</div>
-                  <div style={{ fontSize: "13px", color: "#444" }}>{l.memo}</div>
-                  <div style={{ fontSize: "11px", color: "#aaa", marginTop: "6px" }}>
-                    {new Date(l.created_at).toLocaleString("ja-JP", { month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit" })}
+              <div key={l.id} style={{ padding: "12px 16px", borderRadius: "8px", border: "1px solid #eee" }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontSize: "12px", color: "#888", marginBottom: "4px" }}>🕐 {l.time}　📍 {l.place}</div>
+                    <div style={{ fontSize: "13px", color: "#444" }}>{l.memo}</div>
+                    <div style={{ fontSize: "11px", color: "#aaa", marginTop: "6px" }}>
+                      {new Date(l.created_at).toLocaleString("ja-JP", { month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit" })}
+                    </div>
                   </div>
+                  <button onClick={() => deleteItem("lost", l.id)}
+                    style={{ color: "#f44336", background: "none", border: "none", cursor: "pointer", fontSize: "13px", flexShrink: 0, marginLeft: "12px" }}>削除</button>
                 </div>
-                <button onClick={() => deleteItem("lost", l.id)}
-                  style={{ color: "#f44336", background: "none", border: "none", cursor: "pointer", fontSize: "13px", flexShrink: 0, marginLeft: "12px" }}>削除</button>
+                {/* 画像表示・アップロード */}
+                {l.image_url ? (
+                  <img src={l.image_url} alt="落とし物" style={{ marginTop: "10px", width: "100%", maxWidth: "240px", borderRadius: "8px", display: "block" }} />
+                ) : (
+                  <div style={{ marginTop: "8px" }}>
+                    <label style={{ fontSize: "12px", color: "#1976d2", cursor: "pointer" }}>
+                      📎 画像を追加
+                      <input type="file" accept="image/*" style={{ display: "none" }}
+                        onChange={(e) => { const f = e.target.files?.[0]; if (f) uploadImage(l.id, f); }} />
+                    </label>
+                    {uploadingId === l.id && <span style={{ fontSize: "12px", color: "#888", marginLeft: "8px" }}>アップロード中...</span>}
+                  </div>
+                )}
               </div>
             ))}
           </div>
