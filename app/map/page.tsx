@@ -14,6 +14,10 @@ const VENUE_LABELS: Record<string, string> = {
   kinenkan: "記念館",
   koryokan: "ライブ",
   library:  "図書館",
+  sundelica:"サンデリカ",
+  mockstore:"模擬店",
+  football:"サッカー部",
+  tontonhiroba:"とんとん広場"
 };
 
 type ClassCrowd  = { class_code: string; current: number; capacity: number; pct: number; level: number };
@@ -151,10 +155,10 @@ export default function MapPage() {
           })()}
         </div>
 
-        {/* 体育館・記念館マップ */}
-        <h2 style={{ fontSize: "15px", fontWeight: "bold", marginBottom: "8px", color: "#333" }}>🏟️ 体育館・記念館</h2>
+        {/* 校内全体図 */}
+        <h2 style={{ fontSize: "15px", fontWeight: "bold", marginBottom: "8px", color: "#333" }}>🏫 校内全体図</h2>
         <div style={{ position: "relative", width: "100%", marginBottom: "24px", border: "1px solid #ddd", borderRadius: "8px", overflow: "hidden" }}>
-          <img src="/venue-map-gym-kinenkan.png" alt="体育館・記念館マップ" style={{ width: "100%", display: "block" }} />
+          <img src="/venue-map-all.png" alt="校内全体図" style={{ width: "100%", display: "block" }} />
           {venueLayouts.filter((l) => l.venue_key !== "koryokan" && l.venue_key !== "library").map((layout) => {
             const crowd = venueCrowds.find((v) => v.venue_key === layout.venue_key);
             const icon  = getCrowdIcon(crowd?.level ?? 0);
