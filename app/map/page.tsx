@@ -13,6 +13,7 @@ const VENUE_LABELS: Record<string, string> = {
   gym:      "体育館",
   kinenkan: "記念館",
   koryokan: "ライブ",
+  library:  "図書館",
 };
 
 type ClassCrowd  = { class_code: string; current: number; capacity: number; pct: number; level: number };
@@ -195,7 +196,7 @@ export default function MapPage() {
         {/* 会場混雑テキスト一覧 */}
         <h2 style={{ fontSize: "15px", fontWeight: "bold", marginBottom: "10px", color: "#333" }}>会場の混雑状況</h2>
         <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
-          {venueCrowds.filter((v) => v.venue_key !== "library").map((v) => {
+          {venueCrowds.map((v) => {
             const icon = getCrowdIcon(v.level);
             return (
               <div key={v.venue_key} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "12px 16px", borderRadius: "8px", border: `1px solid ${icon.color}33`, backgroundColor: `${icon.color}11` }}>
