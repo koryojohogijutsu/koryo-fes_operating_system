@@ -138,12 +138,17 @@ export default function MapPage() {
             );
           })}
           {/* 図書館ピン */}
-          {libraryLayout && libraryLayout.x >= 0 && libraryLayout.y >= 0 && (
-            <div onClick={openLibraryModal}
-              style={{ position: "absolute", left: `${libraryLayout.x}%`, top: `${libraryLayout.y}%`, transform: "translate(-50%, -100%)", textAlign: "center", cursor: "pointer" }}>
-              <div style={{ backgroundColor: "#1976d2", color: "white", borderRadius: "12px", padding: "4px 8px", fontSize: "11px", fontWeight: "bold", whiteSpace: "nowrap", boxShadow: "0 2px 4px rgba(0,0,0,0.2)" }}>📚 図書館</div>
-            </div>
-          )}
+          {libraryLayout && libraryLayout.x >= 0 && libraryLayout.y >= 0 && (() => {
+            const libCrowd = venueCrowds.find((v) => v.venue_key === "library");
+            const libIcon  = getCrowdIcon(libCrowd?.level ?? 0);
+            return (
+              <div onClick={openLibraryModal}
+                style={{ position: "absolute", left: `${libraryLayout.x}%`, top: `${libraryLayout.y}%`, transform: "translate(-50%, -100%)", textAlign: "center", cursor: "pointer" }}>
+                <img src={libIcon.src} alt={libIcon.label} style={{ width: "32px", height: "32px", objectFit: "contain", display: "block", margin: "0 auto" }} onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }} />
+                <div style={{ backgroundColor: libIcon.color, color: "white", borderRadius: "12px", padding: "2px 8px", fontSize: "11px", fontWeight: "bold", whiteSpace: "nowrap", boxShadow: "0 2px 4px rgba(0,0,0,0.2)" }}>📚 図書館</div>
+              </div>
+            );
+          })()}
         </div>
 
         {/* 体育館・記念館マップ */}
@@ -277,10 +282,16 @@ export default function MapPage() {
       )}
 
       {/* 図書館モーダル */}
-      {modal?.type === "library" && (
+      {modal?.type === "library" && (() => {
+        const libCrowd = venueCrowds.find((v) => v.venue_key === "library");
+        const libIcon  = getCrowdIcon(libCrowd?.level ?? 0);
+        return (
         <div onClick={() => setModal(null)} style={{ position: "fixed", inset: 0, backgroundColor: "rgba(0,0,0,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 500, padding: "20px" }}>
           <div onClick={(e) => e.stopPropagation()} style={{ backgroundColor: "white", borderRadius: "16px", padding: "24px 20px", maxWidth: "380px", width: "100%", boxShadow: "0 8px 32px rgba(0,0,0,0.2)", maxHeight: "90vh", overflowY: "auto" }}>
-            <h2 style={{ fontSize: "18px", fontWeight: "bold", marginBottom: "16px" }}>📚 図書館</h2>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px" }}>
+              <h2 style={{ fontSize: "18px", fontWeight: "bold", margin: 0 }}>📚 図書館</h2>
+              <span style={{ fontWeight: "bold", color: libIcon.color, fontSize: "13px" }}>{libIcon.label}</span>
+            </div>
             {modal.events.length === 0 ? (
               <p style={{ color: "#aaa", fontSize: "14px", marginBottom: "16px" }}>イベント情報はまだありません</p>
             ) : (
@@ -296,7 +307,8 @@ export default function MapPage() {
             <button onClick={() => setModal(null)} style={{ width: "100%", padding: "10px", fontSize: "14px", cursor: "pointer", backgroundColor: "#f5f5f5", color: "#555", border: "none", borderRadius: "8px" }}>閉じる</button>
           </div>
         </div>
-      )}
+        );
+      })()}
     </>
   );
 }
