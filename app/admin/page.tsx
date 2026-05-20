@@ -49,6 +49,7 @@ export default function AdminPage() {
         <a href="/admin/venue/gym/coscon_runway"      style={{ ...linkStyle, borderLeft: "2px solid #e10102", marginLeft: "16px", fontSize: "14px" }}>　🏃 コスコン（ランウェイ）</a>
         <a href="/admin/venue/kinenkan" style={{ ...linkStyle, borderLeft: "4px solid #e10102" }}>🏛️ 記念館（M1）</a>
         <a href="/admin/venue/koryokan"    style={{ ...linkStyle, borderLeft: "4px solid #e10102" }}>🎵 ライブ（蛟龍館）</a>
+        <a href="/admin/venue/library"     style={{ ...linkStyle, borderLeft: "4px solid #e10102" }}>📚 図書館</a>
       </div>
 
       {/* 入場一覧 */}
