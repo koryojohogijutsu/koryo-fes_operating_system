@@ -28,11 +28,16 @@ const VENUES: VenueLayoutItem[] = [
   { venue_key: "gym",      label: "体育館",  x: -1, y: -1 },
   { venue_key: "kinenkan", label: "記念館",  x: -1, y: -1 },
   { venue_key: "koryokan", label: "ライブ",  x: -1, y: -1 },
+  { venue_key: "sundelica", label: "サンデリカ",  x: -1, y: -1 },
+  { venue_key: "football", label: "サッカー部",  x: -1, y: -1 },
+  { venue_key: "tontonhiroba", label: "とんとん広場",  x: -1, y: -1 },
 ];
 
 // 校舎マップ（/map.png）に載せる特殊ピン
 const SCHOOL_VENUES: VenueLayoutItem[] = [
   { venue_key: "library", label: "図書館", x: -1, y: -1 },
+  { venue_key: "tea", label: "茶道部", x: -1, y: -1 },
+  { venue_key: "science", label: "科学物理部", x: -1, y: -1 },
 ];
 
 export default function AdminMapPage() {
