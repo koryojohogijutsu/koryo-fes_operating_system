@@ -1,13 +1,9 @@
 "use client";
+import { supabase } from "@/lib/supabase";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { createClient } from "@supabase/supabase-js";
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-);
 
 const Q_LABELS = ["Q0", "Q1", "Q2", "Q3", "Q4", "Final"];
 const TOTAL_Q  = 6;
