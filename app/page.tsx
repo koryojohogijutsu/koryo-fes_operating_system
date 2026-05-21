@@ -1,221 +1,209 @@
 "use client";
+import { supabase } from "@/lib/supabase";
 
-import { useEffect, useState, Suspense } from "react";
+import { useEffect, useState, useRef, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import QRCode from "qrcode";
 import Link from "next/link";
-import { useInfoNotifications, NotificationBanners } from "@/lib/useInfoNotifications";
 
-type VisitorType = "smartphone" | "paper" | "student";
-type Status =
-  | { state: "loading" }
-  | { state: "ok"; visitorId: string; type: VisitorType }
-  | { state: "error"; message: string };
 
-function md5(str: string): string {
-  function safeAdd(x: number, y: number) { const lsw = (x & 0xffff) + (y & 0xffff); return (((x >> 16) + (y >> 16) + (lsw >> 16)) << 16) | (lsw & 0xffff); }
-  function bitRotateLeft(num: number, cnt: number) { return (num << cnt) | (num >>> (32 - cnt)); }
-  function md5cmn(q: number, a: number, b: number, x: number, s: number, t: number) { return safeAdd(bitRotateLeft(safeAdd(safeAdd(a, q), safeAdd(x, t)), s), b); }
-  function md5ff(a: number, b: number, c: number, d: number, x: number, s: number, t: number) { return md5cmn((b & c) | (~b & d), a, b, x, s, t); }
-  function md5gg(a: number, b: number, c: number, d: number, x: number, s: number, t: number) { return md5cmn((b & d) | (c & ~d), a, b, x, s, t); }
-  function md5hh(a: number, b: number, c: number, d: number, x: number, s: number, t: number) { return md5cmn(b ^ c ^ d, a, b, x, s, t); }
-  function md5ii(a: number, b: number, c: number, d: number, x: number, s: number, t: number) { return md5cmn(c ^ (b | ~d), a, b, x, s, t); }
-  function md5blk(s: string) { const md5blks: number[] = []; for (let i = 0; i < 64; i += 4) { md5blks[i >> 2] = s.charCodeAt(i) + (s.charCodeAt(i + 1) << 8) + (s.charCodeAt(i + 2) << 16) + (s.charCodeAt(i + 3) << 24); } return md5blks; }
-  function md5blk_array(a: number[]) { const md5blks: number[] = []; for (let i = 0; i < 64; i += 4) { md5blks[i >> 2] = a[i] + (a[i + 1] << 8) + (a[i + 2] << 16) + (a[i + 3] << 24); } return md5blks; }
-  function md5cycle(x: number[], k: number[]) {
-    let [a, b, c, d] = x;
-    a = md5ff(a,b,c,d,k[0],7,-680876936); d = md5ff(d,a,b,c,k[1],12,-389564586); c = md5ff(c,d,a,b,k[2],17,606105819); b = md5ff(b,c,d,a,k[3],22,-1044525330);
-    a = md5ff(a,b,c,d,k[4],7,-176418897); d = md5ff(d,a,b,c,k[5],12,1200080426); c = md5ff(c,d,a,b,k[6],17,-1473231341); b = md5ff(b,c,d,a,k[7],22,-45705983);
-    a = md5ff(a,b,c,d,k[8],7,1770035416); d = md5ff(d,a,b,c,k[9],12,-1958414417); c = md5ff(c,d,a,b,k[10],17,-42063); b = md5ff(b,c,d,a,k[11],22,-1990404162);
-    a = md5ff(a,b,c,d,k[12],7,1804603682); d = md5ff(d,a,b,c,k[13],12,-40341101); c = md5ff(c,d,a,b,k[14],17,-1502002290); b = md5ff(b,c,d,a,k[15],22,1236535329);
-    a = md5gg(a,b,c,d,k[1],5,-165796510); d = md5gg(d,a,b,c,k[6],9,-1069501632); c = md5gg(c,d,a,b,k[11],14,643717713); b = md5gg(b,c,d,a,k[0],20,-373897302);
-    a = md5gg(a,b,c,d,k[5],5,-701558691); d = md5gg(d,a,b,c,k[10],9,38016083); c = md5gg(c,d,a,b,k[15],14,-660478335); b = md5gg(b,c,d,a,k[4],20,-405537848);
-    a = md5gg(a,b,c,d,k[9],5,568446438); d = md5gg(d,a,b,c,k[14],9,-1019803690); c = md5gg(c,d,a,b,k[3],14,-187363961); b = md5gg(b,c,d,a,k[8],20,1163531501);
-    a = md5gg(a,b,c,d,k[13],5,-1444681467); d = md5gg(d,a,b,c,k[2],9,-51403784); c = md5gg(c,d,a,b,k[7],14,1735328473); b = md5gg(b,c,d,a,k[12],20,-1926607734);
-    a = md5hh(a,b,c,d,k[5],4,-378558); d = md5hh(d,a,b,c,k[8],11,-2022574463); c = md5hh(c,d,a,b,k[11],16,1839030562); b = md5hh(b,c,d,a,k[14],23,-35309556);
-    a = md5hh(a,b,c,d,k[1],4,-1530992060); d = md5hh(d,a,b,c,k[4],11,1272893353); c = md5hh(c,d,a,b,k[7],16,-155497632); b = md5hh(b,c,d,a,k[10],23,-1094730640);
-    a = md5hh(a,b,c,d,k[13],4,681279174); d = md5hh(d,a,b,c,k[0],11,-358537222); c = md5hh(c,d,a,b,k[3],16,-722521979); b = md5hh(b,c,d,a,k[6],23,76029189);
-    a = md5hh(a,b,c,d,k[9],4,-640364487); d = md5hh(d,a,b,c,k[12],11,-421815835); c = md5hh(c,d,a,b,k[15],16,530742520); b = md5hh(b,c,d,a,k[2],23,-995338651);
-    a = md5ii(a,b,c,d,k[0],6,-198630844); d = md5ii(d,a,b,c,k[7],10,1126891415); c = md5ii(c,d,a,b,k[14],15,-1416354905); b = md5ii(b,c,d,a,k[5],21,-57434055);
-    a = md5ii(a,b,c,d,k[12],6,1700485571); d = md5ii(d,a,b,c,k[3],10,-1894986606); c = md5ii(c,d,a,b,k[10],15,-1051523); b = md5ii(b,c,d,a,k[1],21,-2054922799);
-    a = md5ii(a,b,c,d,k[8],6,1873313359); d = md5ii(d,a,b,c,k[15],10,-30611744); c = md5ii(c,d,a,b,k[6],15,-1560198380); b = md5ii(b,c,d,a,k[13],21,1309151649);
-    a = md5ii(a,b,c,d,k[4],6,-145523070); d = md5ii(d,a,b,c,k[11],10,-1120210379); c = md5ii(c,d,a,b,k[2],15,718787259); b = md5ii(b,c,d,a,k[9],21,-343485551);
-    x[0]=safeAdd(a,x[0]); x[1]=safeAdd(b,x[1]); x[2]=safeAdd(c,x[2]); x[3]=safeAdd(d,x[3]);
+const STYLE = `
+  @keyframes spin {
+    from { transform: rotate(0deg); }
+    to   { transform: rotate(360deg); }
   }
-  function md51(s: string) {
-    const n = s.length; const state = [1732584193,-271733879,-1732584194,271733878]; let i;
-    for (i=64; i<=n; i+=64) { md5cycle(state, md5blk(s.substring(i-64,i))); }
-    const tail = s.substring(i-64); const tail2: number[] = [];
-    for (let j=0; j<tail.length; j++) tail2[j]=tail.charCodeAt(j);
-    tail2[tail.length]=0x80;
-    for (let j=tail.length+1; j<64; j++) tail2[j]=0;
-    if (tail.length>55) { md5cycle(state, md5blk_array(tail2)); for (let j=0;j<64;j++) tail2[j]=0; }
-    tail2[56]=(n*8)&0xff; tail2[57]=((n*8)>>>8)&0xff; tail2[58]=((n*8)>>>16)&0xff; tail2[59]=((n*8)>>>24)&0xff;
-    md5cycle(state, md5blk_array(tail2)); return state;
+  @keyframes spin-rev {
+    from { transform: rotate(0deg); }
+    to   { transform: rotate(-360deg); }
   }
-  function rhex(n: number) { const hex="0123456789abcdef"; let s=""; for (let j=0;j<4;j++) s+=hex.charAt((n>>(j*8+4))&0x0f)+hex.charAt((n>>(j*8))&0x0f); return s; }
-  const utf8 = unescape(encodeURIComponent(str));
-  return md51(utf8).map(rhex).join("");
-}
+  @keyframes pulse-dot {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50%       { opacity: 0.4; transform: scale(0.6); }
+  }
+  @keyframes corner-blink {
+    0%, 100% { opacity: 1; }
+    50%       { opacity: 0.2; }
+  }
+  @keyframes notify-in {
+    from { opacity: 0; transform: scale(0.8); }
+    to   { opacity: 1; transform: scale(1); }
+  }
+  .time-display {
+    font-size: 38px;
+    font-weight: bold;
+    font-variant-numeric: tabular-nums;
+    letter-spacing: 3px;
+    color: #111;
+  }
+  @media (prefers-color-scheme: dark) {
+    .time-display { color: #fff; }
+    .date-display { color: #aaa; }
+  }
+`;
 
-export default function Home() {
+const QR_SIZE = 240;
+const GAP = 18;
+const R1 = QR_SIZE / 2 + GAP;
+const R2 = QR_SIZE / 2 + GAP + 14;
+const CX = QR_SIZE / 2 + R2 + 4;
+const CY = CX;
+const SVG_SIZE = CX * 2;
+
+export default function EnterPage() {
   return (
     <Suspense fallback={<main style={{ padding:"40px", textAlign:"center" }}><p style={{ color:"#aaa" }}>読み込み中...</p></main>}>
-      <HomeInner />
+      <EnterInner />
     </Suspense>
   );
 }
 
-function HomeInner() {
+function EnterInner() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const [status,        setStatus]        = useState<Status>({ state: "loading" });
-  const [subModal,      setSubModal]      = useState(false);
-  const { banners, dismissBanner } = useInfoNotifications();
-  const [clearCount,    setClearCount]    = useState<number | null>(null);
+  const isRedeemMode = searchParams.get("mode") === "redeem";
+  const [visitorId,    setVisitorId]    = useState<string | null>(null);
+  const [qrDataUrl,    setQrDataUrl]    = useState<string | null>(null);
+  const [now,          setNow]          = useState(new Date());
+  const [notification, setNotification] = useState<{ classCode: string } | null>(null);
+  const channelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
 
-  // 謎解きコンプリート者数を取得
   useEffect(() => {
-    fetch("/api/puzzle-clear?count=1", { cache: "no-store" })
-      .then((r) => r.json())
-      .then((d) => { if (typeof d.count === "number") setClearCount(d.count); })
-      .catch(() => {});
+    const timer = setInterval(() => setNow(new Date()), 1000);
+    return () => clearInterval(timer);
   }, []);
 
   useEffect(() => {
-    let rawId = searchParams.get("id");
-    let cdParam = searchParams.get("cd");
+    const id = document.cookie
+      .split("; ")
+      .find((row) => row.startsWith("visitor_id="))
+      ?.split("=")[1];
 
-    if (rawId && rawId.includes(",cd=")) {
-      const parts = rawId.split(",cd=");
-      rawId   = parts[0];
-      cdParam = parts[1];
-    }
+    if (!id) { router.push("/register"); return; }
 
-    const idParam = rawId;
+    setVisitorId(id);
 
-    if (!idParam) {
-      const visitorId = document.cookie.split("; ").find((row) => row.startsWith("visitor_id="))?.split("=")[1];
-      if (!visitorId) { router.push("/register"); return; }
-      setStatus({ state: "ok", visitorId, type: "smartphone" });
-      return;
-    }
+    QRCode.toDataURL(id, {
+      width: QR_SIZE,
+      margin: 2,
+      color: { dark: "#e10102", light: "#ffffff" },
+    })
+      .then((url) => setQrDataUrl(url))
+      .catch(console.error);
 
-    if (!cdParam) {
-      setStatus({ state: "error", message: "無効なURLです（cdパラメータがありません）" });
-      return;
-    }
+    const channel = supabase
+      .channel(`visits:${id}`)
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "visits", filter: `visitor_id=eq.${id}` },
+        (payload) => {
+          setNotification({ classCode: payload.new.class_code });
+          setTimeout(() => setNotification(null), 5000);
+        }
+      )
+      .subscribe();
 
-    const isStudent = cdParam.endsWith("m$");
-    const cdValue   = isStudent ? cdParam.slice(0, -2) : cdParam;
-    const salt      = isStudent ? "akagioroshi" : "kakouryubu";
-    const expectedHash = md5(`${idParam}${salt}`);
+    channelRef.current = channel;
+    return () => { channel.unsubscribe(); };
+  }, [router]);
 
-    if (expectedHash !== cdValue) {
-      setStatus({ state: "error", message: "チケットの認証に失敗しました。\nQRコードを正しく読み取ってください。" });
-      return;
-    }
+  const timeStr = now.toLocaleTimeString("ja-JP", { hour: "2-digit", minute: "2-digit", second: "2-digit" });
+  const dateStr = now.toLocaleDateString("ja-JP", { year: "numeric", month: "long", day: "numeric", weekday: "short" });
 
-    const visitorId = cdValue;
-    const expires = new Date();
-    expires.setDate(expires.getDate() + 180);
-    document.cookie = `visitor_id=${visitorId}; path=/; expires=${expires.toUTCString()}; SameSite=Lax`;
-    document.cookie = `visitor_type=${isStudent ? "student" : "paper"}; path=/; expires=${expires.toUTCString()}; SameSite=Lax`;
-
-    setStatus({ state: "ok", visitorId, type: isStudent ? "student" : "paper" });
-  }, [searchParams, router]);
-
-  if (status.state === "loading") return <main style={{ padding:"40px", textAlign:"center" }}><p style={{ color:"#aaa" }}>読み込み中...</p></main>;
-
-  if (status.state === "error") return (
-    <main style={{ padding:"40px 20px", textAlign:"center" }}>
-      <div style={{ fontSize:"48px", marginBottom:"16px" }}>⚠️</div>
-      <h1 style={{ fontSize:"20px", marginBottom:"12px" }}>認証エラー</h1>
-      <p style={{ color:"#888", whiteSpace:"pre-line", fontSize:"14px" }}>{status.message}</p>
-    </main>
-  );
-
-  const typeLabel =
-    status.type === "student" ? "前高生" :
-    status.type === "paper"   ? "一般来場者（紙チケ）" : "第60回 蛟龍祭";
+  const cornerPositions = [
+    [CX - QR_SIZE / 2 - GAP / 2, CY - QR_SIZE / 2 - GAP / 2, "0s"],
+    [CX + QR_SIZE / 2 + GAP / 2, CY - QR_SIZE / 2 - GAP / 2, "0.4s"],
+    [CX - QR_SIZE / 2 - GAP / 2, CY + QR_SIZE / 2 + GAP / 2, "0.8s"],
+    [CX + QR_SIZE / 2 + GAP / 2, CY + QR_SIZE / 2 + GAP / 2, "1.2s"],
+  ];
 
   return (
     <>
-      <NotificationBanners banners={banners} dismiss={dismissBanner} />
-      <main style={{ padding:"32px 20px 40px", textAlign:"center", maxWidth:"400px", margin:"0 auto", position:"relative" }}>
-        <button onClick={() => setSubModal(true)}
-          style={{ position:"absolute", top:"20px", right:"20px", width:"40px", height:"40px", borderRadius:"50%", border:"1px solid #ddd", backgroundColor:"white", fontSize:"18px", cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", boxShadow:"0 2px 6px rgba(0,0,0,0.08)" }}>
-          ☰
-        </button>
+      <style>{STYLE}</style>
 
-        <h1 style={{ fontSize:"24px", marginBottom:"4px", marginTop:"8px" }}>蛟龍祭 場内サイト</h1>
-        <p style={{ color:"#888", fontSize:"13px", marginBottom:"24px" }}>{typeLabel}</p>
+      <main style={{ padding: "16px 20px 40px", textAlign: "center", userSelect: "none", maxWidth: "480px", margin: "0 auto" }}>
 
-        {/* 謎解きコンプリート者数バッジ */}
-        {clearCount !== null && (
-          <div style={{ marginBottom:"20px", display:"inline-flex", alignItems:"center", gap:"6px", backgroundColor:"#fff8e1", border:"1px solid #ffe082", borderRadius:"20px", padding:"6px 16px", fontSize:"13px", color:"#b8860b" }}>
-            <span>🏆</span>
-            <span>謎解きコンプリート: <strong>{clearCount}人</strong></span>
+        {/* 上部ホームリンク */}
+        <div style={{ textAlign: "left", marginBottom: "12px" }}>
+          <Link href="/" style={{ fontSize: "13px", color: "#888", textDecoration: "none" }}>
+            ← ホームに戻る
+          </Link>
+        </div>
+
+        <h1 style={{ fontSize: "18px", marginBottom: "2px" }}>
+          {isRedeemMode ? "🎁 景品引換QR" : "あなたのQRコード"}
+        </h1>
+        <p style={{ color: "#888", fontSize: "12px", marginBottom: "16px" }}>
+          {isRedeemMode ? "係員にこのQRを見せて景品を受け取ってください" : "係員に向けてこの画面を見せてください"}
+        </p>
+
+        {/* 時刻表示 */}
+        <div style={{ marginBottom: "20px" }}>
+          <div className="time-display">{timeStr}</div>
+          <div className="date-display" style={{ fontSize: "13px", color: "#888", marginTop: "4px" }}>{dateStr}</div>
+        </div>
+
+        {/* QR + アニメーション */}
+        <div style={{ width: "100%", display: "flex", justifyContent: "center", overflow: "hidden" }}>
+          <div style={{
+            position: "relative",
+            width: `${SVG_SIZE}px`,
+            height: `${SVG_SIZE}px`,
+            flexShrink: 0,
+            transform: `scale(${Math.min(1, 340 / SVG_SIZE)})`,
+            transformOrigin: "top center",
+          }}>
+            <svg
+              width={SVG_SIZE}
+              height={SVG_SIZE}
+              viewBox={`0 0 ${SVG_SIZE} ${SVG_SIZE}`}
+              style={{ position: "absolute", top: 0, left: 0, pointerEvents: "none" }}
+            >
+              <circle cx={CX} cy={CY} r={R1} fill="none" stroke="#e10102" strokeWidth="2" strokeDasharray="8 6"
+                style={{ transformOrigin: `${CX}px ${CY}px`, animation: "spin 8s linear infinite" }} />
+              <circle cx={CX} cy={CY} r={R2} fill="none" stroke="#e10102" strokeWidth="1.5" strokeDasharray="3 12" opacity="0.35"
+                style={{ transformOrigin: `${CX}px ${CY}px`, animation: "spin-rev 12s linear infinite" }} />
+              {cornerPositions.map(([x, y, delay], i) => (
+                <circle key={i} cx={x as number} cy={y as number} r={4.5} fill="#e10102"
+                  style={{ animation: `corner-blink 1.6s ease-in-out ${delay} infinite` }} />
+              ))}
+              {[0, 90, 180, 270].map((deg, i) => {
+                const rad = (deg * Math.PI) / 180;
+                const r = R1 + 8;
+                return (
+                  <circle key={i} cx={CX + r * Math.sin(rad)} cy={CY - r * Math.cos(rad)} r={3}
+                    fill="#e10102" opacity="0.65"
+                    style={{ animation: `pulse-dot 2s ease-in-out ${i * 0.5}s infinite` }} />
+                );
+              })}
+            </svg>
+
+            <div style={{ position: "absolute", top: "50%", left: "50%", transform: "translate(-50%, -50%)" }}>
+              {qrDataUrl ? (
+                <img src={qrDataUrl} alt="QRコード" width={QR_SIZE} height={QR_SIZE}
+                  draggable={false} style={{ display: "block", borderRadius: "4px" }} />
+              ) : (
+                <div style={{ width: QR_SIZE, height: QR_SIZE, display: "flex", alignItems: "center", justifyContent: "center", color: "#ccc" }}>
+                  生成中...
+                </div>
+              )}
+            </div>
           </div>
-        )}
-
-        <div style={{ display:"flex", flexDirection:"column", gap:"14px" }}>
-          <Link href="/enter"
-            style={{ padding:"18px", fontSize:"17px", cursor:"pointer", backgroundColor:"#e10102", color:"white", border:"none", borderRadius:"10px", textDecoration:"none", display:"block" }}>
-            QRを表示する
-          </Link>
-          <Link href="/vote"
-            style={{ padding:"16px", fontSize:"16px", cursor:"pointer", backgroundColor:"white", color:"#e10102", border:"2px solid #e10102", borderRadius:"10px", textDecoration:"none", display:"block" }}>
-            🗳️ クラス投票
-          </Link>
-          <Link href="/event-enter"
-            style={{ padding:"16px", fontSize:"16px", cursor:"pointer", backgroundColor:"white", color:"#e10102", border:"2px solid #e10102", borderRadius:"10px", textDecoration:"none", display:"block" }}>
-            🎤 イベント入場・投票
-          </Link>
-          <Link href="/puzzle"
-            style={{ padding:"16px", fontSize:"16px", cursor:"pointer", backgroundColor:"white", color:"#e10102", border:"2px solid #e10102", borderRadius:"10px", textDecoration:"none", display:"block" }}>
-            🕵️ 謎解き
-          </Link>
-          <Link href="/survey"
-            style={{ padding:"16px", fontSize:"16px", cursor:"pointer", backgroundColor:"white", color:"#e10102", border:"2px solid #e10102", borderRadius:"10px", textDecoration:"none", display:"block" }}>
-            📝 アンケート
-          </Link>
-          <Link href="/info"
-            style={{ padding:"16px", fontSize:"16px", cursor:"pointer", backgroundColor:"white", color:"#e10102", border:"2px solid #e10102", borderRadius:"10px", textDecoration:"none", display:"block" }}>
-            ℹ️ インフォメーション
-          </Link>
         </div>
 
-        <div style={{ marginTop:"40px" }}>
-          <a href="/admin" style={{ fontSize:"12px", color:"#ccc", textDecoration:"none" }}>管理者ログイン</a>
-        </div>
-        <p style={{ marginTop:"16px", fontSize:"11px", color:"#ccc", textAlign:"center" }}>©Koryo Festival Committee　　All Rights Reserved.</p>
+        <p style={{ fontSize: "11px", color: "#ccc", marginTop: "16px" }}>
+          ID: {visitorId?.slice(0, 8)}...
+        </p>
       </main>
 
-      {/* サブメニューモーダル */}
-      {subModal && (
-        <div onClick={() => setSubModal(false)}
-          style={{ position:"fixed", inset:0, backgroundColor:"rgba(0,0,0,0.5)", zIndex:200, display:"flex", alignItems:"flex-end", justifyContent:"center" }}>
-          <div onClick={(e) => e.stopPropagation()}
-            style={{ backgroundColor:"white", borderRadius:"20px 20px 0 0", padding:"24px 20px 40px", width:"100%", maxWidth:"480px" }}>
-            <div style={{ width:"40px", height:"4px", backgroundColor:"#ddd", borderRadius:"2px", margin:"0 auto 20px" }} />
-            <div style={{ display:"flex", flexDirection:"column", gap:"10px" }}>
-              {[
-                { label:"📋 履歴を見る", path:"/history" },
-                { label:"🎇 ペンライト",  path:"/penlight" },
-                { label:"📍 マップ", path:"/map" },
-              ].map((item) => (
-                <button key={item.label}
-                  onClick={() => { if (item.path) { router.push(item.path); setSubModal(false); } }}
-                  disabled={!item.path}
-                  style={{ padding:"14px 16px", fontSize:"15px", cursor:item.path?"pointer":"not-allowed", backgroundColor:"white", color:item.path?"#333":"#aaa", border:"1px solid #eee", borderRadius:"8px", textAlign:"left" }}>
-                  {item.label}
-                </button>
-              ))}
-            </div>
-            <button onClick={() => setSubModal(false)}
-              style={{ marginTop:"16px", width:"100%", padding:"12px", fontSize:"14px", cursor:"pointer", backgroundColor:"#f5f5f5", color:"#555", border:"none", borderRadius:"8px" }}>
-              閉じる
-            </button>
+      {/* 読み取り通知オーバーレイ */}
+      {notification && (
+        <div onClick={() => setNotification(null)}
+          style={{ position: "fixed", inset: 0, backgroundColor: "rgba(0,0,0,0.65)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000 }}>
+          <div style={{ backgroundColor: "white", borderRadius: "20px", padding: "40px 32px", textAlign: "center", maxWidth: "300px", width: "88%", boxShadow: "0 12px 40px rgba(0,0,0,0.25)", animation: "notify-in 0.3s ease" }}>
+            <div style={{ fontSize: "56px", marginBottom: "12px" }}>✅</div>
+            <div style={{ fontSize: "20px", fontWeight: "bold", marginBottom: "8px" }}>読み取られました！</div>
+            <div style={{ fontSize: "15px", color: "#555" }}>クラス: <strong>{notification.classCode}</strong></div>
+            <div style={{ fontSize: "12px", color: "#aaa", marginTop: "20px" }}>タップで閉じる</div>
           </div>
         </div>
       )}
