@@ -38,6 +38,7 @@ export default function AdminPage() {
         <a href="/admin/vote-results" style={linkStyle}>🏆 クラス投票得票数</a>
         <a href="/admin/info"      style={linkStyle}>📢 インフォメーション管理</a>
         <a href="/admin/puzzle-redeem" style={linkStyle}>🎁 景品引換スキャン</a>
+        <a href="/admin/analytics"    style={linkStyle}>📊 アクセス解析</a>
       </div>
 
       {/* 会場管理 */}
