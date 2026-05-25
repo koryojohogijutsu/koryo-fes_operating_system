@@ -3,13 +3,14 @@ import { supabase } from "@/lib/supabase";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 
+type ClassRow = { id: string; code: string; label: string; comment: string };
 
 export default function ClassesAdminPage() {
   const router = useRouter();
-  const [classes,  setClasses]  = useState<{ id: string; code: string; label: string; comment: string }[]>([]);
-  const [code,     setCode]     = useState("");
-  const [label,    setLabel]    = useState("");
-  const [authed,   setAuthed]   = useState(false);
+  const [classes,        setClasses]        = useState<ClassRow[]>([]);
+  const [code,           setCode]           = useState("");
+  const [label,          setLabel]          = useState("");
+  const [authed,         setAuthed]         = useState(false);
   const [editingComment, setEditingComment] = useState<{ id: string; value: string } | null>(null);
   const [savingComment,  setSavingComment]  = useState(false);
 
@@ -22,7 +23,8 @@ export default function ClassesAdminPage() {
 
   const load = async () => {
     const { data } = await supabase.from("classes").select("*").order("code");
-    setClasses((data ?? []).map((c) => ({ ...c, comment: c.comment ?? "" })));
+    const rows = (data ?? []) as ClassRow[];
+    setClasses(rows.map((c) => ({ ...c, comment: c.comment ?? "" })));
   };
 
   const addClass = async () => {
@@ -66,7 +68,6 @@ export default function ClassesAdminPage() {
     <div style={{ padding: "20px", maxWidth: "600px" }}>
       <a href="/admin" style={{ fontSize: "13px", color: "#888", textDecoration: "none", display: "block", marginBottom: "16px" }}>← 管理者メニューに戻る</a>
       <h1 style={{ marginBottom: "20px" }}>クラス管理</h1>
-
       <div style={{ display: "flex", gap: "8px", marginBottom: "24px", flexWrap: "wrap" }}>
         <input placeholder="コード（例: 2-4）" value={code} onChange={(e) => setCode(e.target.value)}
           style={{ padding: "8px", fontSize: "15px", flex: 1, minWidth: "100px", borderRadius: "6px", border: "1px solid #ccc" }} />
@@ -77,7 +78,6 @@ export default function ClassesAdminPage() {
           追加
         </button>
       </div>
-
       <ul style={{ listStyle: "none", padding: 0 }}>
         {classes.map((c) => (
           <li key={c.id} style={{ padding: "12px", borderBottom: "1px solid #eee" }}>
@@ -88,8 +88,6 @@ export default function ClassesAdminPage() {
                 削除
               </button>
             </div>
-
-            {/* コメント表示・編集 */}
             {editingComment?.id === c.id ? (
               <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
                 <textarea
