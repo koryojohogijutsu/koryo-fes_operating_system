@@ -23,7 +23,7 @@ export default function ClassesAdminPage() {
 
   const load = async () => {
     const { data } = await supabase.from("classes").select("*").order("code");
-    const rows = (data ?? []) as ClassRow[];
+    const rows = (data ?? []) as unknown as ClassRow[];
     setClasses(rows.map((c) => ({ ...c, comment: c.comment ?? "" })));
   };
 
@@ -50,11 +50,11 @@ export default function ClassesAdminPage() {
   const saveComment = async () => {
     if (!editingComment) return;
     setSavingComment(true);
-    const { error } = await supabase
-      .from("classes")
+    const { error } = await (supabase
+      .from("classes") as any)
       .update({ comment: editingComment.value })
       .eq("id", editingComment.id);
-    if (error) alert("エラー: " + error.message);
+    if (error) alert("エラー: " + (error as any).message);
     else {
       setClasses((prev) => prev.map((c) => c.id === editingComment.id ? { ...c, comment: editingComment.value } : c));
       setEditingComment(null);
