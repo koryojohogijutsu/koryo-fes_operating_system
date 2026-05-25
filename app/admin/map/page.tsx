@@ -25,25 +25,25 @@ type VenueLayoutItem = {
 };
 
 const VENUES: VenueLayoutItem[] = [
-  { venue_key: "gym",      label: "体育館",  x: -1, y: -1 },
-  { venue_key: "kinenkan", label: "記念館",  x: -1, y: -1 },
-  { venue_key: "koryokan", label: "ライブ",  x: -1, y: -1 },
-  { venue_key: "sundelica", label: "サンデリカ",  x: -1, y: -1 },
-  { venue_key: "football", label: "サッカー部",  x: -1, y: -1 },
-  { venue_key: "tontonhiroba", label: "とんとん広場",  x: -1, y: -1 },
+  { venue_key: "gym",          label: "体育館",      x: -1, y: -1 },
+  { venue_key: "kinenkan",     label: "記念館",      x: -1, y: -1 },
+  { venue_key: "koryokan",     label: "ライブ",      x: -1, y: -1 },
+  { venue_key: "sundelica",    label: "サンデリカ",  x: -1, y: -1 },
+  { venue_key: "football",     label: "サッカー部",  x: -1, y: -1 },
+  { venue_key: "tontonhiroba", label: "とんとん広場", x: -1, y: -1 },
 ];
 
 // 校舎マップ（/map.png）に載せる特殊ピン
 const SCHOOL_VENUES: VenueLayoutItem[] = [
-  { venue_key: "library", label: "図書館", x: -1, y: -1 },
-  { venue_key: "tea", label: "茶道部", x: -1, y: -1 },
+  { venue_key: "library", label: "図書館",    x: -1, y: -1 },
+  { venue_key: "tea",     label: "茶道部",    x: -1, y: -1 },
   { venue_key: "science", label: "科学物理部", x: -1, y: -1 },
 ];
 
 export default function AdminMapPage() {
   const router        = useRouter();
   const mapRef        = useRef<HTMLDivElement>(null);
-  const gymMapRef     = useRef<HTMLDivElement>(null);
+  const allMapRef     = useRef<HTMLDivElement>(null);
   const koryoMapRef   = useRef<HTMLDivElement>(null);
 
   const [authed,         setAuthed]         = useState(false);
@@ -55,8 +55,8 @@ export default function AdminMapPage() {
   const [selected,       setSelected]       = useState<string | null>(null);
   const [saving,         setSaving]         = useState(false);
   const [saved,          setSaved]          = useState(false);
-  const dragOffset  = useRef({ ox: 0, oy: 0 });
-  const isVenueDrag = useRef(false);
+  const dragOffset        = useRef({ ox: 0, oy: 0 });
+  const isVenueDrag       = useRef(false);
   const isSchoolVenueDrag = useRef(false);
 
   useEffect(() => {
@@ -98,7 +98,7 @@ export default function AdminMapPage() {
       ox: clientX - rect.left - (curX / 100) * rect.width,
       oy: clientY - rect.top  - (curY / 100) * rect.height,
     };
-    isVenueDrag.current      = mode === "venue";
+    isVenueDrag.current       = mode === "venue";
     isSchoolVenueDrag.current = mode === "school";
     setDragging(key);
     setSelected(key);
@@ -125,7 +125,6 @@ export default function AdminMapPage() {
         method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ layouts: layouts.filter((l) => l.x >= 0 && l.y >= 0) }),
       });
-      // 図書館も保存
       const svToSave = schoolVenues.filter((l) => l.x >= 0 && l.y >= 0);
       if (svToSave.length > 0) {
         await fetch("/api/map-layout", {
@@ -152,7 +151,7 @@ export default function AdminMapPage() {
   const selectedItem    = layouts.find((l) => l.class_code === selected);
   const placedLayouts   = layouts.filter((l) => l.x >= 0 && l.y >= 0);
   const unplacedLayouts = layouts.filter((l) => l.x  < 0 || l.y  < 0);
-  const gymVenues       = venueLayouts.filter((l) => l.venue_key !== "koryokan");
+  const allVenues       = venueLayouts.filter((l) => l.venue_key !== "koryokan");
   const koryoVenue      = venueLayouts.find((l) => l.venue_key === "koryokan");
   const libraryVenue    = schoolVenues.find((l) => l.venue_key === "library");
 
@@ -259,25 +258,26 @@ export default function AdminMapPage() {
         <>
           <p style={{ color: "#888", fontSize: "13px", marginBottom: "16px" }}>各会場をマップ上にドラッグして配置してください</p>
 
-          <p style={{ fontSize: "13px", fontWeight: "bold", marginBottom: "6px" }}>体育館・記念館マップ</p>
-          <div ref={gymMapRef}
+          {/* 全体マップ */}
+          <p style={{ fontSize: "13px", fontWeight: "bold", marginBottom: "6px" }}>校内全体図</p>
+          <div ref={allMapRef}
             style={{ position: "relative", width: "100%", userSelect: "none", border: "2px solid #ddd", borderRadius: "8px", overflow: "hidden", cursor: dragging ? "grabbing" : "default", marginBottom: "20px" }}
-            onMouseMove={(e) => moveDrag(gymMapRef, e.clientX, e.clientY)}
+            onMouseMove={(e) => moveDrag(allMapRef, e.clientX, e.clientY)}
             onMouseUp={() => setDragging(null)}
             onMouseLeave={() => setDragging(null)}
-            onTouchMove={(e) => { const t = e.touches[0]; moveDrag(gymMapRef, t.clientX, t.clientY); }}
+            onTouchMove={(e) => { const t = e.touches[0]; moveDrag(allMapRef, t.clientX, t.clientY); }}
             onTouchEnd={() => setDragging(null)}
           >
-            <img src="/venue-map-gym-kinenkan.png" alt="体育館・記念館マップ" style={{ width: "100%", display: "block" }} draggable={false} />
-            {gymVenues.filter((l) => l.x >= 0 && l.y >= 0).map((l) => (
+            <img src="/venue-map-all.png" alt="校内全体図" style={{ width: "100%", display: "block" }} draggable={false} />
+            {allVenues.filter((l) => l.x >= 0 && l.y >= 0).map((l) => (
               <div key={l.venue_key}
-                onMouseDown={(e) => { e.preventDefault(); startDrag(gymMapRef, l.venue_key, l.x, l.y, e.clientX, e.clientY, "venue"); }}
-                onTouchStart={(e) => { const t = e.touches[0]; startDrag(gymMapRef, l.venue_key, l.x, l.y, t.clientX, t.clientY, "venue"); }}
+                onMouseDown={(e) => { e.preventDefault(); startDrag(allMapRef, l.venue_key, l.x, l.y, e.clientX, e.clientY, "venue"); }}
+                onTouchStart={(e) => { const t = e.touches[0]; startDrag(allMapRef, l.venue_key, l.x, l.y, t.clientX, t.clientY, "venue"); }}
                 style={{ position: "absolute", left: `${l.x}%`, top: `${l.y}%`, transform: "translate(-50%, -50%)", backgroundColor: selected === l.venue_key ? "#7b1fa2" : "#1976d2", color: "white", borderRadius: "20px", padding: "4px 10px", fontSize: "12px", fontWeight: "bold", cursor: "grab", boxShadow: "0 2px 6px rgba(0,0,0,0.3)", whiteSpace: "nowrap", touchAction: "none" }}>
                 {l.label}
               </div>
             ))}
-            {gymVenues.filter((l) => l.x < 0 || l.y < 0).map((l) => (
+            {allVenues.filter((l) => l.x < 0 || l.y < 0).map((l) => (
               <div key={l.venue_key} style={{ position: "absolute", top: "8px", right: "8px" }}>
                 <button onClick={() => setVenueLayouts((prev) => prev.map((item) => item.venue_key === l.venue_key ? { ...item, x: 50, y: 50 } : item))}
                   style={{ padding: "4px 10px", backgroundColor: "#1976d2", color: "white", border: "none", borderRadius: "12px", fontSize: "12px", cursor: "pointer" }}>
@@ -287,6 +287,7 @@ export default function AdminMapPage() {
             ))}
           </div>
 
+          {/* 蛟龍館マップ */}
           <p style={{ fontSize: "13px", fontWeight: "bold", marginBottom: "6px" }}>蛟龍館マップ</p>
           <div ref={koryoMapRef}
             style={{ position: "relative", width: "100%", userSelect: "none", border: "2px solid #ddd", borderRadius: "8px", overflow: "hidden", cursor: dragging ? "grabbing" : "default" }}
