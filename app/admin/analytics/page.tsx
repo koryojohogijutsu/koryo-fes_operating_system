@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 
@@ -31,18 +31,30 @@ const PAGE_LABELS: Record<string, string> = {
 };
 
 const BAR_COLORS = [
-  "#e10102","#1976d2","#4caf50","#ff9800","#7b1fa2",
-  "#00bcd4","#f06292","#9c27b0","#607d8b","#795548",
+  "#e10102", "#1976d2", "#4caf50", "#ff9800", "#7b1fa2",
+  "#00bcd4", "#f06292", "#9c27b0", "#607d8b", "#795548",
 ];
+
+// 折れ線グラフの線種（色覚多様性への配慮）
+const DASH_PATTERNS: number[][] = [[], [5, 5], [2, 4], [8, 3], [4, 2, 1, 2], [6, 2]];
+
+declare global {
+  interface Window {
+    Chart: any;
+  }
+}
 
 export default function AnalyticsPage() {
   const router = useRouter();
-  const [authed,    setAuthed]    = useState(false);
-  const [summary,   setSummary]   = useState<SummaryItem[]>([]);
-  const [adminLogs, setAdminLogs] = useState<AdminLog[]>([]);
-  const [loading,   setLoading]   = useState(true);
-  const [days,      setDays]      = useState(7);
-  const [viewTab,   setViewTab]   = useState<"user" | "admin">("user");
+  const [authed,      setAuthed]      = useState(false);
+  const [summary,     setSummary]     = useState<SummaryItem[]>([]);
+  const [adminLogs,   setAdminLogs]   = useState<AdminLog[]>([]);
+  const [loading,     setLoading]     = useState(true);
+  const [days,        setDays]        = useState(7);
+  const [viewTab,     setViewTab]     = useState<"user" | "admin">("user");
+  const [tableOpen,   setTableOpen]   = useState(false);
+  const chartRef      = useRef<any>(null);
+  const canvasRef     = useRef<HTMLCanvasElement>(null);
 
   useEffect(() => {
     const auth = document.cookie.split("; ").find((r) => r.startsWith("admin_auth="))?.split("=")[1];
@@ -61,6 +73,29 @@ export default function AnalyticsPage() {
     setLoading(false);
   };
 
+  // Chart.jsをCDNから動的ロード
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    if (window.Chart) return;
+    const script = document.createElement("script");
+    script.src = "https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js";
+    document.head.appendChild(script);
+  }, []);
+
+  // データ・タブ変更時に折れ線グラフを再描画
+  useEffect(() => {
+    if (loading || viewTab !== "user") return;
+    // Chart.jsのロード完了を待つ
+    const tryRender = (attempt = 0) => {
+      if (window.Chart) {
+        renderLineChart();
+      } else if (attempt < 20) {
+        setTimeout(() => tryRender(attempt + 1), 100);
+      }
+    };
+    tryRender();
+  }, [summary, loading, viewTab]);
+
   if (!authed) return null;
 
   const userSummary  = summary.filter((s) => s.type === "user");
@@ -72,18 +107,52 @@ export default function AnalyticsPage() {
   const getCount = (items: SummaryItem[], date: string, page: string) =>
     items.find((s) => s.date === date && s.page === page)?.count ?? 0;
 
-  // ページごとの合計でソート
   const sortedUserPages = [...userPages].sort((a, b) => {
     const totalA = userSummary.filter((s) => s.page === a).reduce((sum, s) => sum + s.count, 0);
     const totalB = userSummary.filter((s) => s.page === b).reduce((sum, s) => sum + s.count, 0);
     return totalB - totalA;
   });
 
-  // 棒グラフ（CSS）
+  // 折れ線グラフ（上位6ページ）
+  const renderLineChart = () => {
+    if (!canvasRef.current || !window.Chart) return;
+    if (chartRef.current) { chartRef.current.destroy(); chartRef.current = null; }
+
+    const top6 = sortedUserPages.slice(0, 6);
+    const datasets = top6.map((page, i) => ({
+      label:           PAGE_LABELS[page] ?? page,
+      data:            dates.map((d) => getCount(userSummary, d, page)),
+      borderColor:     BAR_COLORS[i % BAR_COLORS.length],
+      backgroundColor: BAR_COLORS[i % BAR_COLORS.length] + "22",
+      borderWidth:     2,
+      pointRadius:     4,
+      tension:         0.3,
+      borderDash:      DASH_PATTERNS[i % DASH_PATTERNS.length],
+      fill:            false,
+    }));
+
+    chartRef.current = new window.Chart(canvasRef.current, {
+      type: "line",
+      data: { labels: dates, datasets },
+      options: {
+        responsive:          true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend:  { display: false },
+          tooltip: { mode: "index", intersect: false },
+        },
+        scales: {
+          x: { grid: { color: "rgba(128,128,128,.1)" }, ticks: { color: "#888", font: { size: 11 } } },
+          y: { beginAtZero: true, grid: { color: "rgba(128,128,128,.1)" }, ticks: { color: "#888", font: { size: 11 } } },
+        },
+      },
+    });
+  };
+
+  // CSSバーグラフ
   function BarGraph({ items, pages }: { items: SummaryItem[]; pages: string[] }) {
     if (pages.length === 0) return <p style={{ color: "#aaa", fontSize: "14px" }}>データがありません</p>;
-    const maxCount = Math.max(...items.map((s) => s.count), 1);
-    // ページごとの合計を表示
+
     const totals = pages.map((page, i) => ({
       page,
       label: PAGE_LABELS[page] ?? page,
@@ -94,56 +163,56 @@ export default function AnalyticsPage() {
     const maxTotal = Math.max(...totals.map((t) => t.total), 1);
 
     return (
-      <div style={{ marginBottom: "32px" }}>
-        {/* 合計バーグラフ */}
-        <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
-          {totals.map(({ page, label, total, color }) => (
-            <div key={page} style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-              <div style={{ width: "120px", fontSize: "12px", color: "#555", textAlign: "right", flexShrink: 0, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-                {label}
-              </div>
-              <div style={{ flex: 1, backgroundColor: "#f0f0f0", borderRadius: "4px", height: "24px", overflow: "hidden" }}>
-                <div style={{
-                  height: "100%", borderRadius: "4px",
-                  backgroundColor: color,
-                  width: `${(total / maxTotal) * 100}%`,
-                  transition: "width 0.5s ease",
-                  minWidth: total > 0 ? "4px" : "0",
-                }} />
-              </div>
-              <div style={{ width: "36px", fontSize: "13px", fontWeight: "bold", color: "#333", flexShrink: 0, textAlign: "right" }}>
-                {total}
-              </div>
+      <div style={{ display: "flex", flexDirection: "column", gap: "8px", marginBottom: "24px" }}>
+        {totals.map(({ page, label, total, color }) => (
+          <div key={page} style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+            <div style={{ width: "120px", fontSize: "12px", color: "#555", textAlign: "right", flexShrink: 0, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+              {label}
             </div>
-          ))}
-        </div>
-
-        {/* 日別折れ線風（各日付の合計） */}
-        {dates.length > 1 && (
-          <div style={{ marginTop: "24px" }}>
-            <p style={{ fontSize: "13px", color: "#888", marginBottom: "10px" }}>日別アクセス数</p>
-            <div style={{ display: "flex", gap: "4px", alignItems: "flex-end", height: "120px" }}>
-              {dates.map((date) => {
-                const dayTotal = items.filter((s) => s.date === date).reduce((sum, s) => sum + s.count, 0);
-                const height   = maxTotal > 0 ? Math.max((dayTotal / maxTotal) * 100, dayTotal > 0 ? 4 : 0) : 0;
-                return (
-                  <div key={date} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: "4px" }}>
-                    <div style={{ fontSize: "11px", color: "#333", fontWeight: "bold" }}>{dayTotal || ""}</div>
-                    <div style={{ width: "100%", backgroundColor: "#e10102", borderRadius: "3px 3px 0 0", height: `${height}%`, minHeight: dayTotal > 0 ? "4px" : "0" }} />
-                    <div style={{ fontSize: "10px", color: "#888", whiteSpace: "nowrap" }}>{date}</div>
-                  </div>
-                );
-              })}
+            <div style={{ flex: 1, backgroundColor: "#f0f0f0", borderRadius: "4px", height: "24px", overflow: "hidden" }}>
+              <div style={{
+                height: "100%", borderRadius: "4px",
+                backgroundColor: color,
+                width: `${(total / maxTotal) * 100}%`,
+                transition: "width 0.5s ease",
+                minWidth: total > 0 ? "4px" : "0",
+              }} />
+            </div>
+            <div style={{ width: "36px", fontSize: "13px", fontWeight: "bold", color: "#333", flexShrink: 0, textAlign: "right" }}>
+              {total}
             </div>
           </div>
-        )}
+        ))}
+      </div>
+    );
+  }
+
+  // 折れ線グラフ凡例（上位6ページ分）
+  function LineLegend() {
+    const top6 = sortedUserPages.slice(0, 6);
+    if (top6.length === 0) return null;
+    return (
+      <div style={{ display: "flex", flexWrap: "wrap", gap: "12px", marginBottom: "10px" }}>
+        {top6.map((page, i) => (
+          <span key={page} style={{ display: "flex", alignItems: "center", gap: "5px", fontSize: "12px", color: "#666" }}>
+            <span style={{
+              display: "inline-block", width: "20px", height: "2px",
+              background: BAR_COLORS[i % BAR_COLORS.length],
+              borderRadius: "1px",
+              // 破線はCSSで完全再現できないので色と順序で区別
+            }} />
+            {PAGE_LABELS[page] ?? page}
+          </span>
+        ))}
       </div>
     );
   }
 
   return (
     <main style={{ padding: "20px", maxWidth: "800px", margin: "0 auto" }}>
-      <Link href="/admin" style={{ fontSize: "13px", color: "#888", textDecoration: "none", display: "block", marginBottom: "16px" }}>← 管理者メニュー</Link>
+      <Link href="/admin" style={{ fontSize: "13px", color: "#888", textDecoration: "none", display: "block", marginBottom: "16px" }}>
+        ← 管理者メニュー
+      </Link>
 
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px", flexWrap: "wrap", gap: "12px" }}>
         <h1 style={{ fontSize: "20px", margin: 0 }}>📊 アクセス解析</h1>
@@ -166,7 +235,13 @@ export default function AnalyticsPage() {
       <div style={{ display: "flex", gap: "8px", marginBottom: "24px" }}>
         {([{ key: "user", label: "来場者ページ" }, { key: "admin", label: "管理者ページ" }] as const).map((t) => (
           <button key={t.key} onClick={() => setViewTab(t.key)}
-            style={{ flex: 1, padding: "10px", fontSize: "14px", cursor: "pointer", borderRadius: "8px", border: "2px solid", borderColor: viewTab === t.key ? "#e10102" : "#ddd", backgroundColor: viewTab === t.key ? "#fff5f5" : "white", color: viewTab === t.key ? "#e10102" : "#555", fontWeight: viewTab === t.key ? "bold" : "normal" }}>
+            style={{
+              flex: 1, padding: "10px", fontSize: "14px", cursor: "pointer", borderRadius: "8px",
+              border: "2px solid", borderColor: viewTab === t.key ? "#e10102" : "#ddd",
+              backgroundColor: viewTab === t.key ? "#fff5f5" : "white",
+              color: viewTab === t.key ? "#e10102" : "#555",
+              fontWeight: viewTab === t.key ? "bold" : "normal",
+            }}>
             {t.label}
           </button>
         ))}
@@ -176,52 +251,101 @@ export default function AnalyticsPage() {
         <p style={{ color: "#aaa", textAlign: "center", padding: "40px" }}>読み込み中...</p>
       ) : viewTab === "user" ? (
         <>
-          <h2 style={{ fontSize: "15px", marginBottom: "12px", borderBottom: "2px solid #e10102", paddingBottom: "6px" }}>ページ別アクセス数</h2>
+          {/* ページ別バーグラフ */}
+          <h2 style={{ fontSize: "15px", marginBottom: "12px", borderBottom: "2px solid #e10102", paddingBottom: "6px" }}>
+            ページ別アクセス数
+          </h2>
           <BarGraph items={userSummary} pages={userPages} />
 
-          <h2 style={{ fontSize: "15px", marginBottom: "12px", borderBottom: "2px solid #e10102", paddingBottom: "6px" }}>日別×ページ別 詳細</h2>
-          <div style={{ overflowX: "auto" }}>
-            <table style={{ borderCollapse: "collapse", width: "100%", fontSize: "13px" }}>
-              <thead>
-                <tr style={{ backgroundColor: "#f5f5f5" }}>
-                  <th style={{ padding: "10px 12px", textAlign: "left", borderBottom: "2px solid #ddd", whiteSpace: "nowrap" }}>ページ</th>
-                  {dates.map((d) => (
-                    <th key={d} style={{ padding: "10px 8px", textAlign: "center", borderBottom: "2px solid #ddd", whiteSpace: "nowrap" }}>{d}</th>
-                  ))}
-                  <th style={{ padding: "10px 8px", textAlign: "center", borderBottom: "2px solid #ddd", backgroundColor: "#fff8e1" }}>合計</th>
-                </tr>
-              </thead>
-              <tbody>
-                {sortedUserPages.map((page) => {
-                  const total = userSummary.filter((s) => s.page === page).reduce((sum, s) => sum + s.count, 0);
-                  return (
-                    <tr key={page} style={{ borderBottom: "1px solid #f0f0f0" }}>
-                      <td style={{ padding: "10px 12px", whiteSpace: "nowrap" }}>
-                        <span style={{ fontWeight: "bold" }}>{PAGE_LABELS[page] ?? page}</span>
-                        <span style={{ fontSize: "11px", color: "#aaa", marginLeft: "6px" }}>{page}</span>
-                      </td>
-                      {dates.map((d) => {
-                        const c = getCount(userSummary, d, page);
-                        return (
-                          <td key={d} style={{ padding: "10px 8px", textAlign: "center", color: c > 0 ? "#333" : "#ddd", fontWeight: c > 10 ? "bold" : "normal", backgroundColor: c > 20 ? "#fff0f0" : c > 10 ? "#fff8e1" : "transparent" }}>
-                            {c > 0 ? c : "-"}
-                          </td>
-                        );
-                      })}
-                      <td style={{ padding: "10px 8px", textAlign: "center", fontWeight: "bold", backgroundColor: "#fff8e1" }}>{total}</td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+          {/* 日別折れ線グラフ */}
+          {dates.length > 1 && (
+            <>
+              <h2 style={{ fontSize: "15px", marginBottom: "12px", borderBottom: "2px solid #e10102", paddingBottom: "6px" }}>
+                日別アクセス推移
+              </h2>
+              <LineLegend />
+              <div style={{ position: "relative", width: "100%", height: "260px", marginBottom: "32px" }}>
+                <canvas
+                  ref={canvasRef}
+                  role="img"
+                  aria-label="来場者ページの日別アクセス推移（折れ線グラフ）"
+                />
+              </div>
+            </>
+          )}
+
+          {/* 日別×ページ別テーブル（開閉） */}
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "12px" }}>
+            <h2 style={{ fontSize: "15px", borderBottom: "2px solid #e10102", paddingBottom: "6px", margin: 0, flex: 1 }}>
+              日別×ページ別 詳細
+            </h2>
+            <button
+              onClick={() => setTableOpen((v) => !v)}
+              style={{
+                display: "flex", alignItems: "center", gap: "6px",
+                marginLeft: "16px", padding: "7px 14px", fontSize: "13px",
+                cursor: "pointer", border: "1px solid #ddd", borderRadius: "8px",
+                backgroundColor: tableOpen ? "#fff5f5" : "white",
+                color: tableOpen ? "#e10102" : "#555",
+                transition: "all .2s",
+              }}>
+              {tableOpen ? "▲ データを隠す" : "▼ データを表示する"}
+            </button>
           </div>
+
+          {tableOpen && (
+            <div style={{ overflowX: "auto" }}>
+              <table style={{ borderCollapse: "collapse", width: "100%", fontSize: "13px" }}>
+                <thead>
+                  <tr style={{ backgroundColor: "#f5f5f5" }}>
+                    <th style={{ padding: "10px 12px", textAlign: "left", borderBottom: "2px solid #ddd", whiteSpace: "nowrap" }}>ページ</th>
+                    {dates.map((d) => (
+                      <th key={d} style={{ padding: "10px 8px", textAlign: "center", borderBottom: "2px solid #ddd", whiteSpace: "nowrap" }}>{d}</th>
+                    ))}
+                    <th style={{ padding: "10px 8px", textAlign: "center", borderBottom: "2px solid #ddd", backgroundColor: "#fff8e1" }}>合計</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {sortedUserPages.map((page) => {
+                    const total = userSummary.filter((s) => s.page === page).reduce((sum, s) => sum + s.count, 0);
+                    return (
+                      <tr key={page} style={{ borderBottom: "1px solid #f0f0f0" }}>
+                        <td style={{ padding: "10px 12px", whiteSpace: "nowrap" }}>
+                          <span style={{ fontWeight: "bold" }}>{PAGE_LABELS[page] ?? page}</span>
+                          <span style={{ fontSize: "11px", color: "#aaa", marginLeft: "6px" }}>{page}</span>
+                        </td>
+                        {dates.map((d) => {
+                          const c = getCount(userSummary, d, page);
+                          return (
+                            <td key={d} style={{
+                              padding: "10px 8px", textAlign: "center",
+                              color: c > 0 ? "#333" : "#ddd",
+                              fontWeight: c > 10 ? "bold" : "normal",
+                              backgroundColor: c > 20 ? "#fff0f0" : c > 10 ? "#fff8e1" : "transparent",
+                            }}>
+                              {c > 0 ? c : "-"}
+                            </td>
+                          );
+                        })}
+                        <td style={{ padding: "10px 8px", textAlign: "center", fontWeight: "bold", backgroundColor: "#fff8e1" }}>{total}</td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
         </>
       ) : (
         <>
-          <h2 style={{ fontSize: "15px", marginBottom: "12px", borderBottom: "2px solid #e10102", paddingBottom: "6px" }}>ページ別アクセス数</h2>
+          <h2 style={{ fontSize: "15px", marginBottom: "12px", borderBottom: "2px solid #e10102", paddingBottom: "6px" }}>
+            ページ別アクセス数
+          </h2>
           <BarGraph items={adminSummary} pages={adminPages} />
 
-          <h2 style={{ fontSize: "15px", marginBottom: "12px", borderBottom: "2px solid #e10102", paddingBottom: "6px" }}>アクセスログ</h2>
+          <h2 style={{ fontSize: "15px", marginBottom: "12px", borderBottom: "2px solid #e10102", paddingBottom: "6px" }}>
+            アクセスログ
+          </h2>
           {adminLogs.length === 0 ? (
             <p style={{ color: "#aaa", fontSize: "14px" }}>データがありません</p>
           ) : (
@@ -245,13 +369,17 @@ export default function AnalyticsPage() {
                         <span style={{ fontSize: "11px", color: "#aaa", marginLeft: "4px" }}>{log.page}</span>
                       </td>
                       <td style={{ padding: "8px 12px", fontFamily: "monospace", fontSize: "12px", color: "#555" }}>
-                        {log.visitor_id === "不明" ? <span style={{ color: "#ccc" }}>不明</span> : log.visitor_id.slice(0, 12) + "..."}
+                        {log.visitor_id === "不明"
+                          ? <span style={{ color: "#ccc" }}>不明</span>
+                          : log.visitor_id.slice(0, 12) + "..."}
                       </td>
                     </tr>
                   ))}
                 </tbody>
               </table>
-              {adminLogs.length > 200 && <p style={{ fontSize: "12px", color: "#aaa", marginTop: "8px" }}>※ 最新200件を表示</p>}
+              {adminLogs.length > 200 && (
+                <p style={{ fontSize: "12px", color: "#aaa", marginTop: "8px" }}>※ 最新200件を表示</p>
+              )}
             </div>
           )}
         </>
