@@ -1,16 +1,21 @@
 "use client";
-
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Html5Qrcode } from "html5-qrcode";
 import Link from "next/link";
 
-const EVENT_KEYS = ["nodojiman", "coscon_performance", "coscon_runway", "m1"];
+// のど自慢はサブキー（-1/-2/-3）、コスコン・M1はサブキーなし
+const EVENT_KEYS = [
+  "nodojiman-1", "nodojiman-2", "nodojiman-3",
+  "coscon_performance", "coscon_runway", "m1",
+];
 const EVENT_LABELS: Record<string, string> = {
-  nodojiman:          "のど自慢",
-  coscon_performance: "コスコン（パフォーマンス）",
-  coscon_runway:      "コスコン（ランウェイ）",
-  m1:                 "M1",
+  "nodojiman-1":        "のど自慢（1日目）",
+  "nodojiman-2":        "のど自慢（2日目①）",
+  "nodojiman-3":        "のど自慢（2日目②）",
+  "coscon_performance": "コスコン（パフォーマンス）",
+  "coscon_runway":      "コスコン（ランウェイ）",
+  "m1":                 "M1",
 };
 
 async function sha256(text: string): Promise<string> {
@@ -183,7 +188,7 @@ export default function EventEnterPage() {
           <ul style={{ listStyle: "none", padding: 0, margin: 0 }}>
             {eventVisits.map((v, i) => (
               <li key={i} style={{ display: "flex", justifyContent: "space-between", padding: "10px 0", borderBottom: "1px solid #f0f0f0", fontSize: "14px" }}>
-                <strong>{v.event_label}</strong>
+                <strong>{EVENT_LABELS[v.event_key] ?? v.event_label}</strong>
                 <span style={{ color: "#888", fontSize: "12px" }}>
                   {new Date(v.entered_at).toLocaleString("ja-JP", { month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit" })}
                 </span>
