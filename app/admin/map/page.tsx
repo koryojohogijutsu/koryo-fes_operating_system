@@ -22,42 +22,50 @@ type VenueLayoutItem = {
   label:     string;
   x:         number;
   y:         number;
+  mapTarget: "all" | "koryo" | "school"; // どの地図に配置されるか
 };
 
-const VENUES: VenueLayoutItem[] = [
-  { venue_key: "gym",          label: "体育館",      x: -1, y: -1 },
-  { venue_key: "kinenkan",     label: "記念館",      x: -1, y: -1 },
-  { venue_key: "koryokan",     label: "ライブ",      x: -1, y: -1 },
-  { venue_key: "sundelica",    label: "サンデリカ",  x: -1, y: -1 },
-  { venue_key: "football",     label: "サッカー部",  x: -1, y: -1 },
-  { venue_key: "tontonhiroba", label: "とんとん広場", x: -1, y: -1 },
+// 全体図に配置する会場ピン
+const VENUE_DEFAULTS: VenueLayoutItem[] = [
+  { venue_key: "gym",          label: "体育館",       x: -1, y: -1, mapTarget: "all" },
+  { venue_key: "kinenkan",     label: "記念館",       x: -1, y: -1, mapTarget: "all" },
+  { venue_key: "koryokan",     label: "ライブ",       x: -1, y: -1, mapTarget: "koryo" },
+  { venue_key: "sundelica",    label: "サンデリカ",   x: -1, y: -1, mapTarget: "all" },
+  { venue_key: "football",     label: "サッカー部",   x: -1, y: -1, mapTarget: "all" },
+  { venue_key: "tontonhiroba", label: "とんとん広場", x: -1, y: -1, mapTarget: "all" },
+  { venue_key: "library",      label: "図書館",       x: -1, y: -1, mapTarget: "school" },
+  { venue_key: "tea",          label: "茶道部",       x: -1, y: -1, mapTarget: "school" },
+  { venue_key: "science",      label: "科学物理部",   x: -1, y: -1, mapTarget: "school" },
 ];
 
-// 校舎マップ（/map.png）に載せる特殊ピン
-const SCHOOL_VENUES: VenueLayoutItem[] = [
-  { venue_key: "library", label: "図書館",    x: -1, y: -1 },
-  { venue_key: "tea",     label: "茶道部",    x: -1, y: -1 },
-  { venue_key: "science", label: "科学物理部", x: -1, y: -1 },
-];
+// 蛟龍館に配置するクラス
+const KORYO_CLASSES = ["将棋部", "囲碁部"];
+
+type DragState = {
+  key:      string;
+  kind:     "class" | "venue";
+  fromList: boolean;
+};
 
 export default function AdminMapPage() {
-  const router        = useRouter();
-  const mapRef        = useRef<HTMLDivElement>(null);
-  const allMapRef     = useRef<HTMLDivElement>(null);
-  const koryoMapRef   = useRef<HTMLDivElement>(null);
+  const router = useRouter();
 
-  const [authed,         setAuthed]         = useState(false);
-  const [tab,            setTab]            = useState<"class" | "venue">("class");
-  const [layouts,        setLayouts]        = useState<LayoutItem[]>([]);
-  const [venueLayouts,   setVenueLayouts]   = useState<VenueLayoutItem[]>(VENUES);
-  const [schoolVenues,   setSchoolVenues]   = useState<VenueLayoutItem[]>(SCHOOL_VENUES);
-  const [dragging,       setDragging]       = useState<string | null>(null);
-  const [selected,       setSelected]       = useState<string | null>(null);
-  const [saving,         setSaving]         = useState(false);
-  const [saved,          setSaved]          = useState(false);
-  const dragOffset        = useRef({ ox: 0, oy: 0 });
-  const isVenueDrag       = useRef(false);
-  const isSchoolVenueDrag = useRef(false);
+  const schoolMapRef = useRef<HTMLDivElement>(null);
+  const allMapRef    = useRef<HTMLDivElement>(null);
+  const koryoMapRef  = useRef<HTMLDivElement>(null);
+
+  const [authed,       setAuthed]       = useState(false);
+  const [layouts,      setLayouts]      = useState<LayoutItem[]>([]);
+  const [venueLayouts, setVenueLayouts] = useState<VenueLayoutItem[]>(VENUE_DEFAULTS);
+  const [selected,     setSelected]     = useState<string | null>(null);
+  const [saving,       setSaving]       = useState(false);
+  const [saved,        setSaved]        = useState(false);
+
+  const draggingRef = useRef<DragState | null>(null);
+  const dragOffset  = useRef({ ox: 0, oy: 0 });
+  const [ghostPos,  setGhostPos]  = useState<{ x: number; y: number } | null>(null);
+  const [, forceUpdate] = useState(0);
+  const rerender = () => forceUpdate((n) => n + 1);
 
   useEffect(() => {
     const auth = document.cookie.split("; ").find((r) => r.startsWith("admin_auth="))?.split("=")[1];
@@ -69,75 +77,164 @@ export default function AdminMapPage() {
       fetch("/api/map-layout",            { cache: "no-store" }).then((r) => r.json()),
       fetch("/api/map-layout?type=venue", { cache: "no-store" }).then((r) => r.json()),
     ]).then(([classData, layoutData, venueData]) => {
-      const cls: Class[]        = classData.classes  ?? [];
-      const saved: LayoutItem[] = layoutData.layouts ?? [];
-      const vSaved              = venueData.layouts  ?? [];
+      const cls: Class[]    = classData.classes  ?? [];
+      const savedLayouts    = layoutData.layouts ?? [];
+      const savedVenue      = venueData.layouts  ?? [];
 
       setLayouts(cls.map((c) => {
-        const ex = saved.find((l) => l.class_code === c.code);
-        return ex ? { ...ex, label: c.label }
-                  : { class_code: c.code, label: c.label, x: -1, y: -1, capacity: 30, stay_minutes: 60, thresh_mid: 50, thresh_high: 75, thresh_full: 90 };
+        const ex = savedLayouts.find((l: any) => l.class_code === c.code);
+        return ex
+          ? { ...ex, label: c.label }
+          : { class_code: c.code, label: c.label, x: -1, y: -1, capacity: 30, stay_minutes: 60, thresh_mid: 50, thresh_high: 75, thresh_full: 90 };
       }));
 
-      setVenueLayouts(VENUES.map((v) => {
-        const ex = vSaved.find((s: any) => s.venue_key === v.venue_key);
-        return ex ? { ...v, x: ex.x, y: ex.y } : v;
-      }));
-
-      setSchoolVenues(SCHOOL_VENUES.map((v) => {
-        const ex = vSaved.find((s: any) => s.venue_key === v.venue_key);
+      setVenueLayouts(VENUE_DEFAULTS.map((v) => {
+        const ex = savedVenue.find((s: any) => s.venue_key === v.venue_key);
         return ex ? { ...v, x: ex.x, y: ex.y } : v;
       }));
     });
   }, [router]);
 
-  const startDrag = (ref: React.RefObject<HTMLDivElement>, key: string, curX: number, curY: number, clientX: number, clientY: number, mode: "class" | "venue" | "school") => {
+  // グローバルイベント（ピン一覧からのドラッグ用）
+  useEffect(() => {
+    const onMove = (e: MouseEvent) => {
+      if (!draggingRef.current?.fromList) return;
+      setGhostPos({ x: e.clientX, y: e.clientY });
+    };
+    const onUp = (e: MouseEvent) => {
+      if (!draggingRef.current?.fromList) return;
+      tryDropOnMap(e.clientX, e.clientY);
+      draggingRef.current = null;
+      setGhostPos(null);
+      rerender();
+    };
+    const onTouchMove = (e: TouchEvent) => {
+      if (!draggingRef.current?.fromList) return;
+      e.preventDefault();
+      const t = e.touches[0];
+      setGhostPos({ x: t.clientX, y: t.clientY });
+    };
+    const onTouchEnd = (e: TouchEvent) => {
+      if (!draggingRef.current?.fromList) return;
+      const t = e.changedTouches[0];
+      tryDropOnMap(t.clientX, t.clientY);
+      draggingRef.current = null;
+      setGhostPos(null);
+      rerender();
+    };
+    window.addEventListener("mousemove", onMove);
+    window.addEventListener("mouseup",   onUp);
+    window.addEventListener("touchmove", onTouchMove, { passive: false });
+    window.addEventListener("touchend",  onTouchEnd);
+    return () => {
+      window.removeEventListener("mousemove", onMove);
+      window.removeEventListener("mouseup",   onUp);
+      window.removeEventListener("touchmove", onTouchMove);
+      window.removeEventListener("touchend",  onTouchEnd);
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [layouts, venueLayouts]);
+
+  const tryDropOnMap = (clientX: number, clientY: number) => {
+    const drag = draggingRef.current;
+    if (!drag) return;
+
+    const targets = [
+      {
+        ref: schoolMapRef,
+        accepts: (key: string, kind: "class" | "venue") =>
+          kind === "class"
+            ? !KORYO_CLASSES.includes(key)
+            : venueLayouts.find((v) => v.venue_key === key)?.mapTarget === "school",
+      },
+      {
+        ref: allMapRef,
+        accepts: (key: string, kind: "class" | "venue") =>
+          kind === "venue" && venueLayouts.find((v) => v.venue_key === key)?.mapTarget === "all",
+      },
+      {
+        ref: koryoMapRef,
+        accepts: (key: string, kind: "class" | "venue") =>
+          kind === "class"
+            ? KORYO_CLASSES.includes(key)
+            : venueLayouts.find((v) => v.venue_key === key)?.mapTarget === "koryo",
+      },
+    ];
+
+    for (const { ref, accepts } of targets) {
+      if (!ref.current) continue;
+      const rect = ref.current.getBoundingClientRect();
+      if (clientX < rect.left || clientX > rect.right || clientY < rect.top || clientY > rect.bottom) continue;
+      if (!accepts(drag.key, drag.kind)) continue;
+
+      const x = ((clientX - rect.left) / rect.width)  * 100;
+      const y = ((clientY - rect.top)  / rect.height) * 100;
+
+      if (drag.kind === "class") {
+        setLayouts((prev) => prev.map((l) => l.class_code === drag.key ? { ...l, x, y } : l));
+      } else {
+        setVenueLayouts((prev) => prev.map((v) => v.venue_key === drag.key ? { ...v, x, y } : v));
+      }
+      setSelected(drag.key);
+      return;
+    }
+  };
+
+  // 地図上のピンをドラッグして移動
+  const startMapDrag = (
+    ref: React.RefObject<HTMLDivElement>,
+    key: string, kind: "class" | "venue",
+    curX: number, curY: number,
+    clientX: number, clientY: number,
+  ) => {
     if (!ref.current) return;
     const rect = ref.current.getBoundingClientRect();
     dragOffset.current = {
       ox: clientX - rect.left - (curX / 100) * rect.width,
       oy: clientY - rect.top  - (curY / 100) * rect.height,
     };
-    isVenueDrag.current       = mode === "venue";
-    isSchoolVenueDrag.current = mode === "school";
-    setDragging(key);
+    draggingRef.current = { key, kind, fromList: false };
     setSelected(key);
   };
 
-  const moveDrag = (ref: React.RefObject<HTMLDivElement>, clientX: number, clientY: number) => {
-    if (!dragging || !ref.current) return;
+  const moveMapDrag = (ref: React.RefObject<HTMLDivElement>, clientX: number, clientY: number) => {
+    const drag = draggingRef.current;
+    if (!drag || drag.fromList || !ref.current) return;
     const rect = ref.current.getBoundingClientRect();
     const x = Math.max(0, Math.min(100, ((clientX - rect.left - dragOffset.current.ox) / rect.width)  * 100));
     const y = Math.max(0, Math.min(100, ((clientY - rect.top  - dragOffset.current.oy) / rect.height) * 100));
-    if (isSchoolVenueDrag.current) {
-      setSchoolVenues((prev) => prev.map((l) => l.venue_key === dragging ? { ...l, x, y } : l));
-    } else if (isVenueDrag.current) {
-      setVenueLayouts((prev) => prev.map((l) => l.venue_key === dragging ? { ...l, x, y } : l));
+    if (drag.kind === "class") {
+      setLayouts((prev) => prev.map((l) => l.class_code === drag.key ? { ...l, x, y } : l));
     } else {
-      setLayouts((prev) => prev.map((l) => l.class_code === dragging ? { ...l, x, y } : l));
+      setVenueLayouts((prev) => prev.map((v) => v.venue_key === drag.key ? { ...v, x, y } : v));
     }
+  };
+
+  const endMapDrag = () => {
+    if (draggingRef.current && !draggingRef.current.fromList) {
+      draggingRef.current = null;
+      rerender();
+    }
+  };
+
+  // ピン一覧からドラッグ開始
+  const startListDrag = (key: string, kind: "class" | "venue") => {
+    draggingRef.current = { key, kind, fromList: true };
+    rerender();
   };
 
   const handleSave = async () => {
     setSaving(true);
-    if (tab === "class") {
-      await fetch("/api/map-layout", {
+    await Promise.all([
+      fetch("/api/map-layout", {
         method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ layouts: layouts.filter((l) => l.x >= 0 && l.y >= 0) }),
-      });
-      const svToSave = schoolVenues.filter((l) => l.x >= 0 && l.y >= 0);
-      if (svToSave.length > 0) {
-        await fetch("/api/map-layout", {
-          method: "POST", headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ type: "venue", layouts: svToSave }),
-        });
-      }
-    } else {
-      await fetch("/api/map-layout", {
+      }),
+      fetch("/api/map-layout", {
         method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ type: "venue", layouts: venueLayouts.filter((l) => l.x >= 0 && l.y >= 0) }),
-      });
-    }
+      }),
+    ]);
     setSaving(false);
     setSaved(true);
     setTimeout(() => setSaved(false), 2000);
@@ -149,187 +246,218 @@ export default function AdminMapPage() {
   };
 
   const selectedItem    = layouts.find((l) => l.class_code === selected);
-  const placedLayouts   = layouts.filter((l) => l.x >= 0 && l.y >= 0);
-  const unplacedLayouts = layouts.filter((l) => l.x  < 0 || l.y  < 0);
-  const allVenues       = venueLayouts.filter((l) => l.venue_key !== "koryokan");
-  const koryoVenue      = venueLayouts.find((l) => l.venue_key === "koryokan");
-  const libraryVenue    = schoolVenues.find((l) => l.venue_key === "library");
+  const unplacedClasses = layouts.filter((l) => l.x < 0 || l.y < 0);
+  const unplacedVenues  = venueLayouts.filter((v) => v.x < 0 || v.y < 0);
+  const schoolClassPins = layouts.filter((l) => l.x >= 0 && l.y >= 0 && !KORYO_CLASSES.includes(l.class_code));
+  const schoolVenuePins = venueLayouts.filter((v) => v.x >= 0 && v.y >= 0 && v.mapTarget === "school");
+  const allVenuePins    = venueLayouts.filter((v) => v.x >= 0 && v.y >= 0 && v.mapTarget === "all");
+  const koryoVenuePins  = venueLayouts.filter((v) => v.x >= 0 && v.y >= 0 && v.mapTarget === "koryo");
+  const koryoClassPins  = layouts.filter((l) => l.x >= 0 && l.y >= 0 && KORYO_CLASSES.includes(l.class_code));
+
+  const isDragging = !!draggingRef.current;
+  const dragKey    = draggingRef.current?.key;
+
+  const pinStyle = (key: string, isSelected: boolean, color = "#e10102"): React.CSSProperties => ({
+    position: "absolute", transform: "translate(-50%, -50%)",
+    backgroundColor: isSelected ? "#1976d2" : color,
+    color: "white", borderRadius: "20px", padding: "4px 10px",
+    fontSize: "12px", fontWeight: "bold", cursor: "grab",
+    boxShadow: isSelected ? "0 0 0 3px #90caf9" : "0 2px 6px rgba(0,0,0,0.3)",
+    whiteSpace: "nowrap", zIndex: isSelected ? 10 : 1, touchAction: "none",
+  });
 
   if (!authed) return null;
 
   return (
     <main style={{ padding: "20px", maxWidth: "800px", margin: "0 auto" }}>
-      <Link href="/admin" style={{ fontSize: "13px", color: "#888", textDecoration: "none", display: "block", marginBottom: "16px" }}>← 管理者メニュー</Link>
+      <Link href="/admin" style={{ fontSize: "13px", color: "#888", textDecoration: "none", display: "block", marginBottom: "16px" }}>
+        ← 管理者メニュー
+      </Link>
       <h1 style={{ fontSize: "20px", marginBottom: "16px" }}>🗺️ 混雑マップ設定</h1>
 
-      <div style={{ display: "flex", gap: "8px", marginBottom: "20px" }}>
-        {(["class", "venue"] as const).map((t) => (
-          <button key={t} onClick={() => { setTab(t); setSelected(null); setDragging(null); }}
-            style={{ flex: 1, padding: "10px", fontSize: "14px", cursor: "pointer", borderRadius: "8px", border: "2px solid", borderColor: tab === t ? "#e10102" : "#ddd", backgroundColor: tab === t ? "#fff5f5" : "white", color: tab === t ? "#e10102" : "#555", fontWeight: tab === t ? "bold" : "normal" }}>
-            {t === "class" ? "🏫 校舎（クラス・図書館）" : "🏟️ 体育館・記念館・蛟龍館"}
-          </button>
+      {/* ── 未配置ピン一覧 ── */}
+      {(unplacedClasses.length > 0 || unplacedVenues.length > 0) && (
+        <div style={{ marginBottom: "24px", padding: "14px 16px", backgroundColor: "#fff8e1", borderRadius: "10px", border: "1px solid #ffe082" }}>
+          <p style={{ fontSize: "12px", color: "#b8860b", fontWeight: "bold", marginBottom: "10px" }}>
+            未配置のピン — 各地図にドラッグして配置してください
+          </p>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: "8px" }}>
+            {unplacedClasses.map((l) => (
+              <div key={l.class_code}
+                onMouseDown={() => startListDrag(l.class_code, "class")}
+                onTouchStart={() => startListDrag(l.class_code, "class")}
+                style={{
+                  padding: "6px 12px",
+                  backgroundColor: dragKey === l.class_code ? "#b71c1c" : "#e10102",
+                  color: "white", borderRadius: "20px", fontSize: "13px", fontWeight: "bold",
+                  cursor: "grab", userSelect: "none", touchAction: "none",
+                  opacity: dragKey === l.class_code ? 0.4 : 1,
+                }}>
+                {l.class_code}
+              </div>
+            ))}
+            {unplacedVenues.map((v) => (
+              <div key={v.venue_key}
+                onMouseDown={() => startListDrag(v.venue_key, "venue")}
+                onTouchStart={() => startListDrag(v.venue_key, "venue")}
+                style={{
+                  padding: "6px 12px",
+                  backgroundColor: dragKey === v.venue_key ? "#4a148c" : "#7b1fa2",
+                  color: "white", borderRadius: "20px", fontSize: "13px", fontWeight: "bold",
+                  cursor: "grab", userSelect: "none", touchAction: "none",
+                  opacity: dragKey === v.venue_key ? 0.4 : 1,
+                }}>
+                {v.label}
+              </div>
+            ))}
+          </div>
+          <p style={{ fontSize: "11px", color: "#999", marginTop: "10px" }}>
+            赤 = クラス企画　紫 = 会場ピン
+          </p>
+        </div>
+      )}
+
+      {/* ── 校舎マップ ── */}
+      <p style={{ fontSize: "13px", fontWeight: "bold", marginBottom: "6px", color: "#333" }}>🏫 校舎（教室棟・管理棟）</p>
+      <div ref={schoolMapRef}
+        style={{ position: "relative", width: "100%", userSelect: "none", border: "2px solid #ddd", borderRadius: "8px", overflow: "hidden", cursor: isDragging ? "copy" : "default", marginBottom: "24px" }}
+        onMouseMove={(e) => moveMapDrag(schoolMapRef, e.clientX, e.clientY)}
+        onMouseUp={endMapDrag}
+        onMouseLeave={endMapDrag}
+        onTouchMove={(e) => { const t = e.touches[0]; moveMapDrag(schoolMapRef, t.clientX, t.clientY); }}
+        onTouchEnd={endMapDrag}
+      >
+        <img src="/map.png" alt="校舎マップ" style={{ width: "100%", display: "block" }} draggable={false} />
+        {schoolClassPins.map((l) => (
+          <div key={l.class_code}
+            onMouseDown={(e) => { e.preventDefault(); startMapDrag(schoolMapRef, l.class_code, "class", l.x, l.y, e.clientX, e.clientY); }}
+            onTouchStart={(e) => { const t = e.touches[0]; startMapDrag(schoolMapRef, l.class_code, "class", l.x, l.y, t.clientX, t.clientY); }}
+            onClick={() => setSelected(l.class_code)}
+            style={{ ...pinStyle(l.class_code, selected === l.class_code, "#e10102"), left: `${l.x}%`, top: `${l.y}%` }}>
+            {l.class_code}
+          </div>
+        ))}
+        {schoolVenuePins.map((v) => (
+          <div key={v.venue_key}
+            onMouseDown={(e) => { e.preventDefault(); startMapDrag(schoolMapRef, v.venue_key, "venue", v.x, v.y, e.clientX, e.clientY); }}
+            onTouchStart={(e) => { const t = e.touches[0]; startMapDrag(schoolMapRef, v.venue_key, "venue", v.x, v.y, t.clientX, t.clientY); }}
+            style={{ ...pinStyle(v.venue_key, selected === v.venue_key, "#1976d2"), left: `${v.x}%`, top: `${v.y}%` }}>
+            {v.label}
+          </div>
         ))}
       </div>
 
-      {/* ── 校舎タブ ── */}
-      {tab === "class" && (
-        <>
-          <p style={{ color: "#888", fontSize: "13px", marginBottom: "12px" }}>クラスのアイコンをマップ上にドラッグして配置してください</p>
-
-          {unplacedLayouts.length > 0 && (
-            <div style={{ marginBottom: "12px", padding: "12px", backgroundColor: "#fff8e1", borderRadius: "8px", border: "1px solid #ffe082" }}>
-              <p style={{ fontSize: "12px", color: "#b8860b", marginBottom: "8px", fontWeight: "bold" }}>未配置のクラス（クリックで中央に仮配置）</p>
-              <div style={{ display: "flex", flexWrap: "wrap", gap: "8px" }}>
-                {unplacedLayouts.map((l) => (
-                  <div key={l.class_code}
-                    onClick={() => setLayouts((prev) => prev.map((item) => item.class_code === l.class_code ? { ...item, x: 50, y: 50 } : item))}
-                    style={{ padding: "6px 12px", backgroundColor: "#e10102", color: "white", borderRadius: "20px", fontSize: "13px", fontWeight: "bold", cursor: "pointer" }}>
-                    {l.class_code}
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* 図書館未配置 */}
-          {libraryVenue && (libraryVenue.x < 0 || libraryVenue.y < 0) && (
-            <div style={{ marginBottom: "12px" }}>
-              <button onClick={() => setSchoolVenues((prev) => prev.map((v) => v.venue_key === "library" ? { ...v, x: 50, y: 50 } : v))}
-                style={{ padding: "6px 14px", backgroundColor: "#1976d2", color: "white", border: "none", borderRadius: "12px", fontSize: "13px", cursor: "pointer" }}>
-                📚 図書館を配置
-              </button>
-            </div>
-          )}
-
-          <div ref={mapRef}
-            style={{ position: "relative", width: "100%", userSelect: "none", border: "2px solid #ddd", borderRadius: "8px", overflow: "hidden", cursor: dragging ? "grabbing" : "default" }}
-            onMouseMove={(e) => moveDrag(mapRef, e.clientX, e.clientY)}
-            onMouseUp={() => setDragging(null)}
-            onMouseLeave={() => setDragging(null)}
-            onTouchMove={(e) => { const t = e.touches[0]; moveDrag(mapRef, t.clientX, t.clientY); }}
-            onTouchEnd={() => setDragging(null)}
-          >
-            <img src="/map.png" alt="クラスマップ" style={{ width: "100%", display: "block" }} draggable={false} />
-            {placedLayouts.map((l) => (
-              <div key={l.class_code}
-                onMouseDown={(e) => { e.preventDefault(); startDrag(mapRef, l.class_code, l.x, l.y, e.clientX, e.clientY, "class"); }}
-                onTouchStart={(e) => { const t = e.touches[0]; startDrag(mapRef, l.class_code, l.x, l.y, t.clientX, t.clientY, "class"); }}
-                style={{ position: "absolute", left: `${l.x}%`, top: `${l.y}%`, transform: "translate(-50%, -50%)", backgroundColor: selected === l.class_code ? "#1976d2" : "#e10102", color: "white", borderRadius: "20px", padding: "4px 10px", fontSize: "12px", fontWeight: "bold", cursor: "grab", boxShadow: selected === l.class_code ? "0 0 0 3px #90caf9" : "0 2px 6px rgba(0,0,0,0.3)", whiteSpace: "nowrap", zIndex: selected === l.class_code ? 10 : 1, touchAction: "none" }}>
-                {l.class_code}
-              </div>
-            ))}
-            {/* 図書館ピン */}
-            {libraryVenue && libraryVenue.x >= 0 && libraryVenue.y >= 0 && (
-              <div
-                onMouseDown={(e) => { e.preventDefault(); startDrag(mapRef, "library", libraryVenue.x, libraryVenue.y, e.clientX, e.clientY, "school"); }}
-                onTouchStart={(e) => { const t = e.touches[0]; startDrag(mapRef, "library", libraryVenue.x, libraryVenue.y, t.clientX, t.clientY, "school"); }}
-                style={{ position: "absolute", left: `${libraryVenue.x}%`, top: `${libraryVenue.y}%`, transform: "translate(-50%, -50%)", backgroundColor: selected === "library" ? "#7b1fa2" : "#1976d2", color: "white", borderRadius: "20px", padding: "4px 10px", fontSize: "12px", fontWeight: "bold", cursor: "grab", boxShadow: "0 2px 6px rgba(0,0,0,0.3)", whiteSpace: "nowrap", touchAction: "none" }}>
-                📚 図書館
-              </div>
-            )}
+      {/* ── 全体図 ── */}
+      <p style={{ fontSize: "13px", fontWeight: "bold", marginBottom: "6px", color: "#333" }}>🏫 校内全体図</p>
+      <div ref={allMapRef}
+        style={{ position: "relative", width: "100%", userSelect: "none", border: "2px solid #ddd", borderRadius: "8px", overflow: "hidden", cursor: isDragging ? "copy" : "default", marginBottom: "24px" }}
+        onMouseMove={(e) => moveMapDrag(allMapRef, e.clientX, e.clientY)}
+        onMouseUp={endMapDrag}
+        onMouseLeave={endMapDrag}
+        onTouchMove={(e) => { const t = e.touches[0]; moveMapDrag(allMapRef, t.clientX, t.clientY); }}
+        onTouchEnd={endMapDrag}
+      >
+        <img src="/venue-map-all.png" alt="校内全体図" style={{ width: "100%", display: "block" }} draggable={false} />
+        {allVenuePins.map((v) => (
+          <div key={v.venue_key}
+            onMouseDown={(e) => { e.preventDefault(); startMapDrag(allMapRef, v.venue_key, "venue", v.x, v.y, e.clientX, e.clientY); }}
+            onTouchStart={(e) => { const t = e.touches[0]; startMapDrag(allMapRef, v.venue_key, "venue", v.x, v.y, t.clientX, t.clientY); }}
+            style={{ ...pinStyle(v.venue_key, selected === v.venue_key, "#1976d2"), left: `${v.x}%`, top: `${v.y}%` }}>
+            {v.label}
           </div>
+        ))}
+      </div>
 
-          {selectedItem && (
-            <div style={{ marginTop: "20px", padding: "16px", border: "2px solid #1976d2", borderRadius: "10px", backgroundColor: "#f8f9ff" }}>
-              <h2 style={{ fontSize: "16px", marginBottom: "16px", color: "#1976d2" }}>⚙️ {selectedItem.class_code}（{selectedItem.label}）の設定</h2>
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
-                {[
-                  { key: "capacity",     label: "定員（人）" },
-                  { key: "stay_minutes", label: "滞在時間（分）" },
-                  { key: "thresh_mid",   label: "やや混雑の閾値（%）" },
-                  { key: "thresh_high",  label: "混雑の閾値（%）" },
-                  { key: "thresh_full",  label: "大変混雑の閾値（%）" },
-                ].map(({ key, label }) => (
-                  <label key={key} style={{ display: "flex", flexDirection: "column", gap: "4px", fontSize: "13px", color: "#555" }}>
-                    <span>{label}</span>
-                    <input type="number" min={1} value={(selectedItem as any)[key]}
-                      onChange={(e) => updateSelected(key as keyof LayoutItem, Number(e.target.value))}
-                      style={{ padding: "8px", fontSize: "14px", borderRadius: "6px", border: "1px solid #ccc", width: "100%", boxSizing: "border-box" as const }} />
-                  </label>
-                ))}
-              </div>
-            </div>
-          )}
-        </>
-      )}
+      {/* ── 蛟龍館マップ ── */}
+      <p style={{ fontSize: "13px", fontWeight: "bold", marginBottom: "6px", color: "#333" }}>🏢 蛟龍館</p>
+      <div ref={koryoMapRef}
+        style={{ position: "relative", width: "100%", userSelect: "none", border: "2px solid #ddd", borderRadius: "8px", overflow: "hidden", cursor: isDragging ? "copy" : "default", marginBottom: "24px" }}
+        onMouseMove={(e) => moveMapDrag(koryoMapRef, e.clientX, e.clientY)}
+        onMouseUp={endMapDrag}
+        onMouseLeave={endMapDrag}
+        onTouchMove={(e) => { const t = e.touches[0]; moveMapDrag(koryoMapRef, t.clientX, t.clientY); }}
+        onTouchEnd={endMapDrag}
+      >
+        <img src="/venue-map-koryokan.png" alt="蛟龍館マップ" style={{ width: "100%", display: "block" }} draggable={false} />
+        {koryoVenuePins.map((v) => (
+          <div key={v.venue_key}
+            onMouseDown={(e) => { e.preventDefault(); startMapDrag(koryoMapRef, v.venue_key, "venue", v.x, v.y, e.clientX, e.clientY); }}
+            onTouchStart={(e) => { const t = e.touches[0]; startMapDrag(koryoMapRef, v.venue_key, "venue", v.x, v.y, t.clientX, t.clientY); }}
+            style={{ ...pinStyle(v.venue_key, selected === v.venue_key, "#1976d2"), left: `${v.x}%`, top: `${v.y}%` }}>
+            {v.label}
+          </div>
+        ))}
+        {koryoClassPins.map((l) => (
+          <div key={l.class_code}
+            onMouseDown={(e) => { e.preventDefault(); startMapDrag(koryoMapRef, l.class_code, "class", l.x, l.y, e.clientX, e.clientY); }}
+            onTouchStart={(e) => { const t = e.touches[0]; startMapDrag(koryoMapRef, l.class_code, "class", l.x, l.y, t.clientX, t.clientY); }}
+            onClick={() => setSelected(l.class_code)}
+            style={{ ...pinStyle(l.class_code, selected === l.class_code, "#e10102"), left: `${l.x}%`, top: `${l.y}%` }}>
+            {l.class_code}
+          </div>
+        ))}
+      </div>
 
-      {/* ── 会場タブ ── */}
-      {tab === "venue" && (
-        <>
-          <p style={{ color: "#888", fontSize: "13px", marginBottom: "16px" }}>各会場をマップ上にドラッグして配置してください</p>
-
-          {/* 全体マップ */}
-          <p style={{ fontSize: "13px", fontWeight: "bold", marginBottom: "6px" }}>校内全体図</p>
-          <div ref={allMapRef}
-            style={{ position: "relative", width: "100%", userSelect: "none", border: "2px solid #ddd", borderRadius: "8px", overflow: "hidden", cursor: dragging ? "grabbing" : "default", marginBottom: "20px" }}
-            onMouseMove={(e) => moveDrag(allMapRef, e.clientX, e.clientY)}
-            onMouseUp={() => setDragging(null)}
-            onMouseLeave={() => setDragging(null)}
-            onTouchMove={(e) => { const t = e.touches[0]; moveDrag(allMapRef, t.clientX, t.clientY); }}
-            onTouchEnd={() => setDragging(null)}
-          >
-            <img src="/venue-map-all.png" alt="校内全体図" style={{ width: "100%", display: "block" }} draggable={false} />
-            {allVenues.filter((l) => l.x >= 0 && l.y >= 0).map((l) => (
-              <div key={l.venue_key}
-                onMouseDown={(e) => { e.preventDefault(); startDrag(allMapRef, l.venue_key, l.x, l.y, e.clientX, e.clientY, "venue"); }}
-                onTouchStart={(e) => { const t = e.touches[0]; startDrag(allMapRef, l.venue_key, l.x, l.y, t.clientX, t.clientY, "venue"); }}
-                style={{ position: "absolute", left: `${l.x}%`, top: `${l.y}%`, transform: "translate(-50%, -50%)", backgroundColor: selected === l.venue_key ? "#7b1fa2" : "#1976d2", color: "white", borderRadius: "20px", padding: "4px 10px", fontSize: "12px", fontWeight: "bold", cursor: "grab", boxShadow: "0 2px 6px rgba(0,0,0,0.3)", whiteSpace: "nowrap", touchAction: "none" }}>
-                {l.label}
-              </div>
-            ))}
-            {allVenues.filter((l) => l.x < 0 || l.y < 0).map((l) => (
-              <div key={l.venue_key} style={{ position: "absolute", top: "8px", right: "8px" }}>
-                <button onClick={() => setVenueLayouts((prev) => prev.map((item) => item.venue_key === l.venue_key ? { ...item, x: 50, y: 50 } : item))}
-                  style={{ padding: "4px 10px", backgroundColor: "#1976d2", color: "white", border: "none", borderRadius: "12px", fontSize: "12px", cursor: "pointer" }}>
-                  {l.label}を配置
-                </button>
-              </div>
+      {/* ── 選択中クラスの設定 ── */}
+      {selectedItem && (
+        <div style={{ marginBottom: "24px", padding: "16px", border: "2px solid #1976d2", borderRadius: "10px", backgroundColor: "#f8f9ff" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px" }}>
+            <h2 style={{ fontSize: "16px", color: "#1976d2", margin: 0 }}>
+              ⚙️ {selectedItem.class_code}（{selectedItem.label}）の設定
+            </h2>
+            <button
+              onClick={() => {
+                setLayouts((prev) => prev.map((l) => l.class_code === selectedItem.class_code ? { ...l, x: -1, y: -1 } : l));
+                setSelected(null);
+              }}
+              style={{ padding: "4px 12px", fontSize: "12px", cursor: "pointer", backgroundColor: "#f5f5f5", color: "#888", border: "1px solid #ddd", borderRadius: "8px" }}>
+              ✕ 配置を外す
+            </button>
+          </div>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
+            {[
+              { key: "capacity",     label: "定員（人）" },
+              { key: "stay_minutes", label: "滞在時間（分）" },
+              { key: "thresh_mid",   label: "やや混雑の閾値（%）" },
+              { key: "thresh_high",  label: "混雑の閾値（%）" },
+              { key: "thresh_full",  label: "大変混雑の閾値（%）" },
+            ].map(({ key, label }) => (
+              <label key={key} style={{ display: "flex", flexDirection: "column", gap: "4px", fontSize: "13px", color: "#555" }}>
+                <span>{label}</span>
+                <input type="number" min={1} value={(selectedItem as any)[key]}
+                  onChange={(e) => updateSelected(key as keyof LayoutItem, Number(e.target.value))}
+                  style={{ padding: "8px", fontSize: "14px", borderRadius: "6px", border: "1px solid #ccc", width: "100%", boxSizing: "border-box" as const }} />
+              </label>
             ))}
           </div>
-
-          {/* 蛟龍館マップ */}
-          <p style={{ fontSize: "13px", fontWeight: "bold", marginBottom: "6px" }}>蛟龍館マップ</p>
-          <div ref={koryoMapRef}
-            style={{ position: "relative", width: "100%", userSelect: "none", border: "2px solid #ddd", borderRadius: "8px", overflow: "hidden", cursor: dragging ? "grabbing" : "default" }}
-            onMouseMove={(e) => moveDrag(koryoMapRef, e.clientX, e.clientY)}
-            onMouseUp={() => setDragging(null)}
-            onMouseLeave={() => setDragging(null)}
-            onTouchMove={(e) => { const t = e.touches[0]; moveDrag(koryoMapRef, t.clientX, t.clientY); }}
-            onTouchEnd={() => setDragging(null)}
-          >
-            <img src="/venue-map-koryokan.png" alt="蛟龍館マップ" style={{ width: "100%", display: "block" }} draggable={false} />
-            {koryoVenue && koryoVenue.x >= 0 && koryoVenue.y >= 0 && (
-              <div
-                onMouseDown={(e) => { e.preventDefault(); startDrag(koryoMapRef, koryoVenue.venue_key, koryoVenue.x, koryoVenue.y, e.clientX, e.clientY, "venue"); }}
-                onTouchStart={(e) => { const t = e.touches[0]; startDrag(koryoMapRef, koryoVenue.venue_key, koryoVenue.x, koryoVenue.y, t.clientX, t.clientY, "venue"); }}
-                style={{ position: "absolute", left: `${koryoVenue.x}%`, top: `${koryoVenue.y}%`, transform: "translate(-50%, -50%)", backgroundColor: selected === koryoVenue.venue_key ? "#7b1fa2" : "#1976d2", color: "white", borderRadius: "20px", padding: "4px 10px", fontSize: "12px", fontWeight: "bold", cursor: "grab", boxShadow: "0 2px 6px rgba(0,0,0,0.3)", whiteSpace: "nowrap", touchAction: "none" }}>
-                {koryoVenue.label}
-              </div>
-            )}
-            {placedLayouts.filter((l) => ["将棋部", "囲碁部"].includes(l.class_code)).map((l) => (
-              <div key={`koryo-class-${l.class_code}`}
-                onMouseDown={(e) => { e.preventDefault(); startDrag(koryoMapRef, l.class_code, l.x, l.y, e.clientX, e.clientY, "class"); }}
-                onTouchStart={(e) => { const t = e.touches[0]; startDrag(koryoMapRef, l.class_code, l.x, l.y, t.clientX, t.clientY, "class"); }}
-                style={{ position: "absolute", left: `${l.x}%`, top: `${l.y}%`, transform: "translate(-50%, -50%)", backgroundColor: selected === l.class_code ? "#1976d2" : "#e10102", color: "white", borderRadius: "20px", padding: "4px 10px", fontSize: "12px", fontWeight: "bold", cursor: "grab", boxShadow: selected === l.class_code ? "0 0 0 3px #90caf9" : "0 2px 6px rgba(0,0,0,0.3)", whiteSpace: "nowrap", zIndex: selected === l.class_code ? 10 : 1, touchAction: "none", display: l.x >= 0 && l.y >= 0 ? "block" : "none" }}>
-                {l.class_code}
-              </div>
-            ))}
-            {koryoVenue && (koryoVenue.x < 0 || koryoVenue.y < 0) && (
-              <div style={{ position: "absolute", top: "8px", right: "8px" }}>
-                <button onClick={() => setVenueLayouts((prev) => prev.map((item) => item.venue_key === "koryokan" ? { ...item, x: 50, y: 50 } : item))}
-                  style={{ padding: "4px 10px", backgroundColor: "#1976d2", color: "white", border: "none", borderRadius: "12px", fontSize: "12px", cursor: "pointer" }}>
-                  蛟龍館を配置
-                </button>
-              </div>
-            )}
-          </div>
-        </>
+        </div>
       )}
 
       <button onClick={handleSave} disabled={saving}
-        style={{ marginTop: "20px", width: "100%", padding: "14px", fontSize: "16px", fontWeight: "bold", cursor: saving ? "not-allowed" : "pointer", backgroundColor: saved ? "#4caf50" : "#e10102", color: "white", border: "none", borderRadius: "8px" }}>
+        style={{ width: "100%", padding: "14px", fontSize: "16px", fontWeight: "bold", cursor: saving ? "not-allowed" : "pointer", backgroundColor: saved ? "#4caf50" : "#e10102", color: "white", border: "none", borderRadius: "8px" }}>
         {saving ? "保存中..." : saved ? "✅ 保存しました" : "配置・設定を保存する"}
       </button>
+
+      {/* ドラッグ中のゴースト */}
+      {ghostPos && draggingRef.current?.fromList && (() => {
+        const drag  = draggingRef.current!;
+        const label = drag.kind === "class"
+          ? layouts.find((l) => l.class_code === drag.key)?.class_code ?? drag.key
+          : venueLayouts.find((v) => v.venue_key === drag.key)?.label ?? drag.key;
+        const color = drag.kind === "class" ? "#e10102" : "#7b1fa2";
+        return (
+          <div style={{
+            position: "fixed", left: ghostPos.x, top: ghostPos.y,
+            transform: "translate(-50%, -50%)",
+            backgroundColor: color, color: "white", borderRadius: "20px",
+            padding: "4px 12px", fontSize: "12px", fontWeight: "bold",
+            pointerEvents: "none", zIndex: 9999, opacity: 0.85,
+            boxShadow: "0 4px 12px rgba(0,0,0,0.3)", whiteSpace: "nowrap",
+          }}>
+            {label}
+          </div>
+        );
+      })()}
     </main>
   );
 }
