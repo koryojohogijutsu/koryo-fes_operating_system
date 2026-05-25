@@ -1,21 +1,21 @@
 "use client";
-
 import { useEffect, useState } from "react";
 import { useRouter, useParams } from "next/navigation";
 
 const EVENT_LABELS: Record<string, string> = {
-  nodojiman:    "🎤 のど自慢",
-  coscon_solo:  "👗 コスコン（個人）",
-  coscon_group: "👥 コスコン（グループ）",
-  m1:           "🎭 M1",
+  "nodojiman-1":        "🎤 のど自慢（1日目）",
+  "nodojiman-2":        "🎤 のど自慢（2日目①）",
+  "nodojiman-3":        "🎤 のど自慢（2日目②）",
+  "coscon_performance": "👗 コスコン（パフォーマンス）",
+  "coscon_runway":      "👠 コスコン（ランウェイ）",
+  "m1":                 "🎭 M1",
 };
 
 type Entry = { id: string; name: string; description: string; order_num: number };
 
 export default function VoteEventCategoryPage() {
-  const router   = useRouter();
+  const router = useRouter();
   const { category } = useParams<{ category: string }>();
-
   const [entries,  setEntries]  = useState<Entry[]>([]);
   const [selected, setSelected] = useState<string>("");
   const [loading,  setLoading]  = useState(true);
@@ -27,7 +27,6 @@ export default function VoteEventCategoryPage() {
       ?.split("=")[1];
     if (!visitorId) { router.push("/register"); return; }
 
-    // このカテゴリの出場者のみ取得
     fetch("/api/event-entries", { cache: "no-store" })
       .then((r) => r.json())
       .then((data) => {
@@ -47,7 +46,6 @@ export default function VoteEventCategoryPage() {
   if (!EVENT_LABELS[category]) {
     return <main style={{ padding: "40px", textAlign: "center" }}><p style={{ color: "#f44336" }}>無効なカテゴリです</p></main>;
   }
-
   if (loading) return <main style={{ padding: "40px", textAlign: "center" }}><p style={{ color: "#aaa" }}>読み込み中...</p></main>;
 
   return (
@@ -56,10 +54,7 @@ export default function VoteEventCategoryPage() {
         ← 戻る
       </a>
       <h1 style={{ fontSize: "20px", marginBottom: "6px" }}>{EVENT_LABELS[category]}</h1>
-      <p style={{ color: "#888", fontSize: "13px", marginBottom: "28px" }}>
-        投票する出場者を選んでください
-      </p>
-
+      <p style={{ color: "#888", fontSize: "13px", marginBottom: "28px" }}>投票する出場者を選んでください</p>
       {entries.length === 0 ? (
         <p style={{ color: "#aaa", fontSize: "14px" }}>出場者が登録されていません</p>
       ) : (
@@ -67,17 +62,8 @@ export default function VoteEventCategoryPage() {
           {entries.map((e) => {
             const isSelected = selected === e.id;
             return (
-              <div
-                key={e.id}
-                onClick={() => setSelected(isSelected ? "" : e.id)}
-                style={{
-                  padding: "14px 16px",
-                  borderRadius: "10px",
-                  border: isSelected ? "2px solid #e10102" : "1px solid #ddd",
-                  backgroundColor: isSelected ? "#fff5f5" : "white",
-                  cursor: "pointer",
-                }}
-              >
+              <div key={e.id} onClick={() => setSelected(isSelected ? "" : e.id)}
+                style={{ padding: "14px 16px", borderRadius: "10px", border: isSelected ? "2px solid #e10102" : "1px solid #ddd", backgroundColor: isSelected ? "#fff5f5" : "white", cursor: "pointer" }}>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                   <span style={{ fontWeight: "bold", fontSize: "16px" }}>{e.name}</span>
                   {isSelected && <span style={{ color: "#e10102", fontSize: "20px" }}>✔</span>}
@@ -90,21 +76,8 @@ export default function VoteEventCategoryPage() {
           })}
         </div>
       )}
-
-      <button
-        onClick={handleNext}
-        disabled={!selected}
-        style={{
-          width: "100%",
-          padding: "14px",
-          fontSize: "16px",
-          cursor: selected ? "pointer" : "not-allowed",
-          backgroundColor: selected ? "#e10102" : "#ccc",
-          color: "white",
-          border: "none",
-          borderRadius: "8px",
-        }}
-      >
+      <button onClick={handleNext} disabled={!selected}
+        style={{ width: "100%", padding: "14px", fontSize: "16px", cursor: selected ? "pointer" : "not-allowed", backgroundColor: selected ? "#e10102" : "#ccc", color: "white", border: "none", borderRadius: "8px" }}>
         確認画面へ
       </button>
     </main>
