@@ -22,22 +22,33 @@ type VenueLayoutItem = {
   label:     string;
   x:         number;
   y:         number;
-  mapTarget: "all" | "koryo" | "school";
+  mapKey:    string; // どの地図に配置されているか（"school"/"all"/"koryo"/""=未配置）
 };
 
-const VENUE_DEFAULTS: VenueLayoutItem[] = [
-  { venue_key: "gym",          label: "体育館",       x: -1, y: -1, mapTarget: "all" },
-  { venue_key: "kinenkan",     label: "記念館",       x: -1, y: -1, mapTarget: "all" },
-  { venue_key: "koryokan",     label: "ライブ",       x: -1, y: -1, mapTarget: "koryo" },
-  { venue_key: "sundelica",    label: "サンデリカ",   x: -1, y: -1, mapTarget: "all" },
-  { venue_key: "football",     label: "サッカー部",   x: -1, y: -1, mapTarget: "all" },
-  { venue_key: "tontonhiroba", label: "とんとん広場", x: -1, y: -1, mapTarget: "all" },
-  { venue_key: "library",      label: "図書館",       x: -1, y: -1, mapTarget: "school" },
-  { venue_key: "tea",          label: "茶道部",       x: -1, y: -1, mapTarget: "school" },
-  { venue_key: "science",      label: "科学物理部",   x: -1, y: -1, mapTarget: "school" },
+// 全会場ピン定義（mapTargetによる制限なし・どの地図にもドロップ可）
+const VENUE_DEFAULTS: Omit<VenueLayoutItem, "mapKey">[] = [
+  { venue_key: "gym",          label: "体育館",       x: -1, y: -1 },
+  { venue_key: "kinenkan",     label: "記念館",       x: -1, y: -1 },
+  { venue_key: "koryokan",     label: "ライブ",       x: -1, y: -1 },
+  { venue_key: "sundelica",    label: "サンデリカ",   x: -1, y: -1 },
+  { venue_key: "football",     label: "サッカー部",   x: -1, y: -1 },
+  { venue_key: "tontonhiroba", label: "とんとん広場", x: -1, y: -1 },
+  { venue_key: "library",      label: "図書館",       x: -1, y: -1 },
+  { venue_key: "tea",          label: "茶道部",       x: -1, y: -1 },
+  { venue_key: "science",      label: "科学物理部",   x: -1, y: -1 },
+  { venue_key: "tetsudo",      label: "鉄道研究部",   x: -1, y: -1 },
+  { venue_key: "quiz",         label: "クイズ研究会", x: -1, y: -1 },
+  { venue_key: "bazar",        label: "バザー",       x: -1, y: -1 },
+  { venue_key: "doso",         label: "同窓会",       x: -1, y: -1 },
+  { venue_key: "shogi",        label: "将棋部",       x: -1, y: -1 },
+  { venue_key: "igo",          label: "囲碁部",       x: -1, y: -1 },
+  { venue_key: "kyukei",       label: "休憩所",       x: -1, y: -1 },
 ];
 
+// 蛟龍館クラスピン（classesテーブルで管理するが蛟龍館マップにも配置可）
 const KORYO_CLASSES = ["将棋部", "囲碁部"];
+
+type MapId = "school" | "all" | "koryo";
 
 type DragState = {
   key:      string;
@@ -52,9 +63,17 @@ export default function AdminMapPage() {
   const allMapRef    = useRef<HTMLDivElement>(null);
   const koryoMapRef  = useRef<HTMLDivElement>(null);
 
+  const mapRefs: Record<MapId, React.RefObject<HTMLDivElement>> = {
+    school: schoolMapRef,
+    all:    allMapRef,
+    koryo:  koryoMapRef,
+  };
+
   const [authed,       setAuthed]       = useState(false);
   const [layouts,      setLayouts]      = useState<LayoutItem[]>([]);
-  const [venueLayouts, setVenueLayouts] = useState<VenueLayoutItem[]>(VENUE_DEFAULTS);
+  const [venueLayouts, setVenueLayouts] = useState<VenueLayoutItem[]>(
+    VENUE_DEFAULTS.map((v) => ({ ...v, mapKey: "" }))
+  );
   const [selected,     setSelected]     = useState<string | null>(null);
   const [saving,       setSaving]       = useState(false);
   const [saved,        setSaved]        = useState(false);
@@ -105,11 +124,13 @@ export default function AdminMapPage() {
 
       setVenueLayouts(VENUE_DEFAULTS.map((v) => {
         const ex = savedVenue.find((s: any) => s.venue_key === v.venue_key);
-        return ex ? { ...v, x: ex.x, y: ex.y } : v;
+        // mapKeyはDBに保存していないので座標から推定（配置済みならallをデフォルト）
+        return ex ? { ...v, x: ex.x, y: ex.y, mapKey: ex.map_key ?? "all" } : { ...v, mapKey: "" };
       }));
     });
   }, [router]);
 
+  // グローバルイベント（一覧からのドラッグ用）
   useEffect(() => {
     const onMove = (e: MouseEvent) => {
       if (!draggingRef.current?.fromList) return;
@@ -153,33 +174,12 @@ export default function AdminMapPage() {
     const drag = draggingRef.current;
     if (!drag) return;
 
-    const targets = [
-      {
-        ref: schoolMapRef,
-        accepts: (key: string, kind: "class" | "venue") =>
-          kind === "class"
-            ? !KORYO_CLASSES.includes(key)
-            : venueLayouts.find((v) => v.venue_key === key)?.mapTarget === "school",
-      },
-      {
-        ref: allMapRef,
-        accepts: (key: string, kind: "class" | "venue") =>
-          kind === "venue" && venueLayouts.find((v) => v.venue_key === key)?.mapTarget === "all",
-      },
-      {
-        ref: koryoMapRef,
-        accepts: (key: string, kind: "class" | "venue") =>
-          kind === "class"
-            ? KORYO_CLASSES.includes(key)
-            : venueLayouts.find((v) => v.venue_key === key)?.mapTarget === "koryo",
-      },
-    ];
-
-    for (const { ref, accepts } of targets) {
+    const mapIds: MapId[] = ["school", "all", "koryo"];
+    for (const mapId of mapIds) {
+      const ref = mapRefs[mapId];
       if (!ref.current) continue;
       const rect = ref.current.getBoundingClientRect();
       if (clientX < rect.left || clientX > rect.right || clientY < rect.top || clientY > rect.bottom) continue;
-      if (!accepts(drag.key, drag.kind)) continue;
 
       const x = ((clientX - rect.left) / rect.width)  * 100;
       const y = ((clientY - rect.top)  / rect.height) * 100;
@@ -187,7 +187,7 @@ export default function AdminMapPage() {
       if (drag.kind === "class") {
         setLayouts((prev) => prev.map((l) => l.class_code === drag.key ? { ...l, x, y } : l));
       } else {
-        setVenueLayouts((prev) => prev.map((v) => v.venue_key === drag.key ? { ...v, x, y } : v));
+        setVenueLayouts((prev) => prev.map((v) => v.venue_key === drag.key ? { ...v, x, y, mapKey: mapId } : v));
       }
       setSelected(drag.key);
       setIsDirty(true);
@@ -246,7 +246,7 @@ export default function AdminMapPage() {
       }),
       fetch("/api/map-layout", {
         method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ type: "venue", layouts: venueLayouts.filter((l) => l.x >= 0 && l.y >= 0) }),
+        body: JSON.stringify({ type: "venue", layouts: venueLayouts.filter((l) => l.x >= 0 && l.y >= 0).map((l) => ({ venue_key: l.venue_key, x: l.x, y: l.y, map_key: l.mapKey })) }),
       }),
     ]);
     setSaving(false);
@@ -264,10 +264,11 @@ export default function AdminMapPage() {
   const selectedItem    = layouts.find((l) => l.class_code === selected);
   const unplacedClasses = layouts.filter((l) => l.x < 0 || l.y < 0);
   const unplacedVenues  = venueLayouts.filter((v) => v.x < 0 || v.y < 0);
+
   const schoolClassPins = layouts.filter((l) => l.x >= 0 && l.y >= 0 && !KORYO_CLASSES.includes(l.class_code));
-  const schoolVenuePins = venueLayouts.filter((v) => v.x >= 0 && v.y >= 0 && v.mapTarget === "school");
-  const allVenuePins    = venueLayouts.filter((v) => v.x >= 0 && v.y >= 0 && v.mapTarget === "all");
-  const koryoVenuePins  = venueLayouts.filter((v) => v.x >= 0 && v.y >= 0 && v.mapTarget === "koryo");
+  const schoolVenuePins = venueLayouts.filter((v) => v.x >= 0 && v.y >= 0 && v.mapKey === "school");
+  const allVenuePins    = venueLayouts.filter((v) => v.x >= 0 && v.y >= 0 && v.mapKey === "all");
+  const koryoVenuePins  = venueLayouts.filter((v) => v.x >= 0 && v.y >= 0 && v.mapKey === "koryo");
   const koryoClassPins  = layouts.filter((l) => l.x >= 0 && l.y >= 0 && KORYO_CLASSES.includes(l.class_code));
 
   const isDragging = !!draggingRef.current;
@@ -303,20 +304,14 @@ export default function AdminMapPage() {
       {(unplacedClasses.length > 0 || unplacedVenues.length > 0) && (
         <div style={{ marginBottom: "24px", padding: "14px 16px", backgroundColor: "#fff8e1", borderRadius: "10px", border: "1px solid #ffe082" }}>
           <p style={{ fontSize: "12px", color: "#b8860b", fontWeight: "bold", marginBottom: "10px" }}>
-            未配置のピン — 各地図にドラッグして配置してください
+            未配置のピン — 任意の地図にドラッグして配置してください
           </p>
           <div style={{ display: "flex", flexWrap: "wrap", gap: "8px" }}>
             {unplacedClasses.map((l) => (
               <div key={l.class_code}
                 onMouseDown={() => startListDrag(l.class_code, "class")}
                 onTouchStart={() => startListDrag(l.class_code, "class")}
-                style={{
-                  padding: "6px 12px",
-                  backgroundColor: dragKey === l.class_code ? "#b71c1c" : "#e10102",
-                  color: "white", borderRadius: "20px", fontSize: "13px", fontWeight: "bold",
-                  cursor: "grab", userSelect: "none", touchAction: "none",
-                  opacity: dragKey === l.class_code ? 0.4 : 1,
-                }}>
+                style={{ padding: "6px 12px", backgroundColor: dragKey === l.class_code ? "#b71c1c" : "#e10102", color: "white", borderRadius: "20px", fontSize: "13px", fontWeight: "bold", cursor: "grab", userSelect: "none", touchAction: "none", opacity: dragKey === l.class_code ? 0.4 : 1 }}>
                 {l.class_code}
               </div>
             ))}
@@ -324,18 +319,12 @@ export default function AdminMapPage() {
               <div key={v.venue_key}
                 onMouseDown={() => startListDrag(v.venue_key, "venue")}
                 onTouchStart={() => startListDrag(v.venue_key, "venue")}
-                style={{
-                  padding: "6px 12px",
-                  backgroundColor: dragKey === v.venue_key ? "#4a148c" : "#7b1fa2",
-                  color: "white", borderRadius: "20px", fontSize: "13px", fontWeight: "bold",
-                  cursor: "grab", userSelect: "none", touchAction: "none",
-                  opacity: dragKey === v.venue_key ? 0.4 : 1,
-                }}>
+                style={{ padding: "6px 12px", backgroundColor: dragKey === v.venue_key ? "#4a148c" : "#7b1fa2", color: "white", borderRadius: "20px", fontSize: "13px", fontWeight: "bold", cursor: "grab", userSelect: "none", touchAction: "none", opacity: dragKey === v.venue_key ? 0.4 : 1 }}>
                 {v.label}
               </div>
             ))}
           </div>
-          <p style={{ fontSize: "11px", color: "#999", marginTop: "10px" }}>赤 = クラス企画　紫 = 会場ピン</p>
+          <p style={{ fontSize: "11px", color: "#999", marginTop: "10px" }}>赤 = クラス企画　紫 = 会場ピン　※どの地図にもドロップできます</p>
         </div>
       )}
 
@@ -458,14 +447,7 @@ export default function AdminMapPage() {
           : venueLayouts.find((v) => v.venue_key === drag.key)?.label ?? drag.key;
         const color = drag.kind === "class" ? "#e10102" : "#7b1fa2";
         return (
-          <div style={{
-            position: "fixed", left: ghostPos.x, top: ghostPos.y,
-            transform: "translate(-50%, -50%)",
-            backgroundColor: color, color: "white", borderRadius: "20px",
-            padding: "4px 12px", fontSize: "12px", fontWeight: "bold",
-            pointerEvents: "none", zIndex: 9999, opacity: 0.85,
-            boxShadow: "0 4px 12px rgba(0,0,0,0.3)", whiteSpace: "nowrap",
-          }}>
+          <div style={{ position: "fixed", left: ghostPos.x, top: ghostPos.y, transform: "translate(-50%, -50%)", backgroundColor: color, color: "white", borderRadius: "20px", padding: "4px 12px", fontSize: "12px", fontWeight: "bold", pointerEvents: "none", zIndex: 9999, opacity: 0.85, boxShadow: "0 4px 12px rgba(0,0,0,0.3)", whiteSpace: "nowrap" }}>
             {label}
           </div>
         );
