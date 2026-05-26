@@ -16,16 +16,12 @@ const VENUE_DEFAULTS: Omit<VenueLayoutItem, "mapKey">[] = [
   { venue_key: "koryokan",     label: "ライブ",       pinLabel: "ライブ",         x: -1, y: -1 },
   { venue_key: "sundelica",    label: "サンデリカ",   pinLabel: "サンデリカ",     x: -1, y: -1 },
   { venue_key: "football",     label: "サッカー部",   pinLabel: "サッカー部",     x: -1, y: -1 },
-  { venue_key: "tontonhiroba", label: "とんとん広場", pinLabel: "とんとん
-広場", x: -1, y: -1 },
-  { venue_key: "library",      label: "図書館",       pinLabel: "図書館",         x: -1, y: -1 },
-  { venue_key: "tea",          label: "茶道部",       pinLabel: "茶道部",         x: -1, y: -1 },
-  { venue_key: "science",      label: "科学物理部",   pinLabel: "科学
-物理部",   x: -1, y: -1 },
-  { venue_key: "tetsudo",      label: "鉄道研究部",   pinLabel: "鉄道
-研究部",   x: -1, y: -1 },
-  { venue_key: "quiz",         label: "クイズ研究会", pinLabel: "クイズ
-研究会", x: -1, y: -1 },
+  { venue_key: "tontonhiroba", label: "とんとん広場", pinLabel: "とんとん\n広場", x: -1, y: -1 },
+  { venue_key: "library",      label: "図書館",       pinLabel: "図書館",           x: -1, y: -1 },
+  { venue_key: "tea",          label: "茶道部",       pinLabel: "茶道部",           x: -1, y: -1 },
+  { venue_key: "science",      label: "科学物理部",   pinLabel: "科学\n物理部",     x: -1, y: -1 },
+  { venue_key: "tetsudo",      label: "鉄道研究部",   pinLabel: "鉄道\n研究部",     x: -1, y: -1 },
+  { venue_key: "quiz",         label: "クイズ研究会", pinLabel: "クイズ\n研究会",   x: -1, y: -1 },
   { venue_key: "bazar",        label: "バザー",       pinLabel: "バザー",         x: -1, y: -1 },
   { venue_key: "doso",         label: "同窓会",       pinLabel: "同窓会",         x: -1, y: -1 },
   { venue_key: "shogi",        label: "将棋部",       pinLabel: "将棋部",         x: -1, y: -1 },
@@ -33,8 +29,7 @@ const VENUE_DEFAULTS: Omit<VenueLayoutItem, "mapKey">[] = [
   { venue_key: "kyukei",       label: "休憩所",       pinLabel: "休憩所",         x: -1, y: -1 },
   { venue_key: "kendo",        label: "剣道部",       pinLabel: "剣道部",         x: -1, y: -1 },
   { venue_key: "kyudo",        label: "弓道部",       pinLabel: "弓道部",         x: -1, y: -1 },
-  { venue_key: "ouen",         label: "應援團演舞",   pinLabel: "應援團
-演舞",   x: -1, y: -1 },
+  { venue_key: "ouen",         label: "應援團演舞",   pinLabel: "應援團\n演舞",     x: -1, y: -1 },
   { venue_key: "mockstore",    label: "模擬店",       pinLabel: "模擬店",         x: -1, y: -1 },
 ];
 
