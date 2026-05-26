@@ -22,10 +22,9 @@ type VenueLayoutItem = {
   label:     string;
   x:         number;
   y:         number;
-  mapKey:    string; // どの地図に配置されているか（"school"/"all"/"koryo"/""=未配置）
+  mapKey:    string;
 };
 
-// 全会場ピン定義（mapTargetによる制限なし・どの地図にもドロップ可）
 const VENUE_DEFAULTS: Omit<VenueLayoutItem, "mapKey">[] = [
   { venue_key: "gym",          label: "体育館",       x: -1, y: -1 },
   { venue_key: "kinenkan",     label: "記念館",       x: -1, y: -1 },
@@ -45,15 +44,14 @@ const VENUE_DEFAULTS: Omit<VenueLayoutItem, "mapKey">[] = [
   { venue_key: "kyukei",       label: "休憩所",       x: -1, y: -1 },
 ];
 
-// 蛟龍館クラスピン（classesテーブルで管理するが蛟龍館マップにも配置可）
 const KORYO_CLASSES = ["将棋部", "囲碁部"];
-
 type MapId = "school" | "all" | "koryo";
 
 type DragState = {
   key:      string;
   kind:     "class" | "venue";
-  fromList: boolean;
+  fromList: boolean; // true=未配置一覧 / false=地図上
+  fromMap?: MapId;   // 地図上ドラッグ時の元の地図
 };
 
 export default function AdminMapPage() {
@@ -74,14 +72,14 @@ export default function AdminMapPage() {
   const [venueLayouts, setVenueLayouts] = useState<VenueLayoutItem[]>(
     VENUE_DEFAULTS.map((v) => ({ ...v, mapKey: "" }))
   );
-  const [selected,     setSelected]     = useState<string | null>(null);
-  const [saving,       setSaving]       = useState(false);
-  const [saved,        setSaved]        = useState(false);
-  const [isDirty,      setIsDirty]      = useState(false);
+  const [selected,  setSelected]  = useState<string | null>(null);
+  const [saving,    setSaving]    = useState(false);
+  const [saved,     setSaved]     = useState(false);
+  const [isDirty,   setIsDirty]   = useState(false);
 
   const draggingRef = useRef<DragState | null>(null);
   const dragOffset  = useRef({ ox: 0, oy: 0 });
-  const [ghostPos,  setGhostPos]  = useState<{ x: number; y: number } | null>(null);
+  const [ghostPos,  setGhostPos] = useState<{ x: number; y: number } | null>(null);
   const [, forceUpdate] = useState(0);
   const rerender = () => forceUpdate((n) => n + 1);
 
@@ -124,35 +122,38 @@ export default function AdminMapPage() {
 
       setVenueLayouts(VENUE_DEFAULTS.map((v) => {
         const ex = savedVenue.find((s: any) => s.venue_key === v.venue_key);
-        // mapKeyはDBに保存していないので座標から推定（配置済みならallをデフォルト）
         return ex ? { ...v, x: ex.x, y: ex.y, mapKey: ex.map_key ?? "all" } : { ...v, mapKey: "" };
       }));
     });
   }, [router]);
 
-  // グローバルイベント（一覧からのドラッグ用）
+  // グローバルイベント（一覧・地図間ドラッグ用）
   useEffect(() => {
     const onMove = (e: MouseEvent) => {
-      if (!draggingRef.current?.fromList) return;
+      if (!draggingRef.current) return;
       setGhostPos({ x: e.clientX, y: e.clientY });
     };
     const onUp = (e: MouseEvent) => {
-      if (!draggingRef.current?.fromList) return;
-      tryDropOnMap(e.clientX, e.clientY);
+      if (!draggingRef.current) return;
+      if (draggingRef.current.fromList || draggingRef.current.fromMap !== undefined) {
+        tryDropOnMap(e.clientX, e.clientY);
+      }
       draggingRef.current = null;
       setGhostPos(null);
       rerender();
     };
     const onTouchMove = (e: TouchEvent) => {
-      if (!draggingRef.current?.fromList) return;
+      if (!draggingRef.current) return;
       e.preventDefault();
       const t = e.touches[0];
       setGhostPos({ x: t.clientX, y: t.clientY });
     };
     const onTouchEnd = (e: TouchEvent) => {
-      if (!draggingRef.current?.fromList) return;
+      if (!draggingRef.current) return;
       const t = e.changedTouches[0];
-      tryDropOnMap(t.clientX, t.clientY);
+      if (draggingRef.current.fromList || draggingRef.current.fromMap !== undefined) {
+        tryDropOnMap(t.clientX, t.clientY);
+      }
       draggingRef.current = null;
       setGhostPos(null);
       rerender();
@@ -170,6 +171,7 @@ export default function AdminMapPage() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [layouts, venueLayouts]);
 
+  // どの地図にドロップされたか判定して配置
   const tryDropOnMap = (clientX: number, clientY: number) => {
     const drag = draggingRef.current;
     if (!drag) return;
@@ -193,27 +195,37 @@ export default function AdminMapPage() {
       setIsDirty(true);
       return;
     }
+
+    // どの地図にも当たらなかった場合 → 地図間ドラッグなら元の位置に戻す（何もしない）
   };
 
+  // 地図上のピンをドラッグ開始（同じ地図内移動 or 地図間移動どちらも対応）
   const startMapDrag = (
-    ref: React.RefObject<HTMLDivElement>,
     key: string, kind: "class" | "venue",
     curX: number, curY: number,
     clientX: number, clientY: number,
+    fromMap: MapId,
   ) => {
+    const ref = mapRefs[fromMap];
     if (!ref.current) return;
     const rect = ref.current.getBoundingClientRect();
     dragOffset.current = {
       ox: clientX - rect.left - (curX / 100) * rect.width,
       oy: clientY - rect.top  - (curY / 100) * rect.height,
     };
-    draggingRef.current = { key, kind, fromList: false };
+    // fromMap を持たせて「地図上からのドラッグ」として記録
+    draggingRef.current = { key, kind, fromList: false, fromMap };
     setSelected(key);
+    rerender();
   };
 
-  const moveMapDrag = (ref: React.RefObject<HTMLDivElement>, clientX: number, clientY: number) => {
+  // 同一地図内でのマウス移動（リアルタイム追従）
+  const moveMapDrag = (ref: React.RefObject<HTMLDivElement>, mapId: MapId, clientX: number, clientY: number) => {
     const drag = draggingRef.current;
-    if (!drag || drag.fromList || !ref.current) return;
+    if (!drag || drag.fromList) return;
+    // 別の地図へのドラッグ中はゴーストで表示するのでリアルタイム更新しない
+    if (drag.fromMap !== mapId) return;
+    if (!ref.current) return;
     const rect = ref.current.getBoundingClientRect();
     const x = Math.max(0, Math.min(100, ((clientX - rect.left - dragOffset.current.ox) / rect.width)  * 100));
     const y = Math.max(0, Math.min(100, ((clientY - rect.top  - dragOffset.current.oy) / rect.height) * 100));
@@ -223,13 +235,6 @@ export default function AdminMapPage() {
       setVenueLayouts((prev) => prev.map((v) => v.venue_key === drag.key ? { ...v, x, y } : v));
     }
     setIsDirty(true);
-  };
-
-  const endMapDrag = () => {
-    if (draggingRef.current && !draggingRef.current.fromList) {
-      draggingRef.current = null;
-      rerender();
-    }
   };
 
   const startListDrag = (key: string, kind: "class" | "venue") => {
@@ -264,7 +269,6 @@ export default function AdminMapPage() {
   const selectedItem    = layouts.find((l) => l.class_code === selected);
   const unplacedClasses = layouts.filter((l) => l.x < 0 || l.y < 0);
   const unplacedVenues  = venueLayouts.filter((v) => v.x < 0 || v.y < 0);
-
   const schoolClassPins = layouts.filter((l) => l.x >= 0 && l.y >= 0 && !KORYO_CLASSES.includes(l.class_code));
   const schoolVenuePins = venueLayouts.filter((v) => v.x >= 0 && v.y >= 0 && v.mapKey === "school");
   const allVenuePins    = venueLayouts.filter((v) => v.x >= 0 && v.y >= 0 && v.mapKey === "all");
@@ -273,20 +277,31 @@ export default function AdminMapPage() {
 
   const isDragging = !!draggingRef.current;
   const dragKey    = draggingRef.current?.key;
+  // 地図間ドラッグ中（ゴーストを出す）かどうか
+  const isCrossMapDrag = isDragging && draggingRef.current?.fromMap !== undefined;
 
   const pinStyle = (key: string, isSelected: boolean, color = "#e10102"): React.CSSProperties => ({
     position: "absolute", transform: "translate(-50%, -50%)",
     backgroundColor: isSelected ? "#1976d2" : color,
     color: "white", borderRadius: "20px", padding: "4px 10px",
-    fontSize: "12px", fontWeight: "bold", cursor: "grab",
+    fontSize: "11px", fontWeight: "bold", cursor: "grab",
     boxShadow: isSelected ? "0 0 0 3px #90caf9" : "0 2px 6px rgba(0,0,0,0.3)",
     whiteSpace: "nowrap", zIndex: isSelected ? 10 : 1, touchAction: "none",
+    // 地図間ドラッグ中は元の地図のピンを半透明に
+    opacity: (isCrossMapDrag && dragKey === key) ? 0.3 : 1,
   });
+
+  const mapContainerStyle: React.CSSProperties = {
+    position: "relative", userSelect: "none",
+    border: "2px solid #ddd", borderRadius: "8px", overflow: "hidden",
+    cursor: isDragging ? "copy" : "default",
+    flex: 1, minWidth: 0,
+  };
 
   if (!authed) return null;
 
   return (
-    <main style={{ padding: "20px", maxWidth: "800px", margin: "0 auto" }}>
+    <main style={{ padding: "20px", maxWidth: "1400px", margin: "0 auto" }}>
       <Link href="/admin" onClick={handleNavAway}
         style={{ fontSize: "13px", color: "#888", textDecoration: "none", display: "block", marginBottom: "16px" }}>
         ← 管理者メニュー
@@ -301,8 +316,9 @@ export default function AdminMapPage() {
         )}
       </div>
 
+      {/* 未配置ピン一覧 */}
       {(unplacedClasses.length > 0 || unplacedVenues.length > 0) && (
-        <div style={{ marginBottom: "24px", padding: "14px 16px", backgroundColor: "#fff8e1", borderRadius: "10px", border: "1px solid #ffe082" }}>
+        <div style={{ marginBottom: "20px", padding: "14px 16px", backgroundColor: "#fff8e1", borderRadius: "10px", border: "1px solid #ffe082" }}>
           <p style={{ fontSize: "12px", color: "#b8860b", fontWeight: "bold", marginBottom: "10px" }}>
             未配置のピン — 任意の地図にドラッグして配置してください
           </p>
@@ -324,84 +340,95 @@ export default function AdminMapPage() {
               </div>
             ))}
           </div>
-          <p style={{ fontSize: "11px", color: "#999", marginTop: "10px" }}>赤 = クラス企画　紫 = 会場ピン　※どの地図にもドロップできます</p>
+          <p style={{ fontSize: "11px", color: "#999", marginTop: "10px" }}>赤 = クラス企画　紫 = 会場ピン　※どの地図にもドロップできます・配置済みピンも別の地図へ移動可</p>
         </div>
       )}
 
-      <p style={{ fontSize: "13px", fontWeight: "bold", marginBottom: "6px", color: "#333" }}>🏫 校舎（教室棟・管理棟）</p>
-      <div ref={schoolMapRef}
-        style={{ position: "relative", width: "100%", userSelect: "none", border: "2px solid #ddd", borderRadius: "8px", overflow: "hidden", cursor: isDragging ? "copy" : "default", marginBottom: "24px" }}
-        onMouseMove={(e) => moveMapDrag(schoolMapRef, e.clientX, e.clientY)}
-        onMouseUp={endMapDrag} onMouseLeave={endMapDrag}
-        onTouchMove={(e) => { const t = e.touches[0]; moveMapDrag(schoolMapRef, t.clientX, t.clientY); }}
-        onTouchEnd={endMapDrag}>
-        <img src="/map.png" alt="校舎マップ" style={{ width: "100%", display: "block" }} draggable={false} />
-        {schoolClassPins.map((l) => (
-          <div key={l.class_code}
-            onMouseDown={(e) => { e.preventDefault(); startMapDrag(schoolMapRef, l.class_code, "class", l.x, l.y, e.clientX, e.clientY); }}
-            onTouchStart={(e) => { const t = e.touches[0]; startMapDrag(schoolMapRef, l.class_code, "class", l.x, l.y, t.clientX, t.clientY); }}
-            onClick={() => setSelected(l.class_code)}
-            style={{ ...pinStyle(l.class_code, selected === l.class_code, "#e10102"), left: `${l.x}%`, top: `${l.y}%` }}>
-            {l.class_code}
+      {/* 3枚の地図を横並び */}
+      <div style={{ display: "flex", gap: "12px", marginBottom: "20px", alignItems: "flex-start" }}>
+
+        {/* 校舎マップ */}
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <p style={{ fontSize: "12px", fontWeight: "bold", marginBottom: "4px", color: "#333" }}>🏫 校舎</p>
+          <div ref={schoolMapRef} style={mapContainerStyle}
+            onMouseMove={(e) => moveMapDrag(schoolMapRef, "school", e.clientX, e.clientY)}
+            onMouseUp={() => { /* グローバルで処理 */ }}
+            onMouseLeave={() => { /* グローバルで処理 */ }}
+            onTouchMove={(e) => { const t = e.touches[0]; moveMapDrag(schoolMapRef, "school", t.clientX, t.clientY); }}>
+            <img src="/map.png" alt="校舎マップ" style={{ width: "100%", display: "block" }} draggable={false} />
+            {schoolClassPins.map((l) => (
+              <div key={l.class_code}
+                onMouseDown={(e) => { e.preventDefault(); startMapDrag(l.class_code, "class", l.x, l.y, e.clientX, e.clientY, "school"); }}
+                onTouchStart={(e) => { const t = e.touches[0]; startMapDrag(l.class_code, "class", l.x, l.y, t.clientX, t.clientY, "school"); }}
+                onClick={() => setSelected(l.class_code)}
+                style={{ ...pinStyle(l.class_code, selected === l.class_code, "#e10102"), left: `${l.x}%`, top: `${l.y}%` }}>
+                {l.class_code}
+              </div>
+            ))}
+            {schoolVenuePins.map((v) => (
+              <div key={v.venue_key}
+                onMouseDown={(e) => { e.preventDefault(); startMapDrag(v.venue_key, "venue", v.x, v.y, e.clientX, e.clientY, "school"); }}
+                onTouchStart={(e) => { const t = e.touches[0]; startMapDrag(v.venue_key, "venue", v.x, v.y, t.clientX, t.clientY, "school"); }}
+                style={{ ...pinStyle(v.venue_key, selected === v.venue_key, "#1976d2"), left: `${v.x}%`, top: `${v.y}%` }}>
+                {v.label}
+              </div>
+            ))}
           </div>
-        ))}
-        {schoolVenuePins.map((v) => (
-          <div key={v.venue_key}
-            onMouseDown={(e) => { e.preventDefault(); startMapDrag(schoolMapRef, v.venue_key, "venue", v.x, v.y, e.clientX, e.clientY); }}
-            onTouchStart={(e) => { const t = e.touches[0]; startMapDrag(schoolMapRef, v.venue_key, "venue", v.x, v.y, t.clientX, t.clientY); }}
-            style={{ ...pinStyle(v.venue_key, selected === v.venue_key, "#1976d2"), left: `${v.x}%`, top: `${v.y}%` }}>
-            {v.label}
+        </div>
+
+        {/* 全体図 */}
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <p style={{ fontSize: "12px", fontWeight: "bold", marginBottom: "4px", color: "#333" }}>🏫 全体図</p>
+          <div ref={allMapRef} style={mapContainerStyle}
+            onMouseMove={(e) => moveMapDrag(allMapRef, "all", e.clientX, e.clientY)}
+            onMouseUp={() => {}}
+            onMouseLeave={() => {}}
+            onTouchMove={(e) => { const t = e.touches[0]; moveMapDrag(allMapRef, "all", t.clientX, t.clientY); }}>
+            <img src="/venue-map-all.png" alt="全体図" style={{ width: "100%", display: "block" }} draggable={false} />
+            {allVenuePins.map((v) => (
+              <div key={v.venue_key}
+                onMouseDown={(e) => { e.preventDefault(); startMapDrag(v.venue_key, "venue", v.x, v.y, e.clientX, e.clientY, "all"); }}
+                onTouchStart={(e) => { const t = e.touches[0]; startMapDrag(v.venue_key, "venue", v.x, v.y, t.clientX, t.clientY, "all"); }}
+                style={{ ...pinStyle(v.venue_key, selected === v.venue_key, "#1976d2"), left: `${v.x}%`, top: `${v.y}%` }}>
+                {v.label}
+              </div>
+            ))}
           </div>
-        ))}
+        </div>
+
+        {/* 蛟龍館マップ */}
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <p style={{ fontSize: "12px", fontWeight: "bold", marginBottom: "4px", color: "#333" }}>🏢 蛟龍館</p>
+          <div ref={koryoMapRef} style={mapContainerStyle}
+            onMouseMove={(e) => moveMapDrag(koryoMapRef, "koryo", e.clientX, e.clientY)}
+            onMouseUp={() => {}}
+            onMouseLeave={() => {}}
+            onTouchMove={(e) => { const t = e.touches[0]; moveMapDrag(koryoMapRef, "koryo", t.clientX, t.clientY); }}>
+            <img src="/venue-map-koryokan.png" alt="蛟龍館" style={{ width: "100%", display: "block" }} draggable={false} />
+            {koryoVenuePins.map((v) => (
+              <div key={v.venue_key}
+                onMouseDown={(e) => { e.preventDefault(); startMapDrag(v.venue_key, "venue", v.x, v.y, e.clientX, e.clientY, "koryo"); }}
+                onTouchStart={(e) => { const t = e.touches[0]; startMapDrag(v.venue_key, "venue", v.x, v.y, t.clientX, t.clientY, "koryo"); }}
+                style={{ ...pinStyle(v.venue_key, selected === v.venue_key, "#1976d2"), left: `${v.x}%`, top: `${v.y}%` }}>
+                {v.label}
+              </div>
+            ))}
+            {koryoClassPins.map((l) => (
+              <div key={l.class_code}
+                onMouseDown={(e) => { e.preventDefault(); startMapDrag(l.class_code, "class", l.x, l.y, e.clientX, e.clientY, "koryo"); }}
+                onTouchStart={(e) => { const t = e.touches[0]; startMapDrag(l.class_code, "class", l.x, l.y, t.clientX, t.clientY, "koryo"); }}
+                onClick={() => setSelected(l.class_code)}
+                style={{ ...pinStyle(l.class_code, selected === l.class_code, "#e10102"), left: `${l.x}%`, top: `${l.y}%` }}>
+                {l.class_code}
+              </div>
+            ))}
+          </div>
+        </div>
       </div>
 
-      <p style={{ fontSize: "13px", fontWeight: "bold", marginBottom: "6px", color: "#333" }}>🏫 校内全体図</p>
-      <div ref={allMapRef}
-        style={{ position: "relative", width: "100%", userSelect: "none", border: "2px solid #ddd", borderRadius: "8px", overflow: "hidden", cursor: isDragging ? "copy" : "default", marginBottom: "24px" }}
-        onMouseMove={(e) => moveMapDrag(allMapRef, e.clientX, e.clientY)}
-        onMouseUp={endMapDrag} onMouseLeave={endMapDrag}
-        onTouchMove={(e) => { const t = e.touches[0]; moveMapDrag(allMapRef, t.clientX, t.clientY); }}
-        onTouchEnd={endMapDrag}>
-        <img src="/venue-map-all.png" alt="校内全体図" style={{ width: "100%", display: "block" }} draggable={false} />
-        {allVenuePins.map((v) => (
-          <div key={v.venue_key}
-            onMouseDown={(e) => { e.preventDefault(); startMapDrag(allMapRef, v.venue_key, "venue", v.x, v.y, e.clientX, e.clientY); }}
-            onTouchStart={(e) => { const t = e.touches[0]; startMapDrag(allMapRef, v.venue_key, "venue", v.x, v.y, t.clientX, t.clientY); }}
-            style={{ ...pinStyle(v.venue_key, selected === v.venue_key, "#1976d2"), left: `${v.x}%`, top: `${v.y}%` }}>
-            {v.label}
-          </div>
-        ))}
-      </div>
-
-      <p style={{ fontSize: "13px", fontWeight: "bold", marginBottom: "6px", color: "#333" }}>🏢 蛟龍館</p>
-      <div ref={koryoMapRef}
-        style={{ position: "relative", width: "100%", userSelect: "none", border: "2px solid #ddd", borderRadius: "8px", overflow: "hidden", cursor: isDragging ? "copy" : "default", marginBottom: "24px" }}
-        onMouseMove={(e) => moveMapDrag(koryoMapRef, e.clientX, e.clientY)}
-        onMouseUp={endMapDrag} onMouseLeave={endMapDrag}
-        onTouchMove={(e) => { const t = e.touches[0]; moveMapDrag(koryoMapRef, t.clientX, t.clientY); }}
-        onTouchEnd={endMapDrag}>
-        <img src="/venue-map-koryokan.png" alt="蛟龍館マップ" style={{ width: "100%", display: "block" }} draggable={false} />
-        {koryoVenuePins.map((v) => (
-          <div key={v.venue_key}
-            onMouseDown={(e) => { e.preventDefault(); startMapDrag(koryoMapRef, v.venue_key, "venue", v.x, v.y, e.clientX, e.clientY); }}
-            onTouchStart={(e) => { const t = e.touches[0]; startMapDrag(koryoMapRef, v.venue_key, "venue", v.x, v.y, t.clientX, t.clientY); }}
-            style={{ ...pinStyle(v.venue_key, selected === v.venue_key, "#1976d2"), left: `${v.x}%`, top: `${v.y}%` }}>
-            {v.label}
-          </div>
-        ))}
-        {koryoClassPins.map((l) => (
-          <div key={l.class_code}
-            onMouseDown={(e) => { e.preventDefault(); startMapDrag(koryoMapRef, l.class_code, "class", l.x, l.y, e.clientX, e.clientY); }}
-            onTouchStart={(e) => { const t = e.touches[0]; startMapDrag(koryoMapRef, l.class_code, "class", l.x, l.y, t.clientX, t.clientY); }}
-            onClick={() => setSelected(l.class_code)}
-            style={{ ...pinStyle(l.class_code, selected === l.class_code, "#e10102"), left: `${l.x}%`, top: `${l.y}%` }}>
-            {l.class_code}
-          </div>
-        ))}
-      </div>
-
+      {/* 選択中クラスの設定 */}
       {selectedItem && (
-        <div style={{ marginBottom: "24px", padding: "16px", border: "2px solid #1976d2", borderRadius: "10px", backgroundColor: "#f8f9ff" }}>
+        <div style={{ marginBottom: "20px", padding: "16px", border: "2px solid #1976d2", borderRadius: "10px", backgroundColor: "#f8f9ff" }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px" }}>
             <h2 style={{ fontSize: "16px", color: "#1976d2", margin: 0 }}>
               ⚙️ {selectedItem.class_code}（{selectedItem.label}）の設定
@@ -416,13 +443,13 @@ export default function AdminMapPage() {
               ✕ 配置を外す
             </button>
           </div>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "12px" }}>
             {([
               { key: "capacity",     label: "定員（人）" },
               { key: "stay_minutes", label: "滞在時間（分）" },
-              { key: "thresh_mid",   label: "やや混雑の閾値（%）" },
-              { key: "thresh_high",  label: "混雑の閾値（%）" },
-              { key: "thresh_full",  label: "大変混雑の閾値（%）" },
+              { key: "thresh_mid",   label: "やや混雑（%）" },
+              { key: "thresh_high",  label: "混雑（%）" },
+              { key: "thresh_full",  label: "大変混雑（%）" },
             ] as { key: keyof LayoutItem; label: string }[]).map(({ key, label }) => (
               <label key={key} style={{ display: "flex", flexDirection: "column", gap: "4px", fontSize: "13px", color: "#555" }}>
                 <span>{label}</span>
@@ -440,12 +467,24 @@ export default function AdminMapPage() {
         {saving ? "保存中..." : saved ? "✅ 保存しました" : "配置・設定を保存する"}
       </button>
 
-      {ghostPos && draggingRef.current?.fromList && (() => {
+      {/* ゴースト（地図間ドラッグ・一覧ドラッグ共通） */}
+      {ghostPos && draggingRef.current && (() => {
         const drag  = draggingRef.current!;
         const label = drag.kind === "class"
           ? layouts.find((l) => l.class_code === drag.key)?.class_code ?? drag.key
           : venueLayouts.find((v) => v.venue_key === drag.key)?.label ?? drag.key;
         const color = drag.kind === "class" ? "#e10102" : "#7b1fa2";
+        // 同一地図内ドラッグ（fromMap あり・fromList なし）はゴースト不要
+        if (!drag.fromList && drag.fromMap !== undefined) {
+          // 別地図の上にいる場合のみゴーストを出す
+          const onSameMap = (() => {
+            const ref = mapRefs[drag.fromMap!];
+            if (!ref.current) return false;
+            const r = ref.current.getBoundingClientRect();
+            return ghostPos.x >= r.left && ghostPos.x <= r.right && ghostPos.y >= r.top && ghostPos.y <= r.bottom;
+          })();
+          if (onSameMap) return null;
+        }
         return (
           <div style={{ position: "fixed", left: ghostPos.x, top: ghostPos.y, transform: "translate(-50%, -50%)", backgroundColor: color, color: "white", borderRadius: "20px", padding: "4px 12px", fontSize: "12px", fontWeight: "bold", pointerEvents: "none", zIndex: 9999, opacity: 0.85, boxShadow: "0 4px 12px rgba(0,0,0,0.3)", whiteSpace: "nowrap" }}>
             {label}
