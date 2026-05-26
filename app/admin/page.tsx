@@ -58,6 +58,7 @@ export default function AdminPage() {
         <a href="/admin/venue/library"  style={{ ...linkStyle, borderLeft: "4px solid #e10102" }}>📚 図書館</a>
 
         {/* 校舎内企画・部活等 */}
+        <a href="/admin/venue/science"  style={{ ...linkStyle, borderLeft: "4px solid #1976d2" }}>🔬 科学物理部</a>
         <a href="/admin/venue/tetsudo"  style={{ ...linkStyle, borderLeft: "4px solid #1976d2" }}>🚃 鉄道研究部</a>
         <a href="/admin/venue/quiz"     style={{ ...linkStyle, borderLeft: "4px solid #1976d2" }}>❓ クイズ研究会</a>
         <a href="/admin/venue/bazar"    style={{ ...linkStyle, borderLeft: "4px solid #1976d2" }}>🛍️ バザー</a>
