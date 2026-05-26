@@ -20,28 +20,31 @@ type LayoutItem = {
 type VenueLayoutItem = {
   venue_key: string;
   label:     string;
+  pinLabel:  string;
   x:         number;
   y:         number;
   mapKey:    string;
 };
 
-const VENUE_DEFAULTS: Omit<VenueLayoutItem, "mapKey">[] = [
-  { venue_key: "gym",          label: "体育館",       x: -1, y: -1 },
-  { venue_key: "kinenkan",     label: "記念館",       x: -1, y: -1 },
-  { venue_key: "koryokan",     label: "ライブ",       x: -1, y: -1 },
-  { venue_key: "sundelica",    label: "サンデリカ",   x: -1, y: -1 },
-  { venue_key: "football",     label: "サッカー部",   x: -1, y: -1 },
-  { venue_key: "tontonhiroba", label: "とんとん広場", x: -1, y: -1 },
-  { venue_key: "library",      label: "図書館",       x: -1, y: -1 },
-  { venue_key: "tea",          label: "茶道部",       x: -1, y: -1 },
-  { venue_key: "science",      label: "科学物理部",   x: -1, y: -1 },
-  { venue_key: "tetsudo",      label: "鉄道研究部",   x: -1, y: -1 },
-  { venue_key: "quiz",         label: "クイズ研究会", x: -1, y: -1 },
-  { venue_key: "bazar",        label: "バザー",       x: -1, y: -1 },
-  { venue_key: "doso",         label: "同窓会",       x: -1, y: -1 },
-  { venue_key: "shogi",        label: "将棋部",       x: -1, y: -1 },
-  { venue_key: "igo",          label: "囲碁部",       x: -1, y: -1 },
-  { venue_key: "kyukei",       label: "休憩所",       x: -1, y: -1 },
+// pinLabel: 地図上ピンに表示する文字（\nで改行）
+// label: 未配置一覧・ゴーストに表示する文字
+const VENUE_DEFAULTS: (Omit<VenueLayoutItem, "mapKey"> & { pinLabel: string })[] = [
+  { venue_key: "gym",          label: "体育館",         pinLabel: "体育館",         x: -1, y: -1 },
+  { venue_key: "kinenkan",     label: "記念館",         pinLabel: "記念館",         x: -1, y: -1 },
+  { venue_key: "koryokan",     label: "ライブ",         pinLabel: "ライブ",         x: -1, y: -1 },
+  { venue_key: "sundelica",    label: "サンデリカ",     pinLabel: "サンデリカ",     x: -1, y: -1 },
+  { venue_key: "football",     label: "サッカー部",     pinLabel: "サッカー部",     x: -1, y: -1 },
+  { venue_key: "tontonhiroba", label: "とんとん広場",   pinLabel: "とんとん\n広場", x: -1, y: -1 },
+  { venue_key: "library",      label: "図書館",         pinLabel: "図書館",         x: -1, y: -1 },
+  { venue_key: "tea",          label: "茶道部",         pinLabel: "茶道部",         x: -1, y: -1 },
+  { venue_key: "science",      label: "科学物理部",     pinLabel: "科学\n物理部",   x: -1, y: -1 },
+  { venue_key: "tetsudo",      label: "鉄道研究部",     pinLabel: "鉄道\n研究部",   x: -1, y: -1 },
+  { venue_key: "quiz",         label: "クイズ研究会",   pinLabel: "クイズ\n研究会", x: -1, y: -1 },
+  { venue_key: "bazar",        label: "バザー",         pinLabel: "バザー",         x: -1, y: -1 },
+  { venue_key: "doso",         label: "同窓会",         pinLabel: "同窓会",         x: -1, y: -1 },
+  { venue_key: "shogi",        label: "将棋部",         pinLabel: "将棋部",         x: -1, y: -1 },
+  { venue_key: "igo",          label: "囲碁部",         pinLabel: "囲碁部",         x: -1, y: -1 },
+  { venue_key: "kyukei",       label: "休憩所",         pinLabel: "休憩所",         x: -1, y: -1 },
 ];
 
 const KORYO_CLASSES = ["将棋部", "囲碁部"];
@@ -57,9 +60,10 @@ type DragState = {
 export default function AdminMapPage() {
   const router = useRouter();
 
-  const schoolMapRef = useRef<HTMLDivElement>(null);
-  const allMapRef    = useRef<HTMLDivElement>(null);
-  const koryoMapRef  = useRef<HTMLDivElement>(null);
+  const schoolMapRef  = useRef<HTMLDivElement>(null);
+  const allMapRef     = useRef<HTMLDivElement>(null);
+  const koryoMapRef   = useRef<HTMLDivElement>(null);
+  const unplacedRef   = useRef<HTMLDivElement>(null); // 未配置エリア
 
   const mapRefs: Record<MapId, React.RefObject<HTMLDivElement>> = {
     school: schoolMapRef,
@@ -196,7 +200,17 @@ export default function AdminMapPage() {
       return;
     }
 
-    // どの地図にも当たらなかった場合 → 地図間ドラッグなら元の位置に戻す（何もしない）
+    // 未配置エリアにドロップ → 配置を外す（会場ピンのみ）
+    if (drag.kind === "venue" && unplacedRef.current) {
+      const rect = unplacedRef.current.getBoundingClientRect();
+      if (clientX >= rect.left && clientX <= rect.right && clientY >= rect.top && clientY <= rect.bottom) {
+        setVenueLayouts((prev) => prev.map((v) => v.venue_key === drag.key ? { ...v, x: -1, y: -1, mapKey: "" } : v));
+        setSelected(null);
+        setIsDirty(true);
+        return;
+      }
+    }
+    // どの地図にも当たらなかった場合 → 元の位置に戻す（何もしない）
   };
 
   // 地図上のピンをドラッグ開始（同じ地図内移動 or 地図間移動どちらも対応）
@@ -283,12 +297,13 @@ export default function AdminMapPage() {
   const pinStyle = (key: string, isSelected: boolean, color = "#e10102"): React.CSSProperties => ({
     position: "absolute", transform: "translate(-50%, -50%)",
     backgroundColor: isSelected ? "#1976d2" : color,
-    color: "white", borderRadius: "20px", padding: "4px 10px",
-    fontSize: "11px", fontWeight: "bold", cursor: "grab",
+    color: "white", borderRadius: "10px", padding: "3px 7px",
+    fontSize: "9px", fontWeight: "bold", cursor: "grab",
     boxShadow: isSelected ? "0 0 0 3px #90caf9" : "0 2px 6px rgba(0,0,0,0.3)",
-    whiteSpace: "nowrap", zIndex: isSelected ? 10 : 1, touchAction: "none",
-    // 地図間ドラッグ中は元の地図のピンを半透明に
+    whiteSpace: "pre-line", textAlign: "center",
+    zIndex: isSelected ? 10 : 1, touchAction: "none",
     opacity: (isCrossMapDrag && dragKey === key) ? 0.3 : 1,
+    lineHeight: 1.3,
   });
 
   const mapContainerStyle: React.CSSProperties = {
@@ -316,33 +331,34 @@ export default function AdminMapPage() {
         )}
       </div>
 
-      {/* 未配置ピン一覧 */}
-      {(unplacedClasses.length > 0 || unplacedVenues.length > 0) && (
-        <div style={{ marginBottom: "20px", padding: "14px 16px", backgroundColor: "#fff8e1", borderRadius: "10px", border: "1px solid #ffe082" }}>
-          <p style={{ fontSize: "12px", color: "#b8860b", fontWeight: "bold", marginBottom: "10px" }}>
-            未配置のピン — 任意の地図にドラッグして配置してください
-          </p>
-          <div style={{ display: "flex", flexWrap: "wrap", gap: "8px" }}>
-            {unplacedClasses.map((l) => (
-              <div key={l.class_code}
-                onMouseDown={() => startListDrag(l.class_code, "class")}
-                onTouchStart={() => startListDrag(l.class_code, "class")}
-                style={{ padding: "6px 12px", backgroundColor: dragKey === l.class_code ? "#b71c1c" : "#e10102", color: "white", borderRadius: "20px", fontSize: "13px", fontWeight: "bold", cursor: "grab", userSelect: "none", touchAction: "none", opacity: dragKey === l.class_code ? 0.4 : 1 }}>
-                {l.class_code}
-              </div>
-            ))}
-            {unplacedVenues.map((v) => (
-              <div key={v.venue_key}
-                onMouseDown={() => startListDrag(v.venue_key, "venue")}
-                onTouchStart={() => startListDrag(v.venue_key, "venue")}
-                style={{ padding: "6px 12px", backgroundColor: dragKey === v.venue_key ? "#4a148c" : "#7b1fa2", color: "white", borderRadius: "20px", fontSize: "13px", fontWeight: "bold", cursor: "grab", userSelect: "none", touchAction: "none", opacity: dragKey === v.venue_key ? 0.4 : 1 }}>
-                {v.label}
-              </div>
-            ))}
-          </div>
-          <p style={{ fontSize: "11px", color: "#999", marginTop: "10px" }}>赤 = クラス企画　紫 = 会場ピン　※どの地図にもドロップできます・配置済みピンも別の地図へ移動可</p>
+      {/* 未配置ピン一覧（常に表示・会場ピンをここにドロップすると未配置に戻る） */}
+      <div ref={unplacedRef} style={{ marginBottom: "20px", padding: "14px 16px", backgroundColor: isDragging && draggingRef.current?.kind === "venue" && !draggingRef.current?.fromList ? "#fff3cd" : "#fff8e1", borderRadius: "10px", border: isDragging && draggingRef.current?.kind === "venue" && !draggingRef.current?.fromList ? "2px dashed #ff9800" : "1px solid #ffe082", transition: "all .15s" }}>
+        <p style={{ fontSize: "12px", color: "#b8860b", fontWeight: "bold", marginBottom: "10px" }}>
+          未配置のピン — 任意の地図にドラッグして配置 / 配置済み会場ピンをここにドロップすると未配置に戻ります
+        </p>
+        <div style={{ display: "flex", flexWrap: "wrap", gap: "8px", minHeight: "32px" }}>
+          {unplacedClasses.map((l) => (
+            <div key={l.class_code}
+              onMouseDown={() => startListDrag(l.class_code, "class")}
+              onTouchStart={() => startListDrag(l.class_code, "class")}
+              style={{ padding: "6px 12px", backgroundColor: dragKey === l.class_code ? "#b71c1c" : "#e10102", color: "white", borderRadius: "20px", fontSize: "13px", fontWeight: "bold", cursor: "grab", userSelect: "none", touchAction: "none", opacity: dragKey === l.class_code ? 0.4 : 1 }}>
+              {l.class_code}
+            </div>
+          ))}
+          {unplacedVenues.map((v) => (
+            <div key={v.venue_key}
+              onMouseDown={() => startListDrag(v.venue_key, "venue")}
+              onTouchStart={() => startListDrag(v.venue_key, "venue")}
+              style={{ padding: "6px 12px", backgroundColor: dragKey === v.venue_key ? "#4a148c" : "#7b1fa2", color: "white", borderRadius: "20px", fontSize: "13px", fontWeight: "bold", cursor: "grab", userSelect: "none", touchAction: "none", opacity: dragKey === v.venue_key ? 0.4 : 1 }}>
+              {v.pinLabel}
+            </div>
+          ))}
+          {unplacedClasses.length === 0 && unplacedVenues.length === 0 && (
+            <p style={{ fontSize: "12px", color: "#ccc", margin: 0, lineHeight: "32px" }}>すべて配置済みです</p>
+          )}
         </div>
-      )}
+        <p style={{ fontSize: "11px", color: "#999", marginTop: "10px" }}>赤 = クラス企画　紫 = 会場ピン　※どの地図にもドロップできます・配置済みピンも別の地図へ移動可</p>
+      </div>
 
       {/* 3枚の地図を横並び */}
       <div style={{ display: "flex", gap: "12px", marginBottom: "20px", alignItems: "flex-start" }}>
@@ -370,7 +386,7 @@ export default function AdminMapPage() {
                 onMouseDown={(e) => { e.preventDefault(); startMapDrag(v.venue_key, "venue", v.x, v.y, e.clientX, e.clientY, "school"); }}
                 onTouchStart={(e) => { const t = e.touches[0]; startMapDrag(v.venue_key, "venue", v.x, v.y, t.clientX, t.clientY, "school"); }}
                 style={{ ...pinStyle(v.venue_key, selected === v.venue_key, "#1976d2"), left: `${v.x}%`, top: `${v.y}%` }}>
-                {v.label}
+                {v.pinLabel}
               </div>
             ))}
           </div>
@@ -390,7 +406,7 @@ export default function AdminMapPage() {
                 onMouseDown={(e) => { e.preventDefault(); startMapDrag(v.venue_key, "venue", v.x, v.y, e.clientX, e.clientY, "all"); }}
                 onTouchStart={(e) => { const t = e.touches[0]; startMapDrag(v.venue_key, "venue", v.x, v.y, t.clientX, t.clientY, "all"); }}
                 style={{ ...pinStyle(v.venue_key, selected === v.venue_key, "#1976d2"), left: `${v.x}%`, top: `${v.y}%` }}>
-                {v.label}
+                {v.pinLabel}
               </div>
             ))}
           </div>
@@ -410,7 +426,7 @@ export default function AdminMapPage() {
                 onMouseDown={(e) => { e.preventDefault(); startMapDrag(v.venue_key, "venue", v.x, v.y, e.clientX, e.clientY, "koryo"); }}
                 onTouchStart={(e) => { const t = e.touches[0]; startMapDrag(v.venue_key, "venue", v.x, v.y, t.clientX, t.clientY, "koryo"); }}
                 style={{ ...pinStyle(v.venue_key, selected === v.venue_key, "#1976d2"), left: `${v.x}%`, top: `${v.y}%` }}>
-                {v.label}
+                {v.pinLabel}
               </div>
             ))}
             {koryoClassPins.map((l) => (
