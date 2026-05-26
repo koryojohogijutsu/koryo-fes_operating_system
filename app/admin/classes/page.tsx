@@ -1,9 +1,8 @@
 "use client";
-import { supabase } from "@/lib/supabase";
-import { useEffect, useState } from "react";
+import { useRef, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 
-type ClassRow = { id: string; code: string; label: string; comment: string };
+type ClassRow = { id: string; code: string; label: string; comment: string; image_url?: string };
 
 export default function ClassesAdminPage() {
   const router = useRouter();
@@ -13,6 +12,8 @@ export default function ClassesAdminPage() {
   const [authed,         setAuthed]         = useState(false);
   const [editingComment, setEditingComment] = useState<{ id: string; value: string } | null>(null);
   const [savingComment,  setSavingComment]  = useState(false);
+  const [uploadingId,    setUploadingId]    = useState<string | null>(null);
+  const fileInputRefs = useRef<Record<string, HTMLInputElement | null>>({});
 
   useEffect(() => {
     const auth = document.cookie.split("; ").find((r) => r.startsWith("admin_auth="))?.split("=")[1];
@@ -22,9 +23,9 @@ export default function ClassesAdminPage() {
   }, [router]);
 
   const load = async () => {
-    const { data } = await supabase.from("classes").select("*").order("code");
-    const rows = (data ?? []) as unknown as ClassRow[];
-    setClasses(rows.map((c) => ({ ...c, comment: c.comment ?? "" })));
+    const res  = await fetch("/api/classes", { cache: "no-store" });
+    const data = await res.json();
+    setClasses((data.classes ?? []) as ClassRow[]);
   };
 
   const addClass = async () => {
@@ -50,16 +51,29 @@ export default function ClassesAdminPage() {
   const saveComment = async () => {
     if (!editingComment) return;
     setSavingComment(true);
-    const { error } = await (supabase
-      .from("classes") as any)
-      .update({ comment: editingComment.value })
-      .eq("id", editingComment.id);
-    if (error) alert("エラー: " + (error as any).message);
+    const res = await fetch("/api/classes/manage", {
+      method: "PATCH", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id: editingComment.id, comment: editingComment.value }),
+    });
+    if (!res.ok) { const d = await res.json(); alert("エラー: " + d.error); }
     else {
       setClasses((prev) => prev.map((c) => c.id === editingComment.id ? { ...c, comment: editingComment.value } : c));
       setEditingComment(null);
     }
     setSavingComment(false);
+  };
+
+  const uploadImage = async (c: ClassRow, file: File) => {
+    setUploadingId(c.id);
+    const fd = new FormData();
+    fd.append("file", file);
+    fd.append("code", c.code);
+    const res  = await fetch("/api/classes/image", { method: "POST", body: fd });
+    const data = await res.json();
+    if (res.ok) {
+      setClasses((prev) => prev.map((item) => item.id === c.id ? { ...item, image_url: data.url } : item));
+    } else { alert("アップロード失敗: " + data.error); }
+    setUploadingId(null);
   };
 
   if (!authed) return null;
@@ -80,14 +94,34 @@ export default function ClassesAdminPage() {
       </div>
       <ul style={{ listStyle: "none", padding: 0 }}>
         {classes.map((c) => (
-          <li key={c.id} style={{ padding: "12px", borderBottom: "1px solid #eee" }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "8px" }}>
+          <li key={c.id} style={{ padding: "14px", borderBottom: "1px solid #eee" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "10px" }}>
               <span><strong>{c.code}</strong>　{c.label}</span>
               <button onClick={() => deleteClass(c.id)}
-                style={{ color: "#f44336", background: "none", border: "none", cursor: "pointer", fontSize: "14px" }}>
-                削除
-              </button>
+                style={{ color: "#f44336", background: "none", border: "none", cursor: "pointer", fontSize: "14px" }}>削除</button>
             </div>
+
+            {/* 画像 */}
+            <div style={{ marginBottom: "10px" }}>
+              {c.image_url ? (
+                <img src={c.image_url} alt={c.label} style={{ width: "100%", maxHeight: "140px", objectFit: "cover", borderRadius: "8px", marginBottom: "6px" }} />
+              ) : (
+                <div style={{ width: "100%", height: "80px", backgroundColor: "#f5f5f5", borderRadius: "8px", display: "flex", alignItems: "center", justifyContent: "center", marginBottom: "6px" }}>
+                  <span style={{ color: "#bbb", fontSize: "13px" }}>画像未設定</span>
+                </div>
+              )}
+              <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                <input
+                  type="file" accept="image/*"
+                  ref={(el) => { fileInputRefs.current[c.id] = el; }}
+                  onChange={(e) => { const f = e.target.files?.[0]; if (f) uploadImage(c, f); }}
+                  style={{ fontSize: "12px", flex: 1 }}
+                />
+                {uploadingId === c.id && <span style={{ fontSize: "12px", color: "#888" }}>アップロード中...</span>}
+              </div>
+            </div>
+
+            {/* コメント */}
             {editingComment?.id === c.id ? (
               <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
                 <textarea
