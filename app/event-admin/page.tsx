@@ -22,17 +22,17 @@ const VENUE_KEYS = [
   { key: "library",  label: "📚 図書館" },
 ];
 
-type Entry = {
-  id: string; name: string; description: string; comment: string;
-  datetime: string | null; image_url: string | null; members: string | null; order_num: number;
-};
-type VenueEvent   = { id: string; venue_key: string; title: string; description: string; order_num: number };
-type VenueProgram = { id: string; venue_key: string; name: string; datetime: string; comment: string };
+type FestivalDay = "day1" | "day2" | "both";
+type Settings    = { day1_date: string; day2_date: string };
+type Entry       = { id: string; name: string; description: string; comment: string; datetime: string | null; image_url: string | null; members: string | null; festival_day: string; order_num: number };
+type VenueEvent  = { id: string; venue_key: string; title: string; description: string; order_num: number };
+type VenueProgram = { id: string; venue_key: string; name: string; datetime: string; comment: string; festival_day: string };
 
 export default function EventAdminPage() {
   const router = useRouter();
   const [authed,   setAuthed]   = useState(false);
   const [mainTab,  setMainTab]  = useState<"entries" | "programs" | "venue">("entries");
+  const [settings, setSettings] = useState<Settings>({ day1_date: "1日目", day2_date: "2日目" });
 
   // 出場者管理
   const [entryCategory, setEntryCategory] = useState("nodojiman");
@@ -42,6 +42,7 @@ export default function EventAdminPage() {
   const [eComment,      setEComment]      = useState("");
   const [eDatetime,     setEDatetime]     = useState("");
   const [eMembers,      setEMembers]      = useState("");
+  const [eFestivalDay,  setEFestivalDay]  = useState<FestivalDay>("both");
   const [eImage,        setEImage]        = useState<File | null>(null);
   const [eSubmitting,   setESubmitting]   = useState(false);
   const [editingId,     setEditingId]     = useState<string | null>(null);
@@ -49,12 +50,13 @@ export default function EventAdminPage() {
   const entryFileRef = useRef<HTMLInputElement>(null);
 
   // 部活動企画管理
-  const [progVenueKey, setProgVenueKey] = useState("gym");
-  const [programs,     setPrograms]     = useState<VenueProgram[]>([]);
-  const [pName,        setPName]        = useState("");
-  const [pDatetime,    setPDatetime]    = useState("");
-  const [pComment,     setPComment]     = useState("");
-  const [pSaving,      setPSaving]      = useState(false);
+  const [progVenueKey, setProgVenueKey]  = useState("gym");
+  const [programs,     setPrograms]      = useState<VenueProgram[]>([]);
+  const [pName,        setPName]         = useState("");
+  const [pDatetime,    setPDatetime]     = useState("");
+  const [pComment,     setPComment]      = useState("");
+  const [pFestivalDay, setPFestivalDay]  = useState<FestivalDay>("both");
+  const [pSaving,      setPSaving]       = useState(false);
 
   // 会場イベント管理
   const [venueKey,     setVenueKey]     = useState("gym");
@@ -67,26 +69,27 @@ export default function EventAdminPage() {
     const auth = document.cookie.split("; ").find((r) => r.startsWith("admin_auth="))?.split("=")[1];
     if (auth !== "1") { router.push("/admin/login"); return; }
     setAuthed(true);
+    // 日程設定を取得してプルダウンのラベルに使う
+    fetch("/api/festival-settings", { cache: "no-store" }).then((r) => r.json()).then((d) => {
+      if (d.settings) setSettings({ day1_date: d.settings.day1_date || "1日目", day2_date: d.settings.day2_date || "2日目" });
+    });
   }, [router]);
 
   useEffect(() => { if (authed && mainTab === "entries")  loadEntries(); },  [entryCategory, authed, mainTab]);
-  useEffect(() => { if (authed && mainTab === "programs") loadPrograms(); }, [progVenueKey,  authed, mainTab]);
+  useEffect(() => { if (authed && mainTab === "programs") loadPrograms(); }, [progVenueKey, authed, mainTab]);
   useEffect(() => { if (authed && mainTab === "venue")    loadVenueEvents(); }, [venueKey, authed, mainTab]);
 
   const loadEntries = async () => {
-    const res  = await fetch(`/api/event-entries?category=${entryCategory}`, { cache: "no-store" });
-    const data = await res.json();
-    setEntries(data.entries ?? []);
+    const res = await fetch(`/api/event-entries?category=${entryCategory}`, { cache: "no-store" });
+    setEntries((await res.json()).entries ?? []);
   };
   const loadPrograms = async () => {
-    const res  = await fetch(`/api/venue-programs?venueKey=${progVenueKey}`, { cache: "no-store" });
-    const data = await res.json();
-    setPrograms(data.programs ?? []);
+    const res = await fetch(`/api/venue-programs?venueKey=${progVenueKey}`, { cache: "no-store" });
+    setPrograms((await res.json()).programs ?? []);
   };
   const loadVenueEvents = async () => {
-    const res  = await fetch(`/api/venue-events?venueKey=${venueKey}`, { cache: "no-store" });
-    const data = await res.json();
-    setVenueEvents(data.events ?? []);
+    const res = await fetch(`/api/venue-events?venueKey=${venueKey}`, { cache: "no-store" });
+    setVenueEvents((await res.json()).events ?? []);
   };
 
   const addEntry = async () => {
@@ -95,31 +98,25 @@ export default function EventAdminPage() {
     let imageUrl: string | null = null;
     if (eImage) {
       const fd = new FormData();
-      fd.append("file",   eImage);
-      fd.append("bucket", "event-entries");
-      fd.append("path",   `${entryCategory}/${Date.now()}.${eImage.name.split(".").pop()}`);
-      const res = await fetch("/api/upload", { method: "POST", body: fd });
-      const d   = await res.json();
-      imageUrl  = d.url ?? null;
+      fd.append("file", eImage); fd.append("bucket", "event-entries");
+      fd.append("path", `${entryCategory}/${Date.now()}.${eImage.name.split(".").pop()}`);
+      imageUrl = (await fetch("/api/upload", { method: "POST", body: fd }).then((r) => r.json())).url ?? null;
     }
     const res = await fetch("/api/event-entries/register", {
       method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ category: entryCategory, name: eName, description: eDesc, comment: eComment, datetime: eDatetime || null, imageUrl, members: eMembers || null }),
+      body: JSON.stringify({ category: entryCategory, name: eName, description: eDesc, comment: eComment, datetime: eDatetime || null, imageUrl, members: eMembers || null, festivalDay: eFestivalDay }),
     });
     if (res.ok) {
-      setEName(""); setEDesc(""); setEComment(""); setEDatetime(""); setEMembers(""); setEImage(null);
+      setEName(""); setEDesc(""); setEComment(""); setEDatetime(""); setEMembers(""); setEImage(null); setEFestivalDay("both");
       if (entryFileRef.current) entryFileRef.current.value = "";
       loadEntries();
-    } else { const d = await res.json(); alert("エラー: " + d.error); }
+    } else { alert("エラー: " + (await res.json()).error); }
     setESubmitting(false);
   };
 
   const saveComment = async (id: string) => {
-    const res = await fetch("/api/event-entries/register", {
-      method: "PATCH", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ id, comment: editComment }),
-    });
-    if (res.ok) { setEditingId(null); loadEntries(); }
+    await fetch("/api/event-entries/register", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id, comment: editComment }) });
+    setEditingId(null); loadEntries();
   };
 
   const deleteEntry = async (id: string) => {
@@ -133,10 +130,10 @@ export default function EventAdminPage() {
     setPSaving(true);
     const res = await fetch("/api/venue-programs", {
       method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ venueKey: progVenueKey, name: pName, datetime: pDatetime, comment: pComment }),
+      body: JSON.stringify({ venueKey: progVenueKey, name: pName, datetime: pDatetime, comment: pComment, festivalDay: pFestivalDay }),
     });
-    if (res.ok) { setPName(""); setPDatetime(""); setPComment(""); loadPrograms(); }
-    else { const d = await res.json(); alert("エラー: " + d.error); }
+    if (res.ok) { setPName(""); setPDatetime(""); setPComment(""); setPFestivalDay("both"); loadPrograms(); }
+    else { alert("エラー: " + (await res.json()).error); }
     setPSaving(false);
   };
 
@@ -149,10 +146,7 @@ export default function EventAdminPage() {
   const addVenueEvent = async () => {
     if (!vTitle) { alert("タイトルを入力してください"); return; }
     setVSubmitting(true);
-    const res = await fetch("/api/venue-events", {
-      method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ venueKey, title: vTitle, description: vDescription }),
-    });
+    const res = await fetch("/api/venue-events", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ venueKey, title: vTitle, description: vDescription }) });
     if (res.ok) { setVTitle(""); setVDescription(""); loadVenueEvents(); }
     setVSubmitting(false);
   };
@@ -163,8 +157,23 @@ export default function EventAdminPage() {
     loadVenueEvents();
   };
 
-  const currentCategory = ENTRY_CATEGORIES.find((c) => c.key === entryCategory);
+  const DAY_OPTIONS: { value: FestivalDay; label: string }[] = [
+    { value: "day1", label: `1日目（${settings.day1_date}）` },
+    { value: "day2", label: `2日目（${settings.day2_date}）` },
+    { value: "both", label: "両日" },
+  ];
 
+  const dayBadge = (fd: string) => {
+    const map: Record<string, { text: string; color: string }> = {
+      day1: { text: `1日目(${settings.day1_date})`, color: "#1976d2" },
+      day2: { text: `2日目(${settings.day2_date})`, color: "#e10102" },
+      both: { text: "両日",                          color: "#4caf50" },
+    };
+    const m = map[fd] ?? map["both"];
+    return <span style={{ fontSize: "11px", fontWeight: "bold", color: "white", backgroundColor: m.color, borderRadius: "10px", padding: "2px 8px", marginLeft: "6px" }}>{m.text}</span>;
+  };
+
+  const currentCategory = ENTRY_CATEGORIES.find((c) => c.key === entryCategory);
   if (!authed) return null;
 
   const tabStyle = (t: string): React.CSSProperties => ({
@@ -173,12 +182,12 @@ export default function EventAdminPage() {
     backgroundColor: mainTab === t ? "#fff5f5" : "white",
     color: mainTab === t ? "#e10102" : "#555", fontWeight: mainTab === t ? "bold" : "normal",
   });
-
   const subBtnStyle = (active: boolean): React.CSSProperties => ({
     padding: "8px 14px", fontSize: "13px", borderRadius: "20px", border: "2px solid",
     borderColor: active ? "#e10102" : "#ddd", backgroundColor: active ? "#fff5f5" : "white",
     color: active ? "#e10102" : "#555", cursor: "pointer", fontWeight: active ? "bold" : "normal",
   });
+  const selectStyle: React.CSSProperties = { padding: "10px", fontSize: "14px", borderRadius: "6px", border: "1px solid #ccc", width: "100%" };
 
   return (
     <main style={{ padding: "24px 20px", maxWidth: "560px", margin: "0 auto" }}>
@@ -200,12 +209,15 @@ export default function EventAdminPage() {
             ))}
           </div>
           <div style={{ padding: "16px", border: "1px solid #eee", borderRadius: "10px", marginBottom: "24px", display: "flex", flexDirection: "column", gap: "10px" }}>
-            <input placeholder="名前 *" value={eName} onChange={(e) => setEName(e.target.value)}
-              style={{ padding: "10px", fontSize: "14px", borderRadius: "6px", border: "1px solid #ccc" }} />
-            <input placeholder="出場内容（任意）" value={eDesc} onChange={(e) => setEDesc(e.target.value)}
-              style={{ padding: "10px", fontSize: "14px", borderRadius: "6px", border: "1px solid #ccc" }} />
-            <input placeholder="日時（任意）例: 9月15日 14:00〜" value={eDatetime} onChange={(e) => setEDatetime(e.target.value)}
-              style={{ padding: "10px", fontSize: "14px", borderRadius: "6px", border: "1px solid #ccc" }} />
+            <input placeholder="名前 *" value={eName} onChange={(e) => setEName(e.target.value)} style={{ padding: "10px", fontSize: "14px", borderRadius: "6px", border: "1px solid #ccc" }} />
+            <input placeholder="出場内容（任意）" value={eDesc} onChange={(e) => setEDesc(e.target.value)} style={{ padding: "10px", fontSize: "14px", borderRadius: "6px", border: "1px solid #ccc" }} />
+            <input placeholder="時刻（任意）例: 14:00〜" value={eDatetime} onChange={(e) => setEDatetime(e.target.value)} style={{ padding: "10px", fontSize: "14px", borderRadius: "6px", border: "1px solid #ccc" }} />
+            <label style={{ fontSize: "13px", color: "#555" }}>
+              出演日
+              <select value={eFestivalDay} onChange={(e) => setEFestivalDay(e.target.value as FestivalDay)} style={{ ...selectStyle, marginTop: "4px" }}>
+                {DAY_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+              </select>
+            </label>
             <textarea placeholder="一言コメント（任意）" value={eComment} onChange={(e) => setEComment(e.target.value)} rows={2}
               style={{ padding: "10px", fontSize: "14px", borderRadius: "6px", border: "1px solid #ccc", resize: "vertical", fontFamily: "sans-serif" }} />
             {currentCategory?.hasMembers && (
@@ -221,9 +233,7 @@ export default function EventAdminPage() {
               {eSubmitting ? "追加中..." : "追加"}
             </button>
           </div>
-          <h2 style={{ fontSize: "15px", marginBottom: "12px", borderBottom: "2px solid #e10102", paddingBottom: "6px" }}>
-            {currentCategory?.label} 出場者一覧
-          </h2>
+          <h2 style={{ fontSize: "15px", marginBottom: "12px", borderBottom: "2px solid #e10102", paddingBottom: "6px" }}>{currentCategory?.label} 出場者一覧</h2>
           {entries.length === 0 ? <p style={{ color: "#aaa", fontSize: "13px" }}>まだ登録がありません</p> : (
             <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
               {entries.map((entry) => (
@@ -231,9 +241,10 @@ export default function EventAdminPage() {
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "8px" }}>
                     <div>
                       <span style={{ fontWeight: "bold", fontSize: "15px" }}>{entry.name}</span>
+                      {dayBadge(entry.festival_day)}
                       {entry.description && <span style={{ color: "#888", fontSize: "13px", marginLeft: "8px" }}>{entry.description}</span>}
                       {entry.datetime && <p style={{ fontSize: "12px", color: "#1976d2", margin: "2px 0 0" }}>🕐 {entry.datetime}</p>}
-                      {entry.members  && <p style={{ fontSize: "12px", color: "#555",    margin: "2px 0 0" }}>👥 {entry.members.split("\n").join("、")}</p>}
+                      {entry.members  && <p style={{ fontSize: "12px", color: "#555", margin: "2px 0 0" }}>👥 {entry.members.split("\n").join("、")}</p>}
                     </div>
                     <button onClick={() => deleteEntry(entry.id)} style={{ color: "#f44336", background: "none", border: "none", cursor: "pointer", fontSize: "13px" }}>削除</button>
                   </div>
@@ -269,10 +280,14 @@ export default function EventAdminPage() {
             ))}
           </div>
           <div style={{ padding: "16px", border: "1px solid #eee", borderRadius: "10px", marginBottom: "20px", display: "flex", flexDirection: "column", gap: "10px" }}>
-            <input placeholder="部活名 *" value={pName} onChange={(e) => setPName(e.target.value)}
-              style={{ padding: "10px", fontSize: "14px", borderRadius: "6px", border: "1px solid #ccc" }} />
-            <input placeholder="日時（任意）例: 9月15日 10:00〜11:00" value={pDatetime} onChange={(e) => setPDatetime(e.target.value)}
-              style={{ padding: "10px", fontSize: "14px", borderRadius: "6px", border: "1px solid #ccc" }} />
+            <input placeholder="部活名 *" value={pName} onChange={(e) => setPName(e.target.value)} style={{ padding: "10px", fontSize: "14px", borderRadius: "6px", border: "1px solid #ccc" }} />
+            <input placeholder="時刻（任意）例: 10:00〜11:00" value={pDatetime} onChange={(e) => setPDatetime(e.target.value)} style={{ padding: "10px", fontSize: "14px", borderRadius: "6px", border: "1px solid #ccc" }} />
+            <label style={{ fontSize: "13px", color: "#555" }}>
+              実施日
+              <select value={pFestivalDay} onChange={(e) => setPFestivalDay(e.target.value as FestivalDay)} style={{ ...selectStyle, marginTop: "4px" }}>
+                {DAY_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+              </select>
+            </label>
             <textarea placeholder="一言（任意）" value={pComment} onChange={(e) => setPComment(e.target.value)} rows={2}
               style={{ padding: "10px", fontSize: "14px", borderRadius: "6px", border: "1px solid #ccc", resize: "vertical", fontFamily: "sans-serif" }} />
             <button onClick={addProgram} disabled={pSaving}
@@ -288,9 +303,9 @@ export default function EventAdminPage() {
               {programs.map((p) => (
                 <div key={p.id} style={{ padding: "12px 16px", border: "1px solid #eee", borderRadius: "8px", display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
                   <div>
-                    <p style={{ fontWeight: "bold", fontSize: "14px", margin: 0 }}>{p.name}</p>
+                    <p style={{ fontWeight: "bold", fontSize: "14px", margin: 0 }}>{p.name}{dayBadge(p.festival_day)}</p>
                     {p.datetime && <p style={{ fontSize: "12px", color: "#1976d2", margin: "2px 0 0" }}>🕐 {p.datetime}</p>}
-                    {p.comment  && <p style={{ fontSize: "13px", color: "#666",    margin: "4px 0 0" }}>{p.comment}</p>}
+                    {p.comment  && <p style={{ fontSize: "13px", color: "#666", margin: "4px 0 0" }}>{p.comment}</p>}
                   </div>
                   <button onClick={() => deleteProgram(p.id)} style={{ color: "#f44336", background: "none", border: "none", cursor: "pointer", fontSize: "13px", flexShrink: 0, marginLeft: "8px" }}>削除</button>
                 </div>
@@ -309,8 +324,7 @@ export default function EventAdminPage() {
             ))}
           </div>
           <div style={{ padding: "16px", border: "1px solid #eee", borderRadius: "10px", marginBottom: "24px", display: "flex", flexDirection: "column", gap: "10px" }}>
-            <input placeholder="イベントタイトル *" value={vTitle} onChange={(e) => setVTitle(e.target.value)}
-              style={{ padding: "10px", fontSize: "14px", borderRadius: "6px", border: "1px solid #ccc" }} />
+            <input placeholder="イベントタイトル *" value={vTitle} onChange={(e) => setVTitle(e.target.value)} style={{ padding: "10px", fontSize: "14px", borderRadius: "6px", border: "1px solid #ccc" }} />
             <textarea placeholder="一言・説明（任意）" value={vDescription} onChange={(e) => setVDescription(e.target.value)} rows={2}
               style={{ padding: "10px", fontSize: "14px", borderRadius: "6px", border: "1px solid #ccc", resize: "vertical", fontFamily: "sans-serif" }} />
             <button onClick={addVenueEvent} disabled={vSubmitting}
