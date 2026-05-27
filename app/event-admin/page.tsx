@@ -3,11 +3,13 @@ import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 
 const ENTRY_CATEGORIES = [
-  { key: "nodojiman",          label: "🎤 のど自慢",                hasMembers: false },
-  { key: "coscon_performance", label: "👗 コスコン（パフォーマンス）", hasMembers: true  },
-  { key: "coscon_runway",      label: "🏃 コスコン（ランウェイ）",    hasMembers: true  },
-  { key: "m1",                 label: "🎭 M1",                      hasMembers: false },
-  { key: "live",               label: "🎵 ライブ",                  hasMembers: false },
+  { key: "nodojiman-1",        label: "🎤 のど自慢（1日目）",           hasMembers: false },
+  { key: "nodojiman-2",        label: "🎤 のど自慢（2日目①）",          hasMembers: false },
+  { key: "nodojiman-3",        label: "🎤 のど自慢（2日目②）",          hasMembers: false },
+  { key: "coscon_performance", label: "👗 コスコン（パフォーマンス）",   hasMembers: true  },
+  { key: "coscon_runway",      label: "🏃 コスコン（ランウェイ）",       hasMembers: true  },
+  { key: "m1",                 label: "🎭 M1",                          hasMembers: false },
+  { key: "live",               label: "🎵 ライブ",                      hasMembers: false },
 ];
 
 const PROGRAM_VENUES = [
@@ -22,10 +24,10 @@ const VENUE_KEYS = [
   { key: "library",  label: "📚 図書館" },
 ];
 
-type FestivalDay = "day1" | "day2" | "both";
-type Settings    = { day1_date: string; day2_date: string };
-type Entry       = { id: string; name: string; description: string; comment: string; datetime: string | null; image_url: string | null; members: string | null; festival_day: string; order_num: number };
-type VenueEvent  = { id: string; venue_key: string; title: string; description: string; order_num: number };
+type FestivalDay  = "day1" | "day2" | "both";
+type Settings     = { day1_date: string; day2_date: string };
+type Entry        = { id: string; name: string; description: string; comment: string; datetime: string | null; image_url: string | null; members: string | null; festival_day: string; order_num: number };
+type VenueEvent   = { id: string; venue_key: string; title: string; description: string; order_num: number };
 type VenueProgram = { id: string; venue_key: string; name: string; datetime: string; comment: string; festival_day: string };
 
 export default function EventAdminPage() {
@@ -35,7 +37,7 @@ export default function EventAdminPage() {
   const [settings, setSettings] = useState<Settings>({ day1_date: "1日目", day2_date: "2日目" });
 
   // 出場者管理
-  const [entryCategory, setEntryCategory] = useState("nodojiman");
+  const [entryCategory, setEntryCategory] = useState("nodojiman-1");
   const [entries,       setEntries]       = useState<Entry[]>([]);
   const [eName,         setEName]         = useState("");
   const [eDesc,         setEDesc]         = useState("");
@@ -50,13 +52,13 @@ export default function EventAdminPage() {
   const entryFileRef = useRef<HTMLInputElement>(null);
 
   // 部活動企画管理
-  const [progVenueKey, setProgVenueKey]  = useState("gym");
-  const [programs,     setPrograms]      = useState<VenueProgram[]>([]);
-  const [pName,        setPName]         = useState("");
-  const [pDatetime,    setPDatetime]     = useState("");
-  const [pComment,     setPComment]      = useState("");
-  const [pFestivalDay, setPFestivalDay]  = useState<FestivalDay>("both");
-  const [pSaving,      setPSaving]       = useState(false);
+  const [progVenueKey, setProgVenueKey] = useState("gym");
+  const [programs,     setPrograms]     = useState<VenueProgram[]>([]);
+  const [pName,        setPName]        = useState("");
+  const [pDatetime,    setPDatetime]    = useState("");
+  const [pComment,     setPComment]     = useState("");
+  const [pFestivalDay, setPFestivalDay] = useState<FestivalDay>("both");
+  const [pSaving,      setPSaving]      = useState(false);
 
   // 会場イベント管理
   const [venueKey,     setVenueKey]     = useState("gym");
@@ -69,14 +71,13 @@ export default function EventAdminPage() {
     const auth = document.cookie.split("; ").find((r) => r.startsWith("admin_auth="))?.split("=")[1];
     if (auth !== "1") { router.push("/admin/login"); return; }
     setAuthed(true);
-    // 日程設定を取得してプルダウンのラベルに使う
     fetch("/api/festival-settings", { cache: "no-store" }).then((r) => r.json()).then((d) => {
       if (d.settings) setSettings({ day1_date: d.settings.day1_date || "1日目", day2_date: d.settings.day2_date || "2日目" });
     });
   }, [router]);
 
   useEffect(() => { if (authed && mainTab === "entries")  loadEntries(); },  [entryCategory, authed, mainTab]);
-  useEffect(() => { if (authed && mainTab === "programs") loadPrograms(); }, [progVenueKey, authed, mainTab]);
+  useEffect(() => { if (authed && mainTab === "programs") loadPrograms(); }, [progVenueKey,  authed, mainTab]);
   useEffect(() => { if (authed && mainTab === "venue")    loadVenueEvents(); }, [venueKey, authed, mainTab]);
 
   const loadEntries = async () => {
@@ -183,7 +184,7 @@ export default function EventAdminPage() {
     color: mainTab === t ? "#e10102" : "#555", fontWeight: mainTab === t ? "bold" : "normal",
   });
   const subBtnStyle = (active: boolean): React.CSSProperties => ({
-    padding: "8px 14px", fontSize: "13px", borderRadius: "20px", border: "2px solid",
+    padding: "8px 12px", fontSize: "12px", borderRadius: "16px", border: "2px solid",
     borderColor: active ? "#e10102" : "#ddd", backgroundColor: active ? "#fff5f5" : "white",
     color: active ? "#e10102" : "#555", cursor: "pointer", fontWeight: active ? "bold" : "normal",
   });
@@ -244,7 +245,7 @@ export default function EventAdminPage() {
                       {dayBadge(entry.festival_day)}
                       {entry.description && <span style={{ color: "#888", fontSize: "13px", marginLeft: "8px" }}>{entry.description}</span>}
                       {entry.datetime && <p style={{ fontSize: "12px", color: "#1976d2", margin: "2px 0 0" }}>🕐 {entry.datetime}</p>}
-                      {entry.members  && <p style={{ fontSize: "12px", color: "#555", margin: "2px 0 0" }}>👥 {entry.members.split("\n").join("、")}</p>}
+                      {entry.members  && <p style={{ fontSize: "12px", color: "#555",    margin: "2px 0 0" }}>👥 {entry.members.split("\n").join("、")}</p>}
                     </div>
                     <button onClick={() => deleteEntry(entry.id)} style={{ color: "#f44336", background: "none", border: "none", cursor: "pointer", fontSize: "13px" }}>削除</button>
                   </div>
@@ -305,7 +306,7 @@ export default function EventAdminPage() {
                   <div>
                     <p style={{ fontWeight: "bold", fontSize: "14px", margin: 0 }}>{p.name}{dayBadge(p.festival_day)}</p>
                     {p.datetime && <p style={{ fontSize: "12px", color: "#1976d2", margin: "2px 0 0" }}>🕐 {p.datetime}</p>}
-                    {p.comment  && <p style={{ fontSize: "13px", color: "#666", margin: "4px 0 0" }}>{p.comment}</p>}
+                    {p.comment  && <p style={{ fontSize: "13px", color: "#666",    margin: "4px 0 0" }}>{p.comment}</p>}
                   </div>
                   <button onClick={() => deleteProgram(p.id)} style={{ color: "#f44336", background: "none", border: "none", cursor: "pointer", fontSize: "13px", flexShrink: 0, marginLeft: "8px" }}>削除</button>
                 </div>
