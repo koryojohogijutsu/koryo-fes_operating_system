@@ -6,30 +6,29 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 );
 export async function POST(req: Request) {
-  const { category, name, description, comment, datetime, imageUrl, members } = await req.json();
-  if (!category || !name) {
-    return NextResponse.json({ error: "category と name は必須です" }, { status: 400 });
-  }
+  const { category, name, description, comment, datetime, imageUrl, members, festivalDay } = await req.json();
+  if (!category || !name) return NextResponse.json({ error: "category と name は必須です" }, { status: 400 });
   const { error } = await supabase.from("event_entries").insert({
-    category,
-    name,
-    description: description ?? "",
-    comment:     comment     ?? "",
-    datetime:    datetime    ?? null,
-    image_url:   imageUrl    ?? null,
-    members:     members     ?? null,
-    order_num:   Date.now(),
+    category, name,
+    description:  description  ?? "",
+    comment:      comment      ?? "",
+    datetime:     datetime     ?? null,
+    image_url:    imageUrl     ?? null,
+    members:      members      ?? null,
+    festival_day: festivalDay  ?? "both",
+    order_num:    Date.now(),
   });
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   return NextResponse.json({ success: true });
 }
 export async function PATCH(req: Request) {
-  const { id, comment, datetime, imageUrl, members } = await req.json();
+  const { id, comment, datetime, imageUrl, members, festivalDay } = await req.json();
   if (!id) return NextResponse.json({ error: "id は必須です" }, { status: 400 });
   const updates: Record<string, any> = { comment: comment ?? "" };
-  if (datetime  !== undefined) updates.datetime  = datetime;
-  if (imageUrl  !== undefined) updates.image_url = imageUrl;
-  if (members   !== undefined) updates.members   = members;
+  if (datetime    !== undefined) updates.datetime     = datetime;
+  if (imageUrl    !== undefined) updates.image_url    = imageUrl;
+  if (members     !== undefined) updates.members      = members;
+  if (festivalDay !== undefined) updates.festival_day = festivalDay;
   const { error } = await supabase.from("event_entries").update(updates).eq("id", id);
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   return NextResponse.json({ success: true });
