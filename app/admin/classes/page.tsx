@@ -1,5 +1,5 @@
 "use client";
-import { useRef, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 
 type ClassRow = { id: string; code: string; label: string; comment: string; image_url?: string };
@@ -13,7 +13,6 @@ export default function ClassesAdminPage() {
   const [editingComment, setEditingComment] = useState<{ id: string; value: string } | null>(null);
   const [savingComment,  setSavingComment]  = useState(false);
   const [uploadingId,    setUploadingId]    = useState<string | null>(null);
-  const fileInputRefs = useRef<Record<string, HTMLInputElement | null>>({});
 
   useEffect(() => {
     const auth = document.cookie.split("; ").find((r) => r.startsWith("admin_auth="))?.split("=")[1];
@@ -111,10 +110,16 @@ export default function ClassesAdminPage() {
                 </div>
               )}
               <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                {/* refを使わずonChangeで直接処理 */}
                 <input
                   type="file" accept="image/*"
-                  ref={(el) => { fileInputRefs.current[c.id] = el; }}
-                  onChange={(e) => { const f = e.target.files?.[0]; if (f) uploadImage(c, f); }}
+                  onChange={(e) => {
+                    const f = e.target.files?.[0];
+                    if (f) {
+                      uploadImage(c, f);
+                      e.target.value = ""; // アップロード後にリセット
+                    }
+                  }}
                   style={{ fontSize: "12px", flex: 1 }}
                 />
                 {uploadingId === c.id && <span style={{ fontSize: "12px", color: "#888" }}>アップロード中...</span>}
