@@ -1,7 +1,10 @@
 "use client";
 import { useEffect, useState } from "react";
+import { useVenueAuth } from "@/app/admin/venue/_auth";
+
 const EVENT_KEY   = "coscon_runway";
 const EVENT_LABEL = "コスコン（ランウェイ）";
+
 type VoteResult = { id: string; name: string; count: number; rank: number };
 function assignRanks(items: Omit<VoteResult, "rank">[]): VoteResult[] {
   let rank = 1;
@@ -10,32 +13,40 @@ function assignRanks(items: Omit<VoteResult, "rank">[]): VoteResult[] {
     return { ...item, rank };
   });
 }
+
 export default function EventManagePage() {
+  const authed = useVenueAuth();
   const [isOpen,      setIsOpen]      = useState(false);
   const [voteData,    setVoteData]    = useState<VoteResult[]>([]);
   const [showVotes,   setShowVotes]   = useState(false);
   const [voteLoading, setVoteLoading] = useState(false);
+
   useEffect(() => {
+    if (!authed) return;
     fetch(`/api/event-vote-status?eventKey=${EVENT_KEY}`, { cache: "no-store" })
       .then((r) => r.json()).then((data) => setIsOpen(data.is_open ?? false));
-  }, []);
+  }, [authed]);
+
   const toggleVote = async (open: boolean) => {
     await fetch("/api/event-vote-status", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ eventKey: EVENT_KEY, isOpen: open }) });
     setIsOpen(open);
   };
+
   const fetchVotes = async () => {
     if (showVotes) { setShowVotes(false); return; }
     setVoteLoading(true);
     const res  = await fetch(`/api/event-vote-count?eventKey=${EVENT_KEY}`, { cache: "no-store" });
     const data = await res.json();
     setVoteData(assignRanks(data.results ?? []));
-    setShowVotes(true);
-    setVoteLoading(false);
+    setShowVotes(true); setVoteLoading(false);
   };
+
+  if (!authed) return null;
+
   const maxCount = voteData[0]?.count ?? 1;
   return (
     <main style={{ padding: "20px", maxWidth: "600px", margin: "0 auto" }}>
-      <h1 style={{ fontSize: "20px", marginBottom: "24px" }}>👠 {EVENT_LABEL} 投開票管理</h1>
+      <h1 style={{ fontSize: "20px", marginBottom: "24px" }}>🏃 {EVENT_LABEL} 投開票管理</h1>
       <div style={{ display: "flex", gap: "8px", marginBottom: "12px" }}>
         <button onClick={() => toggleVote(true)}
           style={{ flex: 1, padding: "10px", borderRadius: "8px", border: "none", cursor: "pointer", backgroundColor: isOpen ? "#4caf50" : "#eee", color: isOpen ? "white" : "#888", fontWeight: "bold" }}>
