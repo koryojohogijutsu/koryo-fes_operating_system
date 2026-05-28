@@ -1,5 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
+import { useVenueAuth } from "@/app/admin/venue/_auth";
+
 const VENUE_KEY = "kinenkan";
 const M1_KEY    = "m1";
 const CROWD_LEVELS = [
@@ -17,6 +19,7 @@ function assignRanks(items: Omit<VoteResult, "rank">[]): VoteResult[] {
   });
 }
 export default function KinenkanManagePage() {
+  const authed = useVenueAuth();
   const [crowdLevel,  setCrowdLevel]  = useState(0);
   const [saving,      setSaving]      = useState(false);
   const [saved,       setSaved]       = useState(false);
@@ -24,20 +27,21 @@ export default function KinenkanManagePage() {
   const [voteData,    setVoteData]    = useState<VoteResult[]>([]);
   const [showVotes,   setShowVotes]   = useState(false);
   const [voteLoading, setVoteLoading] = useState(false);
+
   useEffect(() => {
+    if (!authed) return;
     fetch("/api/crowd?type=venue", { cache: "no-store" }).then((r) => r.json()).then((data) => {
       const venue = (data.venues ?? []).find((v: any) => v.venue_key === VENUE_KEY);
       if (venue) setCrowdLevel(venue.level);
     });
     fetch(`/api/event-vote-status?eventKey=${M1_KEY}`, { cache: "no-store" })
       .then((r) => r.json()).then((data) => setIsOpen(data.is_open ?? false));
-  }, []);
+  }, [authed]);
+
   const updateCrowd = async (level: number) => {
     setSaving(true);
     await fetch("/api/crowd", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ venueKey: VENUE_KEY, level }) });
-    setCrowdLevel(level);
-    setSaving(false);
-    setSaved(true);
+    setCrowdLevel(level); setSaving(false); setSaved(true);
     setTimeout(() => setSaved(false), 2000);
   };
   const toggleVote = async (open: boolean) => {
@@ -50,14 +54,15 @@ export default function KinenkanManagePage() {
     const res  = await fetch(`/api/event-vote-count?eventKey=${M1_KEY}`, { cache: "no-store" });
     const data = await res.json();
     setVoteData(assignRanks(data.results ?? []));
-    setShowVotes(true);
-    setVoteLoading(false);
+    setShowVotes(true); setVoteLoading(false);
   };
+
+  if (!authed) return null;
+
   const maxCount = voteData[0]?.count ?? 1;
   return (
     <main style={{ padding: "20px", maxWidth: "600px", margin: "0 auto" }}>
       <h1 style={{ fontSize: "20px", marginBottom: "24px" }}>🏛️ 記念館管理</h1>
-      {/* 混雑状況 */}
       <section style={{ marginBottom: "32px", padding: "16px", border: "1px solid #ddd", borderRadius: "10px" }}>
         <h2 style={{ fontSize: "16px", marginBottom: "12px", borderBottom: "2px solid #e10102", paddingBottom: "6px" }}>混雑状況</h2>
         <div style={{ marginBottom: "16px", padding: "16px", borderRadius: "10px", backgroundColor: CROWD_LEVELS[crowdLevel].bg, border: `2px solid ${CROWD_LEVELS[crowdLevel].color}`, textAlign: "center" }}>
@@ -74,18 +79,11 @@ export default function KinenkanManagePage() {
           ))}
         </div>
       </section>
-      {/* M1 */}
       <section style={{ padding: "16px", border: "1px solid #ddd", borderRadius: "10px" }}>
         <h2 style={{ fontSize: "16px", marginBottom: "16px", borderBottom: "2px solid #e10102", paddingBottom: "6px" }}>🎭 M1</h2>
         <div style={{ display: "flex", gap: "8px", marginBottom: "12px" }}>
-          <button onClick={() => toggleVote(true)}
-            style={{ flex: 1, padding: "10px", borderRadius: "8px", border: "none", cursor: "pointer", backgroundColor: isOpen ? "#4caf50" : "#eee", color: isOpen ? "white" : "#888", fontWeight: "bold" }}>
-            ▶ 投票開始
-          </button>
-          <button onClick={() => toggleVote(false)}
-            style={{ flex: 1, padding: "10px", borderRadius: "8px", border: "none", cursor: "pointer", backgroundColor: !isOpen ? "#f44336" : "#eee", color: !isOpen ? "white" : "#888", fontWeight: "bold" }}>
-            ■ 投票締切
-          </button>
+          <button onClick={() => toggleVote(true)} style={{ flex: 1, padding: "10px", borderRadius: "8px", border: "none", cursor: "pointer", backgroundColor: isOpen ? "#4caf50" : "#eee", color: isOpen ? "white" : "#888", fontWeight: "bold" }}>▶ 投票開始</button>
+          <button onClick={() => toggleVote(false)} style={{ flex: 1, padding: "10px", borderRadius: "8px", border: "none", cursor: "pointer", backgroundColor: !isOpen ? "#f44336" : "#eee", color: !isOpen ? "white" : "#888", fontWeight: "bold" }}>■ 投票締切</button>
         </div>
         <button onClick={fetchVotes} disabled={voteLoading}
           style={{ width: "100%", padding: "10px", fontSize: "13px", borderRadius: "8px", border: "1px solid #e10102", backgroundColor: "white", color: "#e10102", cursor: "pointer", marginBottom: "8px" }}>
@@ -93,15 +91,11 @@ export default function KinenkanManagePage() {
         </button>
         {showVotes && (
           <div style={{ backgroundColor: "#fafafa", borderRadius: "8px", padding: "12px" }}>
-            {voteData.length === 0 ? (
-              <p style={{ color: "#aaa", fontSize: "13px", margin: 0 }}>まだ投票がありません</p>
-            ) : (
+            {voteData.length === 0 ? <p style={{ color: "#aaa", fontSize: "13px", margin: 0 }}>まだ投票がありません</p> : (
               <ul style={{ listStyle: "none", padding: 0, margin: 0 }}>
                 {voteData.map((r) => (
                   <li key={r.id} style={{ display: "flex", alignItems: "center", gap: "10px", padding: "8px 0", borderBottom: "1px solid #eee" }}>
-                    <span style={{ width: "36px", height: "24px", borderRadius: "12px", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "11px", fontWeight: "bold", backgroundColor: r.rank === 1 ? "#e10102" : r.rank === 2 ? "#888" : r.rank === 3 ? "#b87333" : "#eee", color: r.rank <= 3 ? "white" : "#555", flexShrink: 0 }}>
-                      {r.rank}位
-                    </span>
+                    <span style={{ width: "36px", height: "24px", borderRadius: "12px", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "11px", fontWeight: "bold", backgroundColor: r.rank === 1 ? "#e10102" : r.rank === 2 ? "#888" : r.rank === 3 ? "#b87333" : "#eee", color: r.rank <= 3 ? "white" : "#555", flexShrink: 0 }}>{r.rank}位</span>
                     <span style={{ flex: 1, fontSize: "14px" }}>{r.name}</span>
                     <div style={{ width: "80px", display: "flex", alignItems: "center", gap: "4px" }}>
                       <div style={{ flex: 1, height: "6px", borderRadius: "3px", backgroundColor: "#eee", overflow: "hidden" }}>
