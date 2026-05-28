@@ -1,5 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
+import { useVenueAuth } from "@/app/admin/venue/_auth";
+
 const VENUE_KEY   = "quiz";
 const VENUE_LABEL = "クイズ研究会";
 const CROWD_LEVELS = [
@@ -8,24 +10,30 @@ const CROWD_LEVELS = [
   { level: 2, label: "混雑",       color: "#f44336", bg: "#fce4ec" },
   { level: 3, label: "大変混雑",   color: "#7b1fa2", bg: "#f3e5f5" },
 ];
+
 export default function VenueManagePage() {
+  const authed = useVenueAuth();
   const [crowdLevel, setCrowdLevel] = useState(0);
   const [saving,     setSaving]     = useState(false);
   const [saved,      setSaved]      = useState(false);
+
   useEffect(() => {
+    if (!authed) return;
     fetch("/api/crowd?type=venue", { cache: "no-store" }).then((r) => r.json()).then((data) => {
       const venue = (data.venues ?? []).find((v: any) => v.venue_key === VENUE_KEY);
       if (venue) setCrowdLevel(venue.level);
     });
-  }, []);
+  }, [authed]);
+
   const updateCrowd = async (level: number) => {
     setSaving(true);
     await fetch("/api/crowd", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ venueKey: VENUE_KEY, level }) });
-    setCrowdLevel(level);
-    setSaving(false);
-    setSaved(true);
+    setCrowdLevel(level); setSaving(false); setSaved(true);
     setTimeout(() => setSaved(false), 2000);
   };
+
+  if (!authed) return null;
+
   const current = CROWD_LEVELS[crowdLevel];
   return (
     <main style={{ padding: "20px", maxWidth: "480px", margin: "0 auto" }}>
