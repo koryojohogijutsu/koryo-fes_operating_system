@@ -1,17 +1,14 @@
 "use client";
 import { useEffect, useState } from "react";
-
-const EVENT_KEY_BASE = "nodojiman";
-const EVENT_LABEL    = "のど自慢";
+import { useVenueAuth } from "@/app/admin/venue/_auth";
 
 const SUBS = [
-  { key: "nodojiman-1", label: "１日目" },
-  { key: "nodojiman-2", label: "２日目①" },
-  { key: "nodojiman-3", label: "２日目②" },
+  { key: "nodojiman-1", label: "1日目" },
+  { key: "nodojiman-2", label: "2日目①" },
+  { key: "nodojiman-3", label: "2日目②" },
 ];
 
 type VoteResult = { id: string; name: string; count: number; rank: number };
-
 function assignRanks(items: Omit<VoteResult, "rank">[]): VoteResult[] {
   let rank = 1;
   return items.map((item, i, arr) => {
@@ -21,19 +18,21 @@ function assignRanks(items: Omit<VoteResult, "rank">[]): VoteResult[] {
 }
 
 export default function EventManageSubPage() {
+  const authed = useVenueAuth();
   const [selectedSub, setSelectedSub] = useState(SUBS[0].key);
-  const [statuses,    setStatuses]    = useState<Record<string, boolean>>({} );
-  const [votes,       setVotes]       = useState<Record<string, VoteResult[]>>({} );
-  const [showVotes,   setShowVotes]   = useState<Record<string, boolean>>({} );
-  const [voteLoading, setVoteLoading] = useState<Record<string, boolean>>({} );
+  const [statuses,    setStatuses]    = useState<Record<string, boolean>>({});
+  const [votes,       setVotes]       = useState<Record<string, VoteResult[]>>({});
+  const [showVotes,   setShowVotes]   = useState<Record<string, boolean>>({});
+  const [voteLoading, setVoteLoading] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
+    if (!authed) return;
     Promise.all(SUBS.map(async (s) => {
       const res  = await fetch(`/api/event-vote-status?eventKey=${s.key}`, { cache: "no-store" });
       const data = await res.json();
       return [s.key, data.is_open ?? false] as [string, boolean];
     })).then((entries) => setStatuses(Object.fromEntries(entries)));
-  }, []);
+  }, [authed]);
 
   const toggleVote = async (key: string, open: boolean) => {
     await fetch("/api/event-vote-status", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ eventKey: key, isOpen: open }) });
@@ -50,21 +49,21 @@ export default function EventManageSubPage() {
     setVoteLoading((prev) => ({ ...prev, [key]: false }));
   };
 
+  if (!authed) return null;
+
   const isOpen   = statuses[selectedSub] ?? false;
   const voteData = votes[selectedSub]    ?? [];
   const maxCount = voteData[0]?.count    ?? 1;
 
   return (
     <main style={{ padding: "20px", maxWidth: "600px", margin: "0 auto" }}>
-      <h1 style={{ fontSize: "20px", marginBottom: "24px" }}>{EVENT_LABEL} 投開票管理</h1>
-
+      <h1 style={{ fontSize: "20px", marginBottom: "24px" }}>🎤 のど自慢 投開票管理</h1>
       <div style={{ marginBottom: "12px" }}>
         <select value={selectedSub} onChange={(e) => setSelectedSub(e.target.value)}
           style={{ padding: "8px 12px", fontSize: "14px", borderRadius: "8px", border: "1px solid #ddd", width: "100%", cursor: "pointer" }}>
           {SUBS.map((s) => <option key={s.key} value={s.key}>{s.label}</option>)}
         </select>
       </div>
-
       <div style={{ display: "flex", gap: "8px", marginBottom: "12px" }}>
         <button onClick={() => toggleVote(selectedSub, true)}
           style={{ flex: 1, padding: "10px", borderRadius: "8px", border: "none", cursor: "pointer", backgroundColor: isOpen ? "#4caf50" : "#eee", color: isOpen ? "white" : "#888", fontWeight: "bold" }}>
@@ -75,12 +74,10 @@ export default function EventManageSubPage() {
           ■ 投票締切
         </button>
       </div>
-
       <button onClick={() => fetchVotes(selectedSub)} disabled={voteLoading[selectedSub]}
         style={{ width: "100%", padding: "10px", fontSize: "13px", borderRadius: "8px", border: "1px solid #e10102", backgroundColor: "white", color: "#e10102", cursor: "pointer", marginBottom: "8px" }}>
         {voteLoading[selectedSub] ? "取得中..." : showVotes[selectedSub] ? "📊 得票数を閉じる" : "📊 得票数を表示"}
       </button>
-
       {showVotes[selectedSub] && (
         <div style={{ backgroundColor: "#fafafa", borderRadius: "8px", padding: "12px" }}>
           {voteData.length === 0 ? (
