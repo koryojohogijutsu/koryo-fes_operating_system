@@ -1,8 +1,8 @@
 "use client";
 import { useEffect, useState } from "react";
+import { useVenueAuth } from "@/app/admin/venue/_auth";
 
 const VENUE_KEY = "gym";
-
 const CROWD_LEVELS = [
   { level: 0, label: "混雑なし",   color: "#4caf50", bg: "#f1f8e9" },
   { level: 1, label: "やや混雑",   color: "#ff9800", bg: "#fff8e1" },
@@ -11,39 +11,38 @@ const CROWD_LEVELS = [
 ];
 
 export default function GymManagePage() {
+  const authed = useVenueAuth();
   const [crowdLevel, setCrowdLevel] = useState(0);
   const [saving,     setSaving]     = useState(false);
   const [saved,      setSaved]      = useState(false);
 
   useEffect(() => {
+    if (!authed) return;
     fetch("/api/crowd?type=venue", { cache: "no-store" }).then((r) => r.json()).then((data) => {
       const venue = (data.venues ?? []).find((v: any) => v.venue_key === VENUE_KEY);
       if (venue) setCrowdLevel(venue.level);
     });
-  }, []);
+  }, [authed]);
 
   const updateCrowd = async (level: number) => {
     setSaving(true);
     await fetch("/api/crowd", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ venueKey: VENUE_KEY, level }) });
-    setCrowdLevel(level);
-    setSaving(false);
-    setSaved(true);
+    setCrowdLevel(level); setSaving(false); setSaved(true);
     setTimeout(() => setSaved(false), 2000);
   };
 
-  const current = CROWD_LEVELS[crowdLevel];
+  if (!authed) return null;
 
+  const current = CROWD_LEVELS[crowdLevel];
   return (
     <main style={{ padding: "20px", maxWidth: "480px", margin: "0 auto" }}>
       <h1 style={{ fontSize: "20px", marginBottom: "8px" }}>🏟️ 体育館管理</h1>
       <p style={{ color: "#888", fontSize: "13px", marginBottom: "24px" }}>混雑状況を手動で設定します</p>
-
       <div style={{ marginBottom: "24px", padding: "20px", borderRadius: "10px", backgroundColor: current.bg, border: `2px solid ${current.color}`, textAlign: "center" }}>
         <p style={{ fontSize: "13px", color: "#888", marginBottom: "4px" }}>現在の混雑状況</p>
         <p style={{ fontSize: "24px", fontWeight: "bold", color: current.color }}>{current.label}</p>
         {saved && <p style={{ fontSize: "12px", color: "#4caf50", marginTop: "4px" }}>✅ 保存しました</p>}
       </div>
-
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px", marginBottom: "32px" }}>
         {CROWD_LEVELS.map((cl) => (
           <button key={cl.level} onClick={() => updateCrowd(cl.level)} disabled={saving}
@@ -53,7 +52,16 @@ export default function GymManagePage() {
           </button>
         ))}
       </div>
-
+      <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+        <a href="/admin/venue/gym/nodojiman"          style={linkStyle}>🎤 のど自慢 投開票管理</a>
+        <a href="/admin/venue/gym/coscon_performance" style={linkStyle}>👗 コスコン（パフォーマンス）投開票管理</a>
+        <a href="/admin/venue/gym/coscon_runway"      style={linkStyle}>🏃 コスコン（ランウェイ）投開票管理</a>
+      </div>
     </main>
   );
 }
+const linkStyle: React.CSSProperties = {
+  display: "block", padding: "14px 16px", borderRadius: "8px",
+  border: "1px solid #ddd", textDecoration: "none", color: "#333",
+  fontSize: "14px", backgroundColor: "white", textAlign: "center",
+};
