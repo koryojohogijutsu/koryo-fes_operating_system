@@ -9,7 +9,6 @@ const CROWD_LEVELS = [
   { level: 2, label: "混雑",       color: "#f44336", bg: "#fce4ec" },
   { level: 3, label: "大変混雑",   color: "#7b1fa2", bg: "#f3e5f5" },
 ];
-
 export default function GymManagePage() {
   const authed = useVenueAuth();
   const [crowdLevel, setCrowdLevel] = useState(0);
@@ -43,7 +42,7 @@ export default function GymManagePage() {
         <p style={{ fontSize: "24px", fontWeight: "bold", color: current.color }}>{current.label}</p>
         {saved && <p style={{ fontSize: "12px", color: "#4caf50", marginTop: "4px" }}>✅ 保存しました</p>}
       </div>
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px", marginBottom: "32px" }}>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px" }}>
         {CROWD_LEVELS.map((cl) => (
           <button key={cl.level} onClick={() => updateCrowd(cl.level)} disabled={saving}
             style={{ padding: "16px", borderRadius: "10px", fontSize: "15px", fontWeight: "bold", cursor: "pointer", border: crowdLevel === cl.level ? `3px solid ${cl.color}` : "2px solid #eee", backgroundColor: crowdLevel === cl.level ? cl.bg : "white", color: crowdLevel === cl.level ? cl.color : "#888" }}>
@@ -52,16 +51,6 @@ export default function GymManagePage() {
           </button>
         ))}
       </div>
-      <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
-        <a href="/admin/venue/gym/nodojiman"          style={linkStyle}>🎤 のど自慢 投開票管理</a>
-        <a href="/admin/venue/gym/coscon_performance" style={linkStyle}>👗 コスコン（パフォーマンス）投開票管理</a>
-        <a href="/admin/venue/gym/coscon_runway"      style={linkStyle}>🏃 コスコン（ランウェイ）投開票管理</a>
-      </div>
     </main>
   );
 }
-const linkStyle: React.CSSProperties = {
-  display: "block", padding: "14px 16px", borderRadius: "8px",
-  border: "1px solid #ddd", textDecoration: "none", color: "#333",
-  fontSize: "14px", backgroundColor: "white", textAlign: "center",
-};
