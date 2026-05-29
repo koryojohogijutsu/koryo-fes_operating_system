@@ -68,12 +68,11 @@ export default function Home() {
 function HomeInner() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const [status,        setStatus]        = useState<Status>({ state: "loading" });
-  const [subModal,      setSubModal]      = useState(false);
+  const [status,     setStatus]     = useState<Status>({ state: "loading" });
+  const [subModal,   setSubModal]   = useState(false);
+  const [clearCount, setClearCount] = useState<number | null>(null);
   const { banners, dismissBanner } = useInfoNotifications();
-  const [clearCount,    setClearCount]    = useState<number | null>(null);
 
-  // 謎解きコンプリート者数を取得
   useEffect(() => {
     fetch("/api/puzzle-clear?count=1", { cache: "no-store" })
       .then((r) => r.json())
@@ -82,7 +81,7 @@ function HomeInner() {
   }, []);
 
   useEffect(() => {
-    let rawId = searchParams.get("id");
+    let rawId   = searchParams.get("id");
     let cdParam = searchParams.get("cd");
 
     if (rawId && rawId.includes(",cd=")) {
@@ -105,9 +104,9 @@ function HomeInner() {
       return;
     }
 
-    const isStudent = cdParam.endsWith("m$");
-    const cdValue   = isStudent ? cdParam.slice(0, -2) : cdParam;
-    const salt      = isStudent ? "akagioroshi" : "kakouryubu";
+    const isStudent    = cdParam.endsWith("m$");
+    const cdValue      = isStudent ? cdParam.slice(0, -2) : cdParam;
+    const salt         = isStudent ? "akagioroshi" : "kakouryubu";
     const expectedHash = md5(`${idParam}${salt}`);
 
     if (expectedHash !== cdValue) {
@@ -116,7 +115,7 @@ function HomeInner() {
     }
 
     const visitorId = cdValue;
-    const expires = new Date();
+    const expires   = new Date();
     expires.setDate(expires.getDate() + 180);
     document.cookie = `visitor_id=${visitorId}; path=/; expires=${expires.toUTCString()}; SameSite=Lax`;
     document.cookie = `visitor_type=${isStudent ? "student" : "paper"}; path=/; expires=${expires.toUTCString()}; SameSite=Lax`;
@@ -150,14 +149,7 @@ function HomeInner() {
         <h1 style={{ fontSize:"24px", marginBottom:"4px", marginTop:"8px" }}>蛟龍祭 場内サイト</h1>
         <p style={{ color:"#888", fontSize:"13px", marginBottom:"24px" }}>{typeLabel}</p>
 
-        {/* 謎解きコンプリート者数バッジ */}
-        {clearCount !== null && (
-          <div style={{ marginBottom:"20px", display:"inline-flex", alignItems:"center", gap:"6px", backgroundColor:"#fff8e1", border:"1px solid #ffe082", borderRadius:"20px", padding:"6px 16px", fontSize:"13px", color:"#b8860b" }}>
-            <span>🏆</span>
-            <span>謎解きコンプリート: <strong>{clearCount}人</strong></span>
-          </div>
-        )}
-
+        {/* メインボタン群 */}
         <div style={{ display:"flex", flexDirection:"column", gap:"14px" }}>
           <Link href="/enter"
             style={{ padding:"18px", fontSize:"17px", cursor:"pointer", backgroundColor:"#e10102", color:"white", border:"none", borderRadius:"10px", textDecoration:"none", display:"block" }}>
@@ -185,7 +177,15 @@ function HomeInner() {
           </Link>
         </div>
 
-        <div style={{ marginTop:"40px" }}>
+        {/* 謎解きコンプリート者数（ボタン群の下・管理者ログインの上） */}
+        {clearCount !== null && clearCount > 0 && (
+          <div style={{ marginTop:"24px", display:"inline-flex", alignItems:"center", gap:"6px", backgroundColor:"#fff8e1", border:"1px solid #ffe082", borderRadius:"20px", padding:"8px 20px", fontSize:"13px", color:"#b8860b" }}>
+            <span>🏆</span>
+            <span>謎解きコンプリート: <strong>{clearCount}人</strong></span>
+          </div>
+        )}
+
+        <div style={{ marginTop:"24px" }}>
           <a href="/admin" style={{ fontSize:"12px", color:"#ccc", textDecoration:"none" }}>管理者ログイン</a>
         </div>
         <p style={{ marginTop:"16px", fontSize:"11px", color:"#ccc", textAlign:"center" }}>©Koryo Festival Committee　　All Rights Reserved.</p>
@@ -202,12 +202,11 @@ function HomeInner() {
               {[
                 { label:"📋 履歴を見る", path:"/history" },
                 { label:"🎇 ペンライト",  path:"/penlight" },
-                { label:"📍 マップ", path:"/map" },
+                { label:"📍 マップ",      path:"/map" },
               ].map((item) => (
                 <button key={item.label}
-                  onClick={() => { if (item.path) { router.push(item.path); setSubModal(false); } }}
-                  disabled={!item.path}
-                  style={{ padding:"14px 16px", fontSize:"15px", cursor:item.path?"pointer":"not-allowed", backgroundColor:"white", color:item.path?"#333":"#aaa", border:"1px solid #eee", borderRadius:"8px", textAlign:"left" }}>
+                  onClick={() => { router.push(item.path); setSubModal(false); }}
+                  style={{ padding:"14px 16px", fontSize:"15px", cursor:"pointer", backgroundColor:"white", color:"#333", border:"1px solid #eee", borderRadius:"8px", textAlign:"left" }}>
                   {item.label}
                 </button>
               ))}
