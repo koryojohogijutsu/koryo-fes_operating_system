@@ -3,7 +3,6 @@ import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 
-// 日時・内容を持つピン
 const PIN_INFO_VENUES = [
   { key: "science", label: "🔬 科学物理部" },
   { key: "tetsudo", label: "🚃 鉄道研究部" },
@@ -22,42 +21,49 @@ const MENU_VENUES = [
   { key: "mockstore",    label: "🛒 模擬店" },
 ];
 
-type LibClub  = { id: string; name: string; comment: string };
-type MenuItem = { id: string; venue_key: string; title: string; description: string; image_url: string | null; price: number | null };
+type LibClub    = { id: string; name: string; comment: string };
+type MenuItem   = { id: string; venue_key: string; title: string; description: string; image_url: string | null; price: number | null };
+type VenueInfo  = { venue_key: string; title: string; description: string };
 
 export default function PinContentPage() {
   const router = useRouter();
   const [authed, setAuthed] = useState(false);
   const [tab,    setTab]    = useState<"pin" | "doso" | "library" | "menu">("pin");
 
-  // --- ピン情報 ---
+  // ピン情報
   const [pinVenueKey, setPinVenueKey] = useState(PIN_INFO_VENUES[0].key);
   const [pinDatetime, setPinDatetime] = useState("");
   const [pinContent,  setPinContent]  = useState("");
   const [pinSaving,   setPinSaving]   = useState(false);
   const [pinSaved,    setPinSaved]    = useState(false);
 
-  // --- 同窓会 ---
+  // 同窓会
   const [dosoTitle,    setDosoTitle]    = useState("");
   const [dosoDatetime, setDosoDatetime] = useState("");
   const [dosoContent,  setDosoContent]  = useState("");
   const [dosoSaving,   setDosoSaving]   = useState(false);
   const [dosoSaved,    setDosoSaved]    = useState(false);
 
-  // --- 図書館 ---
+  // 図書館
   const [libClubs,   setLibClubs]   = useState<LibClub[]>([]);
   const [libName,    setLibName]    = useState("");
   const [libComment, setLibComment] = useState("");
   const [libSaving,  setLibSaving]  = useState(false);
 
-  // --- メニュー ---
-  const [menuVenueKey, setMenuVenueKey] = useState(MENU_VENUES[0].key);
-  const [menuItems,    setMenuItems]    = useState<MenuItem[]>([]);
-  const [mTitle,       setMTitle]       = useState("");
-  const [mDescription, setMDescription] = useState("");
-  const [mPrice,       setMPrice]       = useState("");
-  const [mImage,       setMImage]       = useState<File | null>(null);
-  const [mSaving,      setMSaving]      = useState(false);
+  // メニュー
+  const [menuVenueKey,   setMenuVenueKey]   = useState(MENU_VENUES[0].key);
+  const [menuItems,      setMenuItems]      = useState<MenuItem[]>([]);
+  const [venueInfos,     setVenueInfos]     = useState<Record<string, VenueInfo>>({});
+  const [mTitle,         setMTitle]         = useState("");
+  const [mDescription,   setMDescription]   = useState("");
+  const [mPrice,         setMPrice]         = useState("");
+  const [mImage,         setMImage]         = useState<File | null>(null);
+  const [mSaving,        setMSaving]        = useState(false);
+  // 会場ヘッダー編集
+  const [vInfoTitle,     setVInfoTitle]     = useState("");
+  const [vInfoDesc,      setVInfoDesc]      = useState("");
+  const [vInfoSaving,    setVInfoSaving]    = useState(false);
+  const [vInfoSaved,     setVInfoSaved]     = useState(false);
   const menuFileRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -69,8 +75,7 @@ export default function PinContentPage() {
   useEffect(() => {
     if (!authed || tab !== "pin") return;
     fetch(`/api/pin-info?venueKey=${pinVenueKey}`, { cache: "no-store" })
-      .then((r) => r.json())
-      .then((d) => {
+      .then((r) => r.json()).then((d) => {
         const item = d.items?.[0];
         setPinDatetime(item?.datetime ?? "");
         setPinContent(item?.content  ?? "");
@@ -93,8 +98,19 @@ export default function PinContentPage() {
 
   useEffect(() => {
     if (!authed || tab !== "menu") return;
-    fetch(`/api/menu-items?venueKey=${menuVenueKey}`, { cache: "no-store" }).then((r) => r.json()).then((d) => setMenuItems(d.items ?? []));
+    loadMenuData();
   }, [authed, tab, menuVenueKey]);
+
+  const loadMenuData = async () => {
+    const [itemsRes, infoRes] = await Promise.all([
+      fetch(`/api/menu-items?venueKey=${menuVenueKey}`, { cache: "no-store" }).then((r) => r.json()),
+      fetch(`/api/menu-items?type=info&venueKey=${menuVenueKey}`, { cache: "no-store" }).then((r) => r.json()),
+    ]);
+    setMenuItems(itemsRes.items ?? []);
+    const info: VenueInfo | undefined = (infoRes.infos ?? [])[0];
+    setVInfoTitle(info?.title       ?? "");
+    setVInfoDesc(info?.description  ?? "");
+  };
 
   const savePinInfo = async () => {
     setPinSaving(true);
@@ -124,24 +140,27 @@ export default function PinContentPage() {
     setLibClubs((prev) => prev.filter((c) => c.id !== id));
   };
 
+  const saveVenueInfo = async () => {
+    setVInfoSaving(true);
+    await fetch("/api/menu-items", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ type: "info", venueKey: menuVenueKey, title: vInfoTitle, description: vInfoDesc }) });
+    setVInfoSaving(false); setVInfoSaved(true); setTimeout(() => setVInfoSaved(false), 2000);
+  };
+
   const addMenuItem = async () => {
     if (!mTitle) { alert("タイトルを入力してください"); return; }
     setMSaving(true);
     let imageUrl: string | null = null;
     if (mImage) {
       const fd = new FormData();
-      fd.append("file",   mImage);
-      fd.append("bucket", "menu-items");
-      fd.append("path",   `${menuVenueKey}/${Date.now()}.${mImage.name.split(".").pop()}`);
-      const r = await fetch("/api/upload", { method: "POST", body: fd });
-      imageUrl = (await r.json()).url ?? null;
+      fd.append("file", mImage); fd.append("bucket", "menu-items");
+      fd.append("path", `${menuVenueKey}/${Date.now()}.${mImage.name.split(".").pop()}`);
+      imageUrl = (await fetch("/api/upload", { method: "POST", body: fd }).then((r) => r.json())).url ?? null;
     }
     const res = await fetch("/api/menu-items", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ venueKey: menuVenueKey, title: mTitle, description: mDescription, imageUrl, price: mPrice ? Number(mPrice) : null }) });
     if (res.ok) {
       setMTitle(""); setMDescription(""); setMPrice(""); setMImage(null);
       if (menuFileRef.current) menuFileRef.current.value = "";
-      const d = await fetch(`/api/menu-items?venueKey=${menuVenueKey}`, { cache: "no-store" }).then((r) => r.json());
-      setMenuItems(d.items ?? []);
+      await loadMenuData();
     } else { alert("エラー: " + (await res.json()).error); }
     setMSaving(false);
   };
@@ -160,7 +179,6 @@ export default function PinContentPage() {
     backgroundColor: tab === t ? "#fff5f5" : "white",
     color: tab === t ? "#e10102" : "#555", fontWeight: tab === t ? "bold" : "normal",
   });
-
   const inputStyle: React.CSSProperties = { display: "block", width: "100%", marginTop: "4px", padding: "10px", fontSize: "14px", borderRadius: "6px", border: "1px solid #ccc", boxSizing: "border-box" };
   const textareaStyle: React.CSSProperties = { ...inputStyle, resize: "vertical", fontFamily: "sans-serif" };
 
@@ -176,7 +194,7 @@ export default function PinContentPage() {
         <button onClick={() => setTab("menu")}    style={tabStyle("menu")}>メニュー</button>
       </div>
 
-      {/* ── 部活・企画 ── */}
+      {/* 部活・企画 */}
       {tab === "pin" && (
         <>
           <div style={{ display: "flex", flexWrap: "wrap", gap: "6px", marginBottom: "16px" }}>
@@ -188,14 +206,8 @@ export default function PinContentPage() {
             ))}
           </div>
           <div style={{ display: "flex", flexDirection: "column", gap: "12px", marginBottom: "16px" }}>
-            <label style={{ fontSize: "13px", color: "#555" }}>
-              日時
-              <input value={pinDatetime} onChange={(e) => setPinDatetime(e.target.value)} placeholder="例: 9月15日 10:00〜12:00" style={inputStyle} />
-            </label>
-            <label style={{ fontSize: "13px", color: "#555" }}>
-              内容
-              <textarea value={pinContent} onChange={(e) => setPinContent(e.target.value)} rows={4} placeholder="企画・展示の内容や説明" style={textareaStyle} />
-            </label>
+            <label style={{ fontSize: "13px", color: "#555" }}>日時<input value={pinDatetime} onChange={(e) => setPinDatetime(e.target.value)} placeholder="例: 9月15日 10:00〜12:00" style={inputStyle} /></label>
+            <label style={{ fontSize: "13px", color: "#555" }}>内容<textarea value={pinContent} onChange={(e) => setPinContent(e.target.value)} rows={4} placeholder="企画・展示の内容や説明" style={textareaStyle} /></label>
           </div>
           <button onClick={savePinInfo} disabled={pinSaving}
             style={{ width: "100%", padding: "12px", fontSize: "14px", cursor: "pointer", backgroundColor: pinSaved ? "#4caf50" : "#e10102", color: "white", border: "none", borderRadius: "8px" }}>
@@ -204,7 +216,7 @@ export default function PinContentPage() {
         </>
       )}
 
-      {/* ── 同窓会 ── */}
+      {/* 同窓会 */}
       {tab === "doso" && (
         <>
           <div style={{ display: "flex", flexDirection: "column", gap: "12px", marginBottom: "16px" }}>
@@ -219,7 +231,7 @@ export default function PinContentPage() {
         </>
       )}
 
-      {/* ── 図書館 ── */}
+      {/* 図書館 */}
       {tab === "library" && (
         <>
           <div style={{ display: "flex", flexDirection: "column", gap: "10px", padding: "16px", border: "1px solid #eee", borderRadius: "10px", marginBottom: "20px" }}>
@@ -245,10 +257,10 @@ export default function PinContentPage() {
         </>
       )}
 
-      {/* ── メニュー ── */}
+      {/* メニュー */}
       {tab === "menu" && (
         <>
-          <div style={{ display: "flex", gap: "6px", marginBottom: "16px" }}>
+          <div style={{ display: "flex", gap: "6px", marginBottom: "20px" }}>
             {MENU_VENUES.map((v) => (
               <button key={v.key} onClick={() => setMenuVenueKey(v.key)}
                 style={{ flex: 1, padding: "8px", fontSize: "13px", borderRadius: "8px", border: "2px solid", borderColor: menuVenueKey === v.key ? "#e10102" : "#ddd", backgroundColor: menuVenueKey === v.key ? "#fff5f5" : "white", color: menuVenueKey === v.key ? "#e10102" : "#555", cursor: "pointer" }}>
@@ -256,7 +268,25 @@ export default function PinContentPage() {
               </button>
             ))}
           </div>
+
+          {/* 会場タイトル・紹介文 */}
+          <div style={{ padding: "16px", border: "2px solid #1976d2", borderRadius: "10px", marginBottom: "20px", backgroundColor: "#f8f9ff" }}>
+            <h2 style={{ fontSize: "14px", color: "#1976d2", margin: "0 0 12px" }}>会場タイトル・紹介文</h2>
+            <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+              <input value={vInfoTitle} onChange={(e) => setVInfoTitle(e.target.value)} placeholder="タイトル（任意）例: とんとん広場メニュー"
+                style={{ padding: "10px", fontSize: "14px", borderRadius: "6px", border: "1px solid #ccc" }} />
+              <textarea value={vInfoDesc} onChange={(e) => setVInfoDesc(e.target.value)} rows={2} placeholder="紹介文（任意）"
+                style={{ padding: "10px", fontSize: "14px", borderRadius: "6px", border: "1px solid #ccc", resize: "vertical", fontFamily: "sans-serif" }} />
+              <button onClick={saveVenueInfo} disabled={vInfoSaving}
+                style={{ padding: "10px", fontSize: "14px", cursor: "pointer", backgroundColor: vInfoSaved ? "#4caf50" : "#1976d2", color: "white", border: "none", borderRadius: "6px" }}>
+                {vInfoSaving ? "保存中..." : vInfoSaved ? "✅ 保存しました" : "タイトル・紹介文を保存"}
+              </button>
+            </div>
+          </div>
+
+          {/* メニューアイテム追加 */}
           <div style={{ display: "flex", flexDirection: "column", gap: "10px", padding: "16px", border: "1px solid #eee", borderRadius: "10px", marginBottom: "20px" }}>
+            <h2 style={{ fontSize: "14px", color: "#555", margin: "0 0 4px" }}>メニューアイテム追加</h2>
             <input value={mTitle} onChange={(e) => setMTitle(e.target.value)} placeholder="メニュー名 *" style={{ padding: "10px", fontSize: "14px", borderRadius: "6px", border: "1px solid #ccc" }} />
             <input value={mDescription} onChange={(e) => setMDescription(e.target.value)} placeholder="紹介文（任意）" style={{ padding: "10px", fontSize: "14px", borderRadius: "6px", border: "1px solid #ccc" }} />
             <input value={mPrice} onChange={(e) => setMPrice(e.target.value)} placeholder="値段（円）" type="number" min={0} style={{ padding: "10px", fontSize: "14px", borderRadius: "6px", border: "1px solid #ccc" }} />
@@ -269,6 +299,8 @@ export default function PinContentPage() {
               {mSaving ? "追加中..." : "追加"}
             </button>
           </div>
+
+          {/* メニューアイテム一覧 */}
           <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
             {menuItems.length === 0 && <p style={{ color: "#aaa", fontSize: "13px" }}>まだ登録がありません</p>}
             {menuItems.map((m) => (
