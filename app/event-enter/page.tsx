@@ -54,14 +54,6 @@ export default function EventEnterPage() {
         const map: Record<string, string> = {};
         pairs.forEach(({ key, hash }) => { map[hash] = key; });
         hashMapRef.current = map;
-
-        // 👇 ここに追加: 求めている文字列たちを裏（コンソール）で表示させる
-        console.log("=== 読み取り用QRコード文字列（ハッシュ値） ===");
-        console.table(pairs.map(p => ({
-          イベント名: EVENT_LABELS[p.key],
-          元のキー: p.key,
-          QRコード化する文字列: p.hash
-        })));
       });
 
     fetchHistory(id);
