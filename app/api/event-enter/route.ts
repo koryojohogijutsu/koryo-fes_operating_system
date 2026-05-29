@@ -8,8 +8,12 @@ const EVENT_LABELS: Record<string, string> = {
   "coscon_performance": "コスコン（パフォーマンス）",
   "coscon_runway":      "コスコン（ランウェイ）",
   "m1":                 "M1",
+  "nodojiman":          "のど自慢（旧）",
+  "coscon_solo":        "コスコン（個人）",
+  "coscon_group":       "コスコン（団体）"
+}; // 👈 ここで正しく閉じられている必要があります
 
-  const supabase = createClient(
+const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 );
