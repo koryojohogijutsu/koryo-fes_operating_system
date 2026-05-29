@@ -2,13 +2,14 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 
 const EVENT_LABELS: Record<string, string> = {
-  nodojiman:    "のど自慢",
-  coscon_solo:  "コスコン（個人）",
-  coscon_group: "コスコン（団体）",
-  m1:           "M1",
-};
+  "nodojiman-1":        "のど自慢（1日目）",
+  "nodojiman-2":        "のど自慢（2日目①）",
+  "nodojiman-3":        "のど自慢（2日目②）",
+  "coscon_performance": "コスコン（パフォーマンス）",
+  "coscon_runway":      "コスコン（ランウェイ）",
+  "m1":                 "M1",
 
-const supabase = createClient(
+  const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 );
