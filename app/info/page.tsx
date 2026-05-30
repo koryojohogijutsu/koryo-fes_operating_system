@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 
 type Notice = { id: string; title: string; body: string; created_at: string };
-type Lost   = { id: string; time: string; place: string; memo: string; created_at: string };
+type Lost   = { id: string; time: string; place: string; memo: string; image_url?: string; created_at: string };
 
 export default function InfoPage() {
   const router = useRouter();
@@ -64,7 +64,15 @@ export default function InfoPage() {
                       <span>🕐 {l.time}</span>
                       <span>📍 {l.place}</span>
                     </div>
-                    <div style={{ fontSize: "14px", color: "#444", whiteSpace: "pre-line" }}>{l.memo}</div>
+                    <div style={{ fontSize: "14px", color: "#444", whiteSpace: "pre-line", marginBottom: l.image_url ? "10px" : "0" }}>{l.memo}</div>
+                    {/* ★修正: 落とし物画像を表示 */}
+                    {l.image_url && (
+                      <img
+                        src={l.image_url}
+                        alt="落とし物"
+                        style={{ width: "100%", borderRadius: "8px", maxHeight: "200px", objectFit: "cover" }}
+                      />
+                    )}
                     <div style={{ fontSize: "11px", color: "#aaa", marginTop: "8px" }}>
                       {new Date(l.created_at).toLocaleString("ja-JP", { month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit" })}
                     </div>
