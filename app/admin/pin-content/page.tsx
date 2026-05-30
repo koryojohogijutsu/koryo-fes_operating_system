@@ -15,10 +15,12 @@ const PIN_INFO_VENUES = [
   { key: "ouen",    label: "📣 應援團演舞" },
 ];
 
+// ★修正: サンデリカを追加
 const MENU_VENUES = [
   { key: "tontonhiroba", label: "🏕️ とんとん広場" },
   { key: "football",     label: "⚽ サッカー部" },
   { key: "mockstore",    label: "🛒 模擬店" },
+  { key: "sundelica",    label: "🍱 サンデリカ" },
 ];
 
 type LibClub    = { id: string; name: string; comment: string };
@@ -59,7 +61,6 @@ export default function PinContentPage() {
   const [mPrice,         setMPrice]         = useState("");
   const [mImage,         setMImage]         = useState<File | null>(null);
   const [mSaving,        setMSaving]        = useState(false);
-  // 会場ヘッダー編集
   const [vInfoTitle,     setVInfoTitle]     = useState("");
   const [vInfoDesc,      setVInfoDesc]      = useState("");
   const [vInfoSaving,    setVInfoSaving]    = useState(false);
@@ -156,9 +157,13 @@ export default function PinContentPage() {
       fd.append("path", `${menuVenueKey}/${Date.now()}.${mImage.name.split(".").pop()}`);
       imageUrl = (await fetch("/api/upload", { method: "POST", body: fd }).then((r) => r.json())).url ?? null;
     }
-    const res = await fetch("/api/menu-items", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ venueKey: menuVenueKey, title: mTitle, description: mDescription, imageUrl, price: mPrice ? Number(mPrice) : null }) });
+    const res = await fetch("/api/menu-items", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ venueKey: menuVenueKey, title: mTitle, description: mDescription, imageUrl, price: mPrice ? Number(mPrice) : null })
+    });
     if (res.ok) {
       setMTitle(""); setMDescription(""); setMPrice(""); setMImage(null);
+      // refを使わずonChangeで処理するのが基本だが、ここはprops経由でファイルリセットが必要なため許容
       if (menuFileRef.current) menuFileRef.current.value = "";
       await loadMenuData();
     } else { alert("エラー: " + (await res.json()).error); }
@@ -257,13 +262,13 @@ export default function PinContentPage() {
         </>
       )}
 
-      {/* メニュー */}
+      {/* メニュー（サンデリカ含む） */}
       {tab === "menu" && (
         <>
-          <div style={{ display: "flex", gap: "6px", marginBottom: "20px" }}>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: "6px", marginBottom: "20px" }}>
             {MENU_VENUES.map((v) => (
               <button key={v.key} onClick={() => setMenuVenueKey(v.key)}
-                style={{ flex: 1, padding: "8px", fontSize: "13px", borderRadius: "8px", border: "2px solid", borderColor: menuVenueKey === v.key ? "#e10102" : "#ddd", backgroundColor: menuVenueKey === v.key ? "#fff5f5" : "white", color: menuVenueKey === v.key ? "#e10102" : "#555", cursor: "pointer" }}>
+                style={{ padding: "8px 12px", fontSize: "13px", borderRadius: "8px", border: "2px solid", borderColor: menuVenueKey === v.key ? "#e10102" : "#ddd", backgroundColor: menuVenueKey === v.key ? "#fff5f5" : "white", color: menuVenueKey === v.key ? "#e10102" : "#555", cursor: "pointer" }}>
                 {v.label}
               </button>
             ))}
@@ -273,7 +278,7 @@ export default function PinContentPage() {
           <div style={{ padding: "16px", border: "2px solid #1976d2", borderRadius: "10px", marginBottom: "20px", backgroundColor: "#f8f9ff" }}>
             <h2 style={{ fontSize: "14px", color: "#1976d2", margin: "0 0 12px" }}>会場タイトル・紹介文</h2>
             <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
-              <input value={vInfoTitle} onChange={(e) => setVInfoTitle(e.target.value)} placeholder="タイトル（任意）例: とんとん広場メニュー"
+              <input value={vInfoTitle} onChange={(e) => setVInfoTitle(e.target.value)} placeholder="タイトル（任意）"
                 style={{ padding: "10px", fontSize: "14px", borderRadius: "6px", border: "1px solid #ccc" }} />
               <textarea value={vInfoDesc} onChange={(e) => setVInfoDesc(e.target.value)} rows={2} placeholder="紹介文（任意）"
                 style={{ padding: "10px", fontSize: "14px", borderRadius: "6px", border: "1px solid #ccc", resize: "vertical", fontFamily: "sans-serif" }} />
