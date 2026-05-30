@@ -115,11 +115,13 @@ export default function ClassesAdminPage() {
                   type="file"
                   accept="image/*"
                   onChange={(e) => {
-                    const f = e.target.files?.[0];
+                    const f      = e.target.files?.[0];
+                    const input  = e.target; // ★ 合成イベント消滅前にtargetを退避
                     if (f) {
-                      uploadImage(c, f);
-                      // アップロード後にinputをリセット（refなしで直接操作）
-                      e.target.value = "";
+                      uploadImage(c, f).finally(() => {
+                        // 非同期完了後にリセット（退避したinputを使う）
+                        input.value = "";
+                      });
                     }
                   }}
                   style={{ fontSize: "12px", flex: 1 }}
