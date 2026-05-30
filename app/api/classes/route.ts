@@ -12,9 +12,18 @@ export async function GET() {
 
   const { data, error } = await supabase
     .from("classes")
-    .select("code, label, comment")
+    .select("id, code, label, comment, image_url")
     .order("code");
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-  return NextResponse.json({ classes: data ?? [] }, NO_CACHE);
+
+  const classes = (data ?? []).map((c) => ({
+    id:        c.id        ?? "",
+    code:      c.code      ?? "",
+    label:     c.label     ?? "",
+    comment:   c.comment   ?? "",
+    image_url: c.image_url ?? null,
+  }));
+
+  return NextResponse.json({ classes }, NO_CACHE);
 }
