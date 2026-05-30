@@ -7,13 +7,14 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 );
 
-// 会場ヘッダー情報テーブル（menu_venue_info）
+// 対応するvenue_key一覧（サンデリカ追加）
+const VALID_VENUE_KEYS = ["tontonhiroba", "football", "mockstore", "sundelica"];
+
 export async function GET(req: NextRequest) {
   const venueKey = req.nextUrl.searchParams.get("venueKey");
   const type     = req.nextUrl.searchParams.get("type");
 
   if (type === "info") {
-    // 会場のタイトル・紹介文を取得
     let q = supabase.from("menu_venue_info").select("venue_key, title, description");
     if (venueKey) q = q.eq("venue_key", venueKey);
     const { data, error } = await q;
@@ -21,7 +22,10 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ infos: data ?? [] }, NO_CACHE);
   }
 
-  let query = supabase.from("menu_items").select("id, venue_key, title, description, image_url, price").order("order_num");
+  let query = supabase
+    .from("menu_items")
+    .select("id, venue_key, title, description, image_url, price")
+    .order("order_num");
   if (venueKey) query = query.eq("venue_key", venueKey);
   const { data, error } = await query;
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
@@ -33,7 +37,6 @@ export async function POST(req: Request) {
   const { type, venueKey } = body;
 
   if (type === "info") {
-    // 会場のタイトル・紹介文をupsert
     const { title, description } = body;
     if (!venueKey) return NextResponse.json({ error: "venueKey is required" }, { status: 400 });
     const { error } = await supabase.from("menu_venue_info").upsert(
@@ -46,6 +49,8 @@ export async function POST(req: Request) {
 
   const { title, description, imageUrl, price } = body;
   if (!venueKey || !title) return NextResponse.json({ error: "venueKey and title are required" }, { status: 400 });
+  if (!VALID_VENUE_KEYS.includes(venueKey)) return NextResponse.json({ error: "無効なvenueKeyです" }, { status: 400 });
+
   const { error } = await supabase.from("menu_items").insert({
     venue_key: venueKey, title, description: description ?? "", image_url: imageUrl ?? null, price: price ?? null, order_num: Date.now(),
   });
