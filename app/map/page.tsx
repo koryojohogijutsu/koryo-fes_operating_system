@@ -19,11 +19,23 @@ const VENUE_LABELS: Record<string, string> = {
 };
 
 const PIN_INFO_KEYS  = ["science","tetsudo","quiz","tea","shogi","igo","kendo","kyudo","ouen"];
-const MENU_KEYS      = ["tontonhiroba","football","mockstore"];
+// ★修正: サンデリカをメニューキーに追加
+const MENU_KEYS      = ["tontonhiroba","football","mockstore","sundelica"];
 const VENUE_CATEGORIES: Record<string, string[]> = {
   gym:      ["nodojiman-1","nodojiman-2","nodojiman-3","coscon_performance","coscon_runway"],
   kinenkan: ["m1"],
   koryokan: ["live"],
+};
+
+// ★修正: イベントカテゴリのラベル
+const CATEGORY_LABELS: Record<string, string> = {
+  "nodojiman-1":        "🎤 のど自慢（1日目）",
+  "nodojiman-2":        "🎤 のど自慢（2日目①）",
+  "nodojiman-3":        "🎤 のど自慢（2日目②）",
+  "coscon_performance": "👗 コスコン（パフォーマンス）",
+  "coscon_runway":      "👠 コスコン（ランウェイ）",
+  "m1":                 "🎭 M1",
+  "live":               "🎵 ライブ",
 };
 
 type FestivalSettings = { day1_date: string; day2_date: string; display_mode: string };
@@ -32,22 +44,22 @@ type VenueCrowd   = { venue_key: string; level: number; updated_at: string };
 type ClassLayout  = { class_code: string; x: number; y: number };
 type VenueLayout  = { venue_key: string; x: number; y: number; map_key?: string };
 type ClassInfo    = { code: string; label: string; comment: string; image_url?: string };
-type EventEntry   = { id: string; name: string; description: string; comment: string; datetime?: string; image_url?: string; members?: string; festival_day?: string };
+type EventEntry   = { id: string; name: string; description: string; comment: string; datetime?: string; image_url?: string; members?: string; festival_day?: string; category?: string; order_num?: number };
 type VenueProgram = { id: string; venue_key: string; name: string; datetime: string; comment: string; festival_day?: string };
 type PinInfo      = { venue_key: string; datetime: string; content: string };
 type LibClub      = { id: string; name: string; comment: string };
 type MenuItem     = { id: string; venue_key: string; title: string; description: string; image_url: string | null; price: number | null };
 
 type ClassModal   = { type: "class";   crowd: ClassCrowd; info: ClassInfo | null };
-type VenueModal   = { type: "venue";   venueKey: string; label: string; level: number; programs: VenueProgram[]; entries: EventEntry[] };
+type VenueModal   = { type: "venue";   venueKey: string; label: string; level: number; programs: VenueProgram[]; entriesByCategory: Record<string, EventEntry[]> };
+type VenueSubModal = { type: "venue_sub"; categoryKey: string; entries: EventEntry[] };
 type LiveModal    = { type: "live";    entries: EventEntry[] };
 type LibraryModal = { type: "library"; level: number; clubs: LibClub[] };
 type PinModal     = { type: "pin";     venueKey: string; label: string; level: number; pinInfo: PinInfo | null };
 type DosoModal    = { type: "doso";    info: { title: string; datetime: string; content: string } | null };
 type MenuModal    = { type: "menu";    venueKey: string; label: string; level: number; items: MenuItem[] };
-type Modal = ClassModal | VenueModal | LiveModal | LibraryModal | PinModal | DosoModal | MenuModal;
+type Modal = ClassModal | VenueModal | VenueSubModal | LiveModal | LibraryModal | PinModal | DosoModal | MenuModal;
 
-// festival_dayフィルタ関数
 function filterByDay(items: { festival_day?: string }[], activeDay: "day1" | "day2" | "both") {
   if (activeDay === "both") return items;
   return items.filter((item) => {
@@ -56,17 +68,38 @@ function filterByDay(items: { festival_day?: string }[], activeDay: "day1" | "da
   });
 }
 
-// 今日がどちらの日かを判定
+// ★修正: 1日目/2日目/両日を自動判別（nodojiman-1→day1, nodojiman-2/3→day2, etc.）
+function inferFestivalDay(entry: EventEntry): "day1" | "day2" | "both" {
+  if (entry.festival_day === "day1" || entry.festival_day === "day2" || entry.festival_day === "both") {
+    return entry.festival_day;
+  }
+  // categoryから推定
+  const cat = entry.category ?? "";
+  if (cat === "nodojiman-1") return "day1";
+  if (cat === "nodojiman-2" || cat === "nodojiman-3") return "day2";
+  return "both";
+}
+
 function detectActiveDay(settings: FestivalSettings): "day1" | "day2" | "both" {
   if (settings.display_mode === "day1") return "day1";
   if (settings.display_mode === "day2") return "day2";
   if (settings.display_mode === "both") return "both";
-  // auto: 今日の日付と比較
   const today = new Date();
   const todayStr = `${today.getMonth() + 1}月${today.getDate()}日`;
   if (settings.day1_date && todayStr === settings.day1_date) return "day1";
   if (settings.day2_date && todayStr === settings.day2_date) return "day2";
   return "both";
+}
+
+// ★修正: 日目バッジ（1日目/2日目のみ、重複表記なし）
+function DayBadge({ fd }: { fd?: string }) {
+  if (!fd || fd === "both") return null;
+  const isDay1 = fd === "day1";
+  return (
+    <span style={{ fontSize: "10px", fontWeight: "bold", color: "white", backgroundColor: isDay1 ? "#1976d2" : "#e10102", borderRadius: "8px", padding: "1px 6px", marginLeft: "4px" }}>
+      {isDay1 ? "1日目" : "2日目"}
+    </span>
+  );
 }
 
 export default function MapPage() {
@@ -134,8 +167,20 @@ export default function MapPage() {
     const cats     = VENUE_CATEGORIES[venueKey] ?? [];
     const res      = await fetch(`/api/event-entries?_t=${Date.now()}`, { cache: "no-store" });
     const data     = await res.json();
-    const entries  = filterByDay((data.entries ?? []).filter((e: any) => cats.includes(e.category)), activeDay) as EventEntry[];
-    setModal({ type: "venue", venueKey, label, level: crowd?.level ?? 0, programs, entries });
+    // ★修正: カテゴリごとにグルーピング、festival_day自動判別でフィルタ
+    const allEntries = (data.entries ?? []).filter((e: EventEntry) => cats.includes(e.category ?? ""));
+    const filteredEntries = allEntries.filter((e: EventEntry) => {
+      const fd = inferFestivalDay(e);
+      if (activeDay === "both") return true;
+      return fd === "both" || fd === activeDay;
+    });
+    // カテゴリ別にグルーピング
+    const entriesByCategory: Record<string, EventEntry[]> = {};
+    for (const cat of cats) {
+      const catEntries = filteredEntries.filter((e: EventEntry) => e.category === cat);
+      if (catEntries.length > 0) entriesByCategory[cat] = catEntries;
+    }
+    setModal({ type: "venue", venueKey, label, level: crowd?.level ?? 0, programs, entriesByCategory });
   };
 
   const openLiveModal = () => {
@@ -316,13 +361,14 @@ export default function MapPage() {
               ? <img src={modal.info.image_url} alt="" style={{ width: "100%", borderRadius: "10px", marginBottom: "12px" }} />
               : <img src={`/class-images/${modal.crowd.class_code}.png`} alt="" style={{ width: "100%", borderRadius: "10px", marginBottom: "12px" }} onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }} />
             }
-            <p style={{ fontSize: "14px", color: modal.info?.comment ? "#444" : "#bbb", lineHeight: "1.7", margin: "0 0 4px" }}>{modal.info?.comment || "コメントはありません"}</p>
+            {/* ★修正: whiteSpace:pre-lineで改行反映 */}
+            <p style={{ fontSize: "14px", color: modal.info?.comment ? "#444" : "#bbb", lineHeight: "1.7", margin: "0 0 4px", whiteSpace: "pre-line" }}>{modal.info?.comment || "コメントはありません"}</p>
             <button onClick={() => setModal(null)} style={closeBtn}>閉じる</button>
           </div>
         </div>
       )}
 
-      {/* 体育館・記念館・ライブモーダル（部活動企画＋出場者を時系列） */}
+      {/* ★修正: 体育館・記念館モーダル — イベント系をカテゴリごとにグルーピング、「詳細はこちら」で展開 */}
       {modal?.type === "venue" && (
         <div onClick={() => setModal(null)} style={modalOverlay}>
           <div onClick={(e) => e.stopPropagation()} style={modalBox}>
@@ -331,43 +377,76 @@ export default function MapPage() {
               <span style={{ fontWeight: "bold", color: getCrowdIcon(modal.level).color, fontSize: "13px" }}>{getCrowdIcon(modal.level).label}</span>
             </div>
             <p style={{ fontSize: "11px", color: "#1976d2", marginBottom: "14px" }}>📅 {activeDayLabel}のプログラム</p>
-            {(() => {
-              type MergedItem = { datetime: string | null; kind: "program" | "entry"; data: VenueProgram | EventEntry };
-              const items: MergedItem[] = [
-                ...modal.programs.map((p) => ({ datetime: p.datetime || null, kind: "program" as const, data: p })),
-                ...modal.entries.map((e)  => ({ datetime: e.datetime  || null, kind: "entry"   as const, data: e })),
-              ].sort((a, b) => {
-                if (!a.datetime && !b.datetime) return 0;
-                if (!a.datetime) return 1;
-                if (!b.datetime) return -1;
-                return a.datetime.localeCompare(b.datetime);
-              });
-              if (items.length === 0) return <p style={{ color: "#aaa", fontSize: "14px" }}>この日のプログラムはまだありません</p>;
-              return (
-                <div style={{ display: "flex", flexDirection: "column", gap: "12px", marginBottom: "4px" }}>
-                  {items.map((item, i) => (
-                    <div key={i} style={{ padding: "12px", backgroundColor: "#f9f9f9", borderRadius: "8px", border: "1px solid #eee" }}>
-                      {item.kind === "program" ? (
-                        <>
-                          <p style={{ fontWeight: "bold", fontSize: "14px", margin: 0 }}>{(item.data as VenueProgram).name}</p>
-                          {(item.data as VenueProgram).datetime && <p style={{ fontSize: "12px", color: "#1976d2", margin: "3px 0 0" }}>🕐 {(item.data as VenueProgram).datetime}</p>}
-                          {(item.data as VenueProgram).comment  && <p style={{ fontSize: "13px", color: "#666", margin: "4px 0 0", lineHeight: "1.6" }}>{(item.data as VenueProgram).comment}</p>}
-                        </>
-                      ) : (
-                        <>
-                          {(item.data as EventEntry).image_url && <img src={(item.data as EventEntry).image_url!} alt={(item.data as EventEntry).name} style={{ width: "100%", borderRadius: "8px", marginBottom: "8px" }} />}
-                          <p style={{ fontWeight: "bold", fontSize: "14px", margin: 0 }}>{(item.data as EventEntry).name}</p>
-                          {(item.data as EventEntry).datetime    && <p style={{ fontSize: "12px", color: "#1976d2", margin: "3px 0 0" }}>🕐 {(item.data as EventEntry).datetime}</p>}
-                          {(item.data as EventEntry).description && <p style={{ fontSize: "13px", color: "#666", margin: "4px 0 0" }}>{(item.data as EventEntry).description}</p>}
-                          {(item.data as EventEntry).members     && <p style={{ fontSize: "12px", color: "#555", margin: "4px 0 0" }}>👥 {(item.data as EventEntry).members}</p>}
-                          {(item.data as EventEntry).comment     && <p style={{ fontSize: "13px", color: "#888", margin: "4px 0 0", fontStyle: "italic" }}>"{(item.data as EventEntry).comment}"</p>}
-                        </>
-                      )}
+
+            {/* 部活動企画（時系列） */}
+            {modal.programs.length > 0 && (
+              <>
+                <p style={{ fontSize: "12px", color: "#888", fontWeight: "bold", marginBottom: "6px" }}>📋 部活動企画</p>
+                <div style={{ display: "flex", flexDirection: "column", gap: "8px", marginBottom: "14px" }}>
+                  {modal.programs.map((p, i) => (
+                    <div key={i} style={{ padding: "10px 12px", backgroundColor: "#f9f9f9", borderRadius: "8px", border: "1px solid #eee" }}>
+                      <p style={{ fontWeight: "bold", fontSize: "14px", margin: 0 }}>
+                        {p.name}<DayBadge fd={p.festival_day} />
+                      </p>
+                      {p.datetime && <p style={{ fontSize: "12px", color: "#1976d2", margin: "3px 0 0" }}>🕐 {p.datetime}</p>}
+                      {/* ★修正: 改行対応 */}
+                      {p.comment  && <p style={{ fontSize: "13px", color: "#666", margin: "4px 0 0", lineHeight: "1.6", whiteSpace: "pre-line" }}>{p.comment}</p>}
                     </div>
                   ))}
                 </div>
-              );
-            })()}
+              </>
+            )}
+
+            {/* ★修正: イベント系をカテゴリ別にグルーピング → 「詳細はこちら」ボタン */}
+            {Object.keys(modal.entriesByCategory).length > 0 && (
+              <>
+                <p style={{ fontSize: "12px", color: "#888", fontWeight: "bold", marginBottom: "6px" }}>🎤 イベント</p>
+                <div style={{ display: "flex", flexDirection: "column", gap: "6px", marginBottom: "4px" }}>
+                  {Object.entries(modal.entriesByCategory).map(([cat, entries]) => (
+                    <div key={cat} style={{ padding: "10px 12px", backgroundColor: "#fff5f5", borderRadius: "8px", border: "1px solid #ffd0d0", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                      <div>
+                        <p style={{ fontWeight: "bold", fontSize: "13px", margin: 0, color: "#c62828" }}>{CATEGORY_LABELS[cat] ?? cat}</p>
+                        <p style={{ fontSize: "12px", color: "#888", margin: "2px 0 0" }}>{entries.length}組 出場</p>
+                      </div>
+                      <button
+                        onClick={(e) => { e.stopPropagation(); setModal({ type: "venue_sub", categoryKey: cat, entries }); }}
+                        style={{ fontSize: "12px", color: "#e10102", background: "none", border: "1px solid #e10102", borderRadius: "6px", padding: "4px 10px", cursor: "pointer", flexShrink: 0 }}>
+                        詳細はこちら
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </>
+            )}
+
+            {modal.programs.length === 0 && Object.keys(modal.entriesByCategory).length === 0 && (
+              <p style={{ color: "#aaa", fontSize: "14px" }}>この日のプログラムはまだありません</p>
+            )}
+            <button onClick={() => setModal(null)} style={closeBtn}>閉じる</button>
+          </div>
+        </div>
+      )}
+
+      {/* ★新規: イベント詳細サブモーダル */}
+      {modal?.type === "venue_sub" && (
+        <div onClick={() => setModal(null)} style={modalOverlay}>
+          <div onClick={(e) => e.stopPropagation()} style={modalBox}>
+            <h2 style={{ fontSize: "17px", fontWeight: "bold", marginBottom: "14px" }}>{CATEGORY_LABELS[modal.categoryKey] ?? modal.categoryKey}</h2>
+            <div style={{ display: "flex", flexDirection: "column", gap: "12px", marginBottom: "4px" }}>
+              {modal.entries.map((entry) => (
+                <div key={entry.id} style={{ padding: "12px", backgroundColor: "#f9f9f9", borderRadius: "8px", border: "1px solid #eee" }}>
+                  {entry.image_url && <img src={entry.image_url} alt={entry.name} style={{ width: "100%", borderRadius: "8px", marginBottom: "8px" }} />}
+                  <p style={{ fontWeight: "bold", fontSize: "14px", margin: 0 }}>
+                    {entry.name}<DayBadge fd={inferFestivalDay(entry)} />
+                  </p>
+                  {entry.datetime    && <p style={{ fontSize: "12px", color: "#1976d2", margin: "3px 0 0" }}>🕐 {entry.datetime}</p>}
+                  {entry.description && <p style={{ fontSize: "13px", color: "#666", margin: "4px 0 0" }}>{entry.description}</p>}
+                  {entry.members     && <p style={{ fontSize: "12px", color: "#555", margin: "4px 0 0" }}>👥 {entry.members}</p>}
+                  {/* ★修正: 一言を表示、改行対応 */}
+                  {entry.comment     && <p style={{ fontSize: "13px", color: "#888", margin: "4px 0 0", fontStyle: "italic", whiteSpace: "pre-line" }}>「{entry.comment}」</p>}
+                </div>
+              ))}
+            </div>
             <button onClick={() => setModal(null)} style={closeBtn}>閉じる</button>
           </div>
         </div>
@@ -387,11 +466,13 @@ export default function MapPage() {
                       ? <img src={entry.image_url} alt={entry.name} style={{ width: "100%", borderRadius: "10px", marginBottom: "8px" }} />
                       : <img src={`/live/${i + 1}.png`} alt={entry.name} style={{ width: "100%", borderRadius: "10px", marginBottom: "8px" }} onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }} />
                     }
-                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "8px" }}>
-                      <span style={{ fontWeight: "bold", fontSize: "15px" }}>{entry.name}</span>
-                      {entry.comment && <span style={{ fontSize: "13px", color: "#555", flex: 1, textAlign: "right" }}>{entry.comment}</span>}
-                    </div>
+                    <p style={{ fontWeight: "bold", fontSize: "15px", margin: 0 }}>
+                      {entry.name}<DayBadge fd={entry.festival_day} />
+                    </p>
+                    {entry.datetime && <p style={{ fontSize: "12px", color: "#1976d2", margin: "3px 0 0" }}>🕐 {entry.datetime}</p>}
                     {entry.members && <p style={{ fontSize: "12px", color: "#666", margin: "4px 0 0" }}>👥 {entry.members}</p>}
+                    {/* ★修正: 一言表示・改行対応 */}
+                    {entry.comment && <p style={{ fontSize: "13px", color: "#555", margin: "4px 0 0", whiteSpace: "pre-line" }}>{entry.comment}</p>}
                   </div>
                 ))}
               </div>
@@ -414,7 +495,7 @@ export default function MapPage() {
                 {modal.clubs.map((c) => (
                   <div key={c.id} style={{ padding: "12px", backgroundColor: "#f9f9f9", borderRadius: "8px", border: "1px solid #eee" }}>
                     <p style={{ fontWeight: "bold", fontSize: "14px", margin: 0 }}>{c.name}</p>
-                    {c.comment && <p style={{ fontSize: "13px", color: "#666", margin: "4px 0 0" }}>{c.comment}</p>}
+                    {c.comment && <p style={{ fontSize: "13px", color: "#666", margin: "4px 0 0", whiteSpace: "pre-line" }}>{c.comment}</p>}
                   </div>
                 ))}
               </div>
@@ -440,7 +521,7 @@ export default function MapPage() {
                     <span style={{ fontSize: "14px", color: "#1976d2", fontWeight: "bold" }}>{modal.pinInfo.datetime}</span>
                   </div>
                 )}
-                {modal.pinInfo.content && <p style={{ fontSize: "14px", color: "#444", lineHeight: "1.7", margin: 0 }}>{modal.pinInfo.content}</p>}
+                {modal.pinInfo.content && <p style={{ fontSize: "14px", color: "#444", lineHeight: "1.7", margin: 0, whiteSpace: "pre-line" }}>{modal.pinInfo.content}</p>}
               </div>
             ) : (
               <p style={{ color: "#aaa", fontSize: "14px" }}>情報はまだありません</p>
@@ -464,7 +545,7 @@ export default function MapPage() {
                     <span style={{ fontSize: "14px", color: "#1976d2", fontWeight: "bold" }}>{modal.info.datetime}</span>
                   </div>
                 )}
-                {modal.info.content && <p style={{ fontSize: "14px", color: "#444", lineHeight: "1.7", margin: 0 }}>{modal.info.content}</p>}
+                {modal.info.content && <p style={{ fontSize: "14px", color: "#444", lineHeight: "1.7", margin: 0, whiteSpace: "pre-line" }}>{modal.info.content}</p>}
               </div>
             ) : (
               <p style={{ color: "#aaa", fontSize: "14px" }}>情報はまだありません</p>
@@ -474,7 +555,7 @@ export default function MapPage() {
         </div>
       )}
 
-      {/* メニューモーダル */}
+      {/* メニューモーダル（サンデリカ含む） */}
       {modal?.type === "menu" && (
         <div onClick={() => setModal(null)} style={modalOverlay}>
           <div onClick={(e) => e.stopPropagation()} style={modalBox}>
@@ -491,7 +572,7 @@ export default function MapPage() {
                       <span style={{ fontWeight: "bold", fontSize: "15px" }}>{m.title}</span>
                       {m.price !== null && <span style={{ color: "#e10102", fontWeight: "bold", fontSize: "15px" }}>¥{m.price}</span>}
                     </div>
-                    {m.description && <p style={{ fontSize: "13px", color: "#666", margin: "4px 0 0", lineHeight: "1.6" }}>{m.description}</p>}
+                    {m.description && <p style={{ fontSize: "13px", color: "#666", margin: "4px 0 0", lineHeight: "1.6", whiteSpace: "pre-line" }}>{m.description}</p>}
                   </div>
                 ))}
               </div>
