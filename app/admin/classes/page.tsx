@@ -156,7 +156,7 @@ export default function ClassesAdminPage() {
                 <p style={{ fontSize: "13px", color: c.comment ? "#444" : "#bbb", margin: 0, flex: 1, whiteSpace: "pre-line" }}>
                   {c.comment || "コメント未設定"}
                 </p>
-                <button onClick={() => setEditingComment({ id: c.id, value: c.comment })}
+                <button onClick={() => setEditingComment({ id: c.id, value: c.comment ?? "" })}
                   style={{ fontSize: "12px", color: "#1976d2", background: "none", border: "1px solid #1976d2", borderRadius: "6px", padding: "3px 10px", cursor: "pointer", flexShrink: 0 }}>
                   編集
                 </button>
