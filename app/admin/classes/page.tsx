@@ -68,6 +68,7 @@ export default function ClassesAdminPage() {
     const fd = new FormData();
     fd.append("file", file);
     fd.append("code", c.code);
+    fd.append("id",   c.id);   // ★ DBのimage_urlも更新するためidを渡す
     const res  = await fetch("/api/classes/image", { method: "POST", body: fd });
     const data = await res.json();
     if (res.ok) {
