@@ -62,6 +62,7 @@ export default function ClassesAdminPage() {
     setSavingComment(false);
   };
 
+  // refを使わずonChangeで直接処理（仕様書21-7に準拠。refのnullエラーを回避）
   const uploadImage = async (c: ClassRow, file: File) => {
     setUploadingId(c.id);
     const fd = new FormData();
@@ -100,7 +101,7 @@ export default function ClassesAdminPage() {
                 style={{ color: "#f44336", background: "none", border: "none", cursor: "pointer", fontSize: "14px" }}>削除</button>
             </div>
 
-            {/* 画像 */}
+            {/* 画像 — refを一切使わずonChangeで直接処理 */}
             <div style={{ marginBottom: "10px" }}>
               {c.image_url ? (
                 <img src={c.image_url} alt={c.label} style={{ width: "100%", maxHeight: "140px", objectFit: "cover", borderRadius: "8px", marginBottom: "6px" }} />
@@ -110,14 +111,15 @@ export default function ClassesAdminPage() {
                 </div>
               )}
               <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                {/* refを使わずonChangeで直接処理 */}
                 <input
-                  type="file" accept="image/*"
+                  type="file"
+                  accept="image/*"
                   onChange={(e) => {
                     const f = e.target.files?.[0];
                     if (f) {
                       uploadImage(c, f);
-                      e.target.value = ""; // アップロード後にリセット
+                      // アップロード後にinputをリセット（refなしで直接操作）
+                      e.target.value = "";
                     }
                   }}
                   style={{ fontSize: "12px", flex: 1 }}
@@ -149,7 +151,7 @@ export default function ClassesAdminPage() {
               </div>
             ) : (
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "8px" }}>
-                <p style={{ fontSize: "13px", color: c.comment ? "#444" : "#bbb", margin: 0, flex: 1 }}>
+                <p style={{ fontSize: "13px", color: c.comment ? "#444" : "#bbb", margin: 0, flex: 1, whiteSpace: "pre-line" }}>
                   {c.comment || "コメント未設定"}
                 </p>
                 <button onClick={() => setEditingComment({ id: c.id, value: c.comment })}
