@@ -12,9 +12,10 @@ export async function GET(req: NextRequest) {
 
   const category = req.nextUrl.searchParams.get("category");
 
+  // comment・datetime・image_url・members・festival_day も返す（修正: commentが漏れていたバグ修正）
   let query = supabase
     .from("event_entries")
-    .select("id, category, name, description, comment, order_num")
+    .select("id, category, name, description, comment, datetime, image_url, members, festival_day, order_num")
     .order("order_num");
 
   if (category) query = query.eq("category", category);
