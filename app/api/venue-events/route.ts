@@ -47,7 +47,7 @@ export async function POST(req: Request) {
   }
 
   // order_numをNumber型で明示的に渡す（bigint対応）
-  const orderNum = Number(Date.now());
+  const orderNum = Number(Math.floor(Date.now() / 1000000));
 
   const { data, error } = await supabase
     .from("venue_events")
