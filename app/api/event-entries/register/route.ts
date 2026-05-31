@@ -25,8 +25,8 @@ export async function POST(req: Request) {
     image_url:    imageUrl     ?? null,
     members:      members      ?? null,
     festival_day: festivalDay  ?? "day1",
-    // orderNumが指定されていればそれを使用、なければDate.now()
-    order_num:    typeof orderNum === "number" ? orderNum : Date.now(),
+    // orderNumが指定されていればそれを使用、なければMath.floor(Date.now() / 1000000)
+    order_num:    typeof orderNum === "number" ? orderNum : Math.floor(Date.now() / 1000000),
   });
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   return NextResponse.json({ success: true });
