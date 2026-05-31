@@ -57,7 +57,7 @@ type LiveModal    = { type: "live";    entries: EventEntry[] };
 type LibraryModal = { type: "library"; level: number; clubs: LibClub[] };
 type PinModal     = { type: "pin";     venueKey: string; label: string; level: number; pinInfo: PinInfo | null };
 type DosoModal    = { type: "doso";    info: { title: string; datetime: string; content: string } | null };
-type MenuModal    = { type: "menu";    venueKey: string; label: string; level: number; items: MenuItem[] };
+type MenuModal    = { type: "menu";    venueKey: string; label: string; level: number; items: MenuItem[]; venueTitle: string; venueDesc: string };
 type Modal = ClassModal | VenueModal | VenueSubModal | LiveModal | LibraryModal | PinModal | DosoModal | MenuModal;
 
 function filterByDay(items: { festival_day?: string }[], activeDay: "day1" | "day2" | "both") {
@@ -73,8 +73,8 @@ function inferFestivalDay(entry: EventEntry): "day1" | "day2" | "both" {
   if (entry.festival_day === "day1" || entry.festival_day === "day2" || entry.festival_day === "both") {
     return entry.festival_day;
   }
-  // categoryから推定
   const cat = entry.category ?? "";
+  // ★修正: nodojiman-1→day1、nodojiman-2・nodojiman-3→day2（2日目①②はどちらも2日目）
   if (cat === "nodojiman-1") return "day1";
   if (cat === "nodojiman-2" || cat === "nodojiman-3") return "day2";
   return "both";
@@ -207,9 +207,17 @@ export default function MapPage() {
 
   const openMenuModal = async (venueKey: string) => {
     const crowd = venueCrowds.find((v) => v.venue_key === venueKey);
-    const res   = await fetch(`/api/menu-items?venueKey=${venueKey}&_t=${Date.now()}`, { cache: "no-store" });
-    const data  = await res.json();
-    setModal({ type: "menu", venueKey, label: VENUE_LABELS[venueKey] ?? venueKey, level: crowd?.level ?? 0, items: data.items ?? [] });
+    const t = Date.now();
+    const [itemsRes, infoRes] = await Promise.all([
+      fetch(`/api/menu-items?venueKey=${venueKey}&_t=${t}`, { cache: "no-store" }).then((r) => r.json()),
+      fetch(`/api/menu-items?type=info&venueKey=${venueKey}&_t=${t}`, { cache: "no-store" }).then((r) => r.json()),
+    ]);
+    const info = (infoRes.infos ?? [])[0];
+    setModal({
+      type: "menu", venueKey, label: VENUE_LABELS[venueKey] ?? venueKey,
+      level: crowd?.level ?? 0, items: itemsRes.items ?? [],
+      venueTitle: info?.title ?? "", venueDesc: info?.description ?? "",
+    });
   };
 
   const handleVenuePin = (venueKey: string) => {
@@ -427,10 +435,16 @@ export default function MapPage() {
         </div>
       )}
 
-      {/* ★新規: イベント詳細サブモーダル */}
+      {/* ★新規: イベント詳細サブモーダル（前の画面に戻るボタン付き） */}
       {modal?.type === "venue_sub" && (
         <div onClick={() => setModal(null)} style={modalOverlay}>
           <div onClick={(e) => e.stopPropagation()} style={modalBox}>
+            <button
+              onClick={(e) => { e.stopPropagation(); setModal(null); }}
+              style={{ background: "none", border: "none", color: "#1976d2", fontSize: "13px", cursor: "pointer", padding: "0 0 12px", display: "flex", alignItems: "center", gap: "4px" }}
+            >
+              ← 前の画面に戻る
+            </button>
             <h2 style={{ fontSize: "17px", fontWeight: "bold", marginBottom: "14px" }}>{CATEGORY_LABELS[modal.categoryKey] ?? modal.categoryKey}</h2>
             <div style={{ display: "flex", flexDirection: "column", gap: "12px", marginBottom: "4px" }}>
               {modal.entries.map((entry) => (
@@ -442,7 +456,6 @@ export default function MapPage() {
                   {entry.datetime    && <p style={{ fontSize: "12px", color: "#1976d2", margin: "3px 0 0" }}>🕐 {entry.datetime}</p>}
                   {entry.description && <p style={{ fontSize: "13px", color: "#666", margin: "4px 0 0" }}>{entry.description}</p>}
                   {entry.members     && <p style={{ fontSize: "12px", color: "#555", margin: "4px 0 0" }}>👥 {entry.members}</p>}
-                  {/* ★修正: 一言を表示、改行対応 */}
                   {entry.comment     && <p style={{ fontSize: "13px", color: "#888", margin: "4px 0 0", fontStyle: "italic", whiteSpace: "pre-line" }}>「{entry.comment}」</p>}
                 </div>
               ))}
@@ -559,10 +572,15 @@ export default function MapPage() {
       {modal?.type === "menu" && (
         <div onClick={() => setModal(null)} style={modalOverlay}>
           <div onClick={(e) => e.stopPropagation()} style={modalBox}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px" }}>
-              <h2 style={{ fontSize: "18px", fontWeight: "bold", margin: 0 }}>{modal.label}</h2>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "4px" }}>
+              <h2 style={{ fontSize: "18px", fontWeight: "bold", margin: 0 }}>{modal.venueTitle || modal.label}</h2>
               <span style={{ fontWeight: "bold", color: getCrowdIcon(modal.level).color, fontSize: "13px" }}>{getCrowdIcon(modal.level).label}</span>
             </div>
+            {/* ★修正: 会場タイトルと一言を表示 */}
+            {modal.venueDesc && (
+              <p style={{ fontSize: "13px", color: "#666", marginBottom: "14px", lineHeight: "1.6", whiteSpace: "pre-line" }}>{modal.venueDesc}</p>
+            )}
+            {!modal.venueDesc && <div style={{ marginBottom: "14px" }} />}
             {modal.items.length === 0 ? <p style={{ color: "#aaa", fontSize: "14px" }}>メニューはまだありません</p> : (
               <div style={{ display: "flex", flexDirection: "column", gap: "12px", marginBottom: "4px" }}>
                 {modal.items.map((m) => (
