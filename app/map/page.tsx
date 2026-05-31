@@ -116,6 +116,17 @@ export default function MapPage() {
   const [loading,        setLoading]        = useState(true);
   const [lastUpdated,    setLastUpdated]    = useState<Date | null>(null);
   const [modal,          setModal]          = useState<Modal | null>(null);
+  const [prevModal,      setPrevModal]      = useState<Modal | null>(null); // サブモーダルから戻るため
+
+  // モーダルを開く際に前のモーダルを保存するラッパー
+  const openSubModal = (next: Modal) => {
+    setPrevModal(modal);
+    setModal(next);
+  };
+  const closeSubModal = () => {
+    setModal(prevModal);
+    setPrevModal(null);
+  };
 
   const loadData = useCallback(async () => {
     const t = Date.now();
@@ -417,7 +428,7 @@ export default function MapPage() {
                         <p style={{ fontSize: "12px", color: "#888", margin: "2px 0 0" }}>{entries.length}組 出場</p>
                       </div>
                       <button
-                        onClick={(e) => { e.stopPropagation(); setModal({ type: "venue_sub", categoryKey: cat, entries }); }}
+                        onClick={(e) => { e.stopPropagation(); openSubModal({ type: "venue_sub", categoryKey: cat, entries }); }}
                         style={{ fontSize: "12px", color: "#e10102", background: "none", border: "1px solid #e10102", borderRadius: "6px", padding: "4px 10px", cursor: "pointer", flexShrink: 0 }}>
                         詳細はこちら
                       </button>
@@ -440,7 +451,7 @@ export default function MapPage() {
         <div onClick={() => setModal(null)} style={modalOverlay}>
           <div onClick={(e) => e.stopPropagation()} style={modalBox}>
             <button
-              onClick={(e) => { e.stopPropagation(); setModal(null); }}
+              onClick={(e) => { e.stopPropagation(); closeSubModal(); }}
               style={{ background: "none", border: "none", color: "#1976d2", fontSize: "13px", cursor: "pointer", padding: "0 0 12px", display: "flex", alignItems: "center", gap: "4px" }}
             >
               ← 前の画面に戻る
