@@ -388,6 +388,17 @@ export default function EventAdminPage() {
             <h2 style={{ fontSize: "15px", marginBottom: "8px", borderBottom: "2px solid #e10102", paddingBottom: "6px" }}>
               {currentCategory?.label} — 並び替え・一覧
             </h2>
+            {/* 会場グループボタン */}
+            <div style={{ display: "flex", gap: "6px", marginBottom: "8px", flexWrap: "wrap" }}>
+              <span style={{ fontSize: "11px", color: "#aaa", alignSelf: "center" }}>会場：</span>
+              <button onClick={() => setEntryCategory("nodojiman-1")} style={subBtnStyle(entryCategory === "nodojiman-1")}>🏟のど自慢(1日目)</button>
+              <button onClick={() => setEntryCategory("nodojiman-2")} style={subBtnStyle(entryCategory === "nodojiman-2")}>🏟のど自慢(2日目①)</button>
+              <button onClick={() => setEntryCategory("nodojiman-3")} style={subBtnStyle(entryCategory === "nodojiman-3")}>🏟のど自慢(2日目②)</button>
+              <button onClick={() => setEntryCategory("coscon_performance")} style={subBtnStyle(entryCategory === "coscon_performance")}>🏟コスコン(P)</button>
+              <button onClick={() => setEntryCategory("coscon_runway")} style={subBtnStyle(entryCategory === "coscon_runway")}>🏟コスコン(R)</button>
+              <button onClick={() => setEntryCategory("m1")} style={subBtnStyle(entryCategory === "m1")}>🏛M1</button>
+              <button onClick={() => setEntryCategory("live")} style={subBtnStyle(entryCategory === "live")}>🎵ライブ</button>
+            </div>
             <p style={{ fontSize: "11px", color: "#aaa", marginBottom: "10px" }}>⠿ をドラッグして順番を変更。「保存」で確定、「元に戻す」で直前の状態に戻せます。</p>
             <div style={{ display: "flex", gap: "6px", marginBottom: "12px" }}>
               <button onClick={() => setSortDay("day1")} style={dayBtnStyle(sortDay === "day1", "#1976d2")}>1日目</button>
