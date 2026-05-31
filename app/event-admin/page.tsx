@@ -108,6 +108,7 @@ export default function EventAdminPage() {
   // 部活動企画管理
   const [progVenueKey, setProgVenueKey] = useState("gym");
   const [programs,     setPrograms]     = useState<VenueProgram[]>([]);
+  const [mergedEntries, setMergedEntries] = useState<Entry[]>([]); // 会場対応のevent_entries
   const [pName,        setPName]        = useState("");
   const [pDatetime,    setPDatetime]    = useState("");
   const [pComment,     setPComment]     = useState("");
@@ -145,9 +146,22 @@ export default function EventAdminPage() {
     const res = await fetch(`/api/event-entries?category=${entryCategory}`, { cache: "no-store" });
     setEntries((await res.json()).entries ?? []);
   };
+  // 会場→対応するevent_entriesカテゴリのマッピング
+  const VENUE_ENTRY_CATEGORIES: Record<string, string[]> = {
+    gym:      ["nodojiman-1", "nodojiman-2", "nodojiman-3", "coscon_performance", "coscon_runway"],
+    kinenkan: ["m1"],
+    koryokan: ["live"],
+  };
+
   const loadPrograms = async () => {
-    const res = await fetch(`/api/venue-programs?venueKey=${progVenueKey}`, { cache: "no-store" });
-    setPrograms((await res.json()).programs ?? []);
+    const cats = VENUE_ENTRY_CATEGORIES[progVenueKey] ?? [];
+    const [progRes, ...entryResults] = await Promise.all([
+      fetch(`/api/venue-programs?venueKey=${progVenueKey}`, { cache: "no-store" }).then((r) => r.json()),
+      ...cats.map((cat) => fetch(`/api/event-entries?category=${cat}`, { cache: "no-store" }).then((r) => r.json())),
+    ]);
+    setPrograms(progRes.programs ?? []);
+    const allEntries = entryResults.flatMap((r) => r.entries ?? []);
+    setMergedEntries(allEntries);
   };
   const loadVenueEvents = async () => {
     const res = await fetch(`/api/venue-events?venueKey=${venueKey}`, { cache: "no-store" });
@@ -199,11 +213,19 @@ export default function EventAdminPage() {
     await loadEntries();
   };
 
-  const saveProgramOrder = async (sorted: VenueProgram[]) => {
-    await fetch("/api/venue-programs/order", {
-      method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ items: sorted.map((p, i) => ({ id: p.id, order_num: i * 10 })) }),
-    });
+  const saveProgramOrder = async (sorted: Array<{ id: string; order_num: number; _kind: "program" | "entry" }>) => {
+    const progItems   = sorted.filter((i) => i._kind === "program");
+    const entryItems  = sorted.filter((i) => i._kind === "entry");
+    await Promise.all([
+      progItems.length > 0 && fetch("/api/venue-programs/order", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ items: progItems.map((p, i) => ({ id: p.id, order_num: i * 10 })) }),
+      }),
+      entryItems.length > 0 && fetch("/api/event-entries/order", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ items: entryItems.map((e, i) => ({ id: e.id, order_num: i * 10 })) }),
+      }),
+    ].filter(Boolean));
     await loadPrograms();
   };
 
@@ -287,7 +309,7 @@ export default function EventAdminPage() {
   const inputStyle: React.CSSProperties  = { padding: "10px", fontSize: "14px", borderRadius: "6px", border: "1px solid #ccc", width: "100%", boxSizing: "border-box" as const };
 
   // ドラッグ並び替え用コンポーネント（インライン定義）
-  function DragList<T extends { id: string; order_num: number; festival_day?: string }>({
+  function DragList<T extends { id: string; order_num: number; festival_day?: string; _kind?: string }>({
     all, filterDay, onSave, renderItem,
   }: {
     all: T[];
@@ -477,31 +499,62 @@ export default function EventAdminPage() {
             </button>
           </div>
 
-          <h2 style={{ fontSize: "15px", marginBottom: "8px", borderBottom: "2px solid #e10102", paddingBottom: "6px" }}>
-            {PROGRAM_VENUES.find((v) => v.key === progVenueKey)?.label} — 並び替え・一覧
-          </h2>
-          <p style={{ fontSize: "11px", color: "#aaa", marginBottom: "10px" }}>⠿ をドラッグして順番を変更。「保存」で確定、「元に戻す」で直前の状態に戻せます。</p>
-          <div style={{ display: "flex", gap: "6px", marginBottom: "12px" }}>
-            <button onClick={() => setPSortDay("day1")} style={dayBtnStyle(pSortDay === "day1", "#1976d2")}>1日目</button>
-            <button onClick={() => setPSortDay("day2")} style={dayBtnStyle(pSortDay === "day2", "#e10102")}>2日目</button>
-            <button onClick={() => setPSortDay("both")} style={dayBtnStyle(pSortDay === "both", "#4caf50")}>全て</button>
-          </div>
-          <DragList
-            all={programs}
-            filterDay={pSortDay}
-            onSave={saveProgramOrder}
-            renderItem={(p) => (
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
-                <div>
-                  <span style={{ fontWeight: "bold", fontSize: "14px" }}>{p.name}</span>
-                  {dayBadge(p.festival_day)}
-                  {p.datetime && <p style={{ fontSize: "12px", color: "#1976d2", margin: "2px 0 0" }}>🕐 {p.datetime}</p>}
-                  {p.comment  && <p style={{ fontSize: "12px", color: "#666",    margin: "2px 0 0", whiteSpace: "pre-line" }}>{p.comment}</p>}
+          {/* 部活動企画＋イベント出場者を混在で並び替え */}
+          {(() => {
+            const CATEGORY_LABELS_ADM: Record<string, string> = {
+              "nodojiman-1": "🎤 のど自慢（1日目）", "nodojiman-2": "🎤 のど自慢（2日目①）",
+              "nodojiman-3": "🎤 のど自慢（2日目②）", "coscon_performance": "👗 コスコン（P）",
+              "coscon_runway": "🏃 コスコン（R）", "m1": "🎭 M1", "live": "🎵 ライブ",
+            };
+            // programs と mergedEntries を _kind フラグ付きで統合
+            type MergedRow = { id: string; order_num: number; festival_day: string; _kind: "program" | "entry"; name?: string; datetime?: string | null; comment?: string; category?: string };
+            const mergedAll: MergedRow[] = [
+              ...programs.map((p) => ({ ...p, _kind: "program" as const, festival_day: p.festival_day ?? "both" })),
+              ...mergedEntries.map((e) => ({ ...e, _kind: "entry" as const, festival_day: e.festival_day ?? "both", name: e.name })),
+            ].sort((a, b) => (a.order_num ?? 0) - (b.order_num ?? 0));
+
+            return (
+              <>
+                <h2 style={{ fontSize: "15px", marginBottom: "8px", borderBottom: "2px solid #e10102", paddingBottom: "6px" }}>
+                  {PROGRAM_VENUES.find((v) => v.key === progVenueKey)?.label} — 部活動企画＋イベント 並び替え
+                </h2>
+                <p style={{ fontSize: "11px", color: "#aaa", marginBottom: "10px" }}>⠿ をドラッグして順番を変更。部活動企画（白）とイベント出場者（赤枠）を混在して並べられます。</p>
+                <div style={{ display: "flex", gap: "6px", marginBottom: "12px" }}>
+                  <button onClick={() => setPSortDay("day1")} style={dayBtnStyle(pSortDay === "day1", "#1976d2")}>1日目</button>
+                  <button onClick={() => setPSortDay("day2")} style={dayBtnStyle(pSortDay === "day2", "#e10102")}>2日目</button>
+                  <button onClick={() => setPSortDay("both")} style={dayBtnStyle(pSortDay === "both", "#4caf50")}>全て</button>
                 </div>
-                <button onClick={() => deleteProgram(p.id)} style={{ color: "#f44336", background: "none", border: "none", cursor: "pointer", fontSize: "12px", flexShrink: 0, marginLeft: "8px" }}>削除</button>
-              </div>
-            )}
-          />
+                <DragList
+                  all={mergedAll}
+                  filterDay={pSortDay}
+                  onSave={(sorted) => saveProgramOrder(sorted as Array<{ id: string; order_num: number; _kind: "program" | "entry" }>)}
+                  renderItem={(item) => {
+                    const row = item as MergedRow;
+                    const isEntry = row._kind === "entry";
+                    return (
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start",
+                        backgroundColor: isEntry ? "#fff5f5" : "transparent",
+                        border: isEntry ? "1px solid #ffd0d0" : "none",
+                        borderRadius: isEntry ? "6px" : "0", padding: isEntry ? "4px 8px" : "0" }}>
+                        <div>
+                          <span style={{ fontWeight: "bold", fontSize: "14px", color: isEntry ? "#c62828" : "#222" }}>
+                            {isEntry ? (CATEGORY_LABELS_ADM[row.category ?? ""] ?? row.category) : row.name}
+                          </span>
+                          {dayBadge(row.festival_day)}
+                          {!isEntry && row.datetime && <p style={{ fontSize: "12px", color: "#1976d2", margin: "2px 0 0" }}>🕐 {row.datetime}</p>}
+                          {!isEntry && row.comment   && <p style={{ fontSize: "12px", color: "#666", margin: "2px 0 0", whiteSpace: "pre-line" }}>{row.comment}</p>}
+                          {isEntry && <p style={{ fontSize: "11px", color: "#aaa", margin: "1px 0 0" }}>イベント出場者（詳細は出場者管理で設定）</p>}
+                        </div>
+                        {!isEntry && (
+                          <button onClick={() => deleteProgram(row.id)} style={{ color: "#f44336", background: "none", border: "none", cursor: "pointer", fontSize: "12px", flexShrink: 0, marginLeft: "8px" }}>削除</button>
+                        )}
+                      </div>
+                    );
+                  }}
+                />
+              </>
+            );
+          })()}
         </>
       )}
 
