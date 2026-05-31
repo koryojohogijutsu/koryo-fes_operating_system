@@ -67,7 +67,7 @@ export async function POST(req: Request) {
   if (!VALID_VENUE_KEYS.includes(venueKey)) return NextResponse.json({ error: "無効なvenueKeyです" }, { status: 400 });
 
   const { error } = await supabase.from("menu_items").insert({
-    venue_key: venueKey, title, description: description ?? "", image_url: imageUrl ?? null, price: price ?? null, order_num: Date.now(),
+    venue_key: venueKey, title, description: description ?? "", image_url: imageUrl ?? null, price: price ?? null, order_num: Math.floor(Date.now() / 1000000),
   });
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   return NextResponse.json({ success: true });
