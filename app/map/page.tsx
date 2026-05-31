@@ -51,7 +51,10 @@ type LibClub      = { id: string; name: string; comment: string };
 type MenuItem     = { id: string; venue_key: string; title: string; description: string; image_url: string | null; price: number | null };
 
 type ClassModal   = { type: "class";   crowd: ClassCrowd; info: ClassInfo | null };
-type VenueModal   = { type: "venue";   venueKey: string; label: string; level: number; programs: VenueProgram[]; entriesByCategory: Record<string, EventEntry[]>; venueEventItems: { id: string; venue_key: string; title: string; description: string }[] };
+type UnifiedItem =
+  | { kind: "program";   data: VenueProgram; order_num: number }
+  | { kind: "event_cat"; categoryKey: string; entries: EventEntry[]; order_num: number };
+type VenueModal   = { type: "venue";   venueKey: string; label: string; level: number; programs: VenueProgram[]; entriesByCategory: Record<string, EventEntry[]>; venueEventItems: { id: string; venue_key: string; title: string; description: string }[]; unified: UnifiedItem[] };
 type VenueSubModal = { type: "venue_sub"; categoryKey: string; entries: EventEntry[] };
 type LiveModal    = { type: "live";    entries: EventEntry[] };
 type LibraryModal = { type: "library"; level: number; clubs: LibClub[]; events: { id: string; venue_key: string; title: string; description: string }[] };
@@ -175,28 +178,52 @@ export default function MapPage() {
   };
 
   const openVenueModal = async (venueKey: string) => {
-    const crowd    = venueCrowds.find((v) => v.venue_key === venueKey);
-    const label    = VENUE_LABELS[venueKey] ?? venueKey;
-    const programs = filterByDay(venuePrograms.filter((p) => p.venue_key === venueKey), activeDay) as VenueProgram[];
-    const cats     = VENUE_CATEGORIES[venueKey] ?? [];
-    const res      = await fetch(`/api/event-entries?_t=${Date.now()}`, { cache: "no-store" });
-    const data     = await res.json();
-    // ★修正: カテゴリごとにグルーピング、festival_day自動判別でフィルタ
+    const crowd  = venueCrowds.find((v) => v.venue_key === venueKey);
+    const label  = VENUE_LABELS[venueKey] ?? venueKey;
+    const cats   = VENUE_CATEGORIES[venueKey] ?? [];
+
+    const res    = await fetch(`/api/event-entries?_t=${Date.now()}`, { cache: "no-store" });
+    const data   = await res.json();
+
+    // 当日フィルタ済み部活動企画
+    const programs = filterByDay(
+      venuePrograms.filter((p) => p.venue_key === venueKey), activeDay
+    ) as VenueProgram[];
+
+    // 当日フィルタ済みイベント出場者
     const allEntries = (data.entries ?? []).filter((e: EventEntry) => cats.includes(e.category ?? ""));
     const filteredEntries = allEntries.filter((e: EventEntry) => {
       const fd = inferFestivalDay(e);
-      if (activeDay === "both") return true;
-      return fd === "both" || fd === activeDay;
+      return activeDay === "both" || fd === "both" || fd === activeDay;
     });
-    // カテゴリ別にグルーピング
+
+    // カテゴリ別マップ（サブモーダル用）
     const entriesByCategory: Record<string, EventEntry[]> = {};
     for (const cat of cats) {
       const catEntries = filteredEntries.filter((e: EventEntry) => e.category === cat);
       if (catEntries.length > 0) entriesByCategory[cat] = catEntries;
     }
-    // venue_eventsのデータも取得（会場イベント管理で登録したもの）
+
+    // ★ 部活動企画とイベントカテゴリを order_num で統合ソート
+    // イベントカテゴリはカテゴリ内の最小 order_num を代表値にする
+    type UnifiedItem =
+      | { kind: "program"; data: VenueProgram; order_num: number }
+      | { kind: "event_cat"; categoryKey: string; entries: EventEntry[]; order_num: number };
+
+    const unified: UnifiedItem[] = [
+      ...programs.map((p) => ({ kind: "program" as const, data: p, order_num: p.order_num ?? 0 })),
+      ...Object.entries(entriesByCategory).map(([cat, entries]) => ({
+        kind: "event_cat" as const,
+        categoryKey: cat,
+        entries,
+        order_num: Math.min(...entries.map((e) => e.order_num ?? 0)),
+      })),
+    ].sort((a, b) => a.order_num - b.order_num);
+
+    // venue_eventsのデータ（会場イベント管理で登録したもの）
     const venueEventItems = venueAllEvents.filter((e) => e.venue_key === venueKey);
-    setModal({ type: "venue", venueKey, label, level: crowd?.level ?? 0, programs, entriesByCategory, venueEventItems });
+
+    setModal({ type: "venue", venueKey, label, level: crowd?.level ?? 0, programs, entriesByCategory, venueEventItems, unified });
   };
 
   const openLiveModal = () => {
@@ -394,7 +421,7 @@ export default function MapPage() {
         </div>
       )}
 
-      {/* ★修正: 体育館・記念館モーダル — イベント系をカテゴリごとにグルーピング、「詳細はこちら」で展開 */}
+      {/* 体育館・記念館モーダル — unified order_num順で部活企画とイベントを混在表示 */}
       {modal?.type === "venue" && (
         <div onClick={() => setModal(null)} style={modalOverlay}>
           <div onClick={(e) => e.stopPropagation()} style={modalBox}>
@@ -404,48 +431,42 @@ export default function MapPage() {
             </div>
             <p style={{ fontSize: "11px", color: "#1976d2", marginBottom: "14px" }}>📅 {activeDayLabel}のプログラム</p>
 
-            {/* 部活動企画（時系列） */}
-            {modal.programs.length > 0 && (
-              <>
-                <p style={{ fontSize: "12px", color: "#888", fontWeight: "bold", marginBottom: "6px" }}>📋 部活動企画</p>
-                <div style={{ display: "flex", flexDirection: "column", gap: "8px", marginBottom: "14px" }}>
-                  {modal.programs.map((p, i) => (
-                    <div key={i} style={{ padding: "10px 12px", backgroundColor: "#f9f9f9", borderRadius: "8px", border: "1px solid #eee" }}>
-                      <p style={{ fontWeight: "bold", fontSize: "14px", margin: 0 }}>
-                        {p.name}<DayBadge fd={p.festival_day} />
-                      </p>
-                      {p.datetime && <p style={{ fontSize: "12px", color: "#1976d2", margin: "3px 0 0" }}>🕐 {p.datetime}</p>}
-                      {/* ★修正: 改行対応 */}
-                      {p.comment  && <p style={{ fontSize: "13px", color: "#666", margin: "4px 0 0", lineHeight: "1.6", whiteSpace: "pre-line" }}>{p.comment}</p>}
-                    </div>
-                  ))}
-                </div>
-              </>
-            )}
-
-            {/* ★修正: イベント系をカテゴリ別にグルーピング → 「詳細はこちら」ボタン */}
-            {Object.keys(modal.entriesByCategory).length > 0 && (
-              <>
-                <p style={{ fontSize: "12px", color: "#888", fontWeight: "bold", marginBottom: "6px" }}>🎤 イベント</p>
-                <div style={{ display: "flex", flexDirection: "column", gap: "6px", marginBottom: "4px" }}>
-                  {Object.entries(modal.entriesByCategory).map(([cat, entries]) => (
-                    <div key={cat} style={{ padding: "10px 12px", backgroundColor: "#fff5f5", borderRadius: "8px", border: "1px solid #ffd0d0", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                      <div>
-                        <p style={{ fontWeight: "bold", fontSize: "13px", margin: 0, color: "#c62828" }}>{CATEGORY_LABELS[cat] ?? cat}</p>
-                        <p style={{ fontSize: "12px", color: "#888", margin: "2px 0 0" }}>{entries.length}組 出場</p>
+            {/* 部活動企画とイベントをorder_num順で混在表示 */}
+            {modal.unified.length > 0 ? (
+              <div style={{ display: "flex", flexDirection: "column", gap: "8px", marginBottom: "14px" }}>
+                {modal.unified.map((item, i) => {
+                  if (item.kind === "program") {
+                    const p = item.data;
+                    return (
+                      <div key={"p" + i} style={{ padding: "10px 12px", backgroundColor: "#f9f9f9", borderRadius: "8px", border: "1px solid #eee" }}>
+                        <p style={{ fontWeight: "bold", fontSize: "14px", margin: 0 }}>{p.name}<DayBadge fd={p.festival_day} /></p>
+                        {p.datetime && <p style={{ fontSize: "12px", color: "#1976d2", margin: "3px 0 0" }}>🕐 {p.datetime}</p>}
+                        {p.comment  && <p style={{ fontSize: "13px", color: "#666", margin: "4px 0 0", lineHeight: "1.6", whiteSpace: "pre-line" }}>{p.comment}</p>}
                       </div>
-                      <button
-                        onClick={(e) => { e.stopPropagation(); openSubModal({ type: "venue_sub", categoryKey: cat, entries }); }}
-                        style={{ fontSize: "12px", color: "#e10102", background: "none", border: "1px solid #e10102", borderRadius: "6px", padding: "4px 10px", cursor: "pointer", flexShrink: 0 }}>
-                        詳細はこちら
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              </>
+                    );
+                  } else {
+                    const { categoryKey, entries } = item;
+                    return (
+                      <div key={"e" + i} style={{ padding: "10px 12px", backgroundColor: "#fff5f5", borderRadius: "8px", border: "1px solid #ffd0d0", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                        <div>
+                          <p style={{ fontWeight: "bold", fontSize: "13px", margin: 0, color: "#c62828" }}>{CATEGORY_LABELS[categoryKey] ?? categoryKey}</p>
+                          <p style={{ fontSize: "12px", color: "#888", margin: "2px 0 0" }}>{entries.length}組 出場</p>
+                        </div>
+                        <button
+                          onClick={(e) => { e.stopPropagation(); openSubModal({ type: "venue_sub", categoryKey, entries }); }}
+                          style={{ fontSize: "12px", color: "#e10102", background: "none", border: "1px solid #e10102", borderRadius: "6px", padding: "4px 10px", cursor: "pointer", flexShrink: 0 }}>
+                          詳細はこちら
+                        </button>
+                      </div>
+                    );
+                  }
+                })}
+              </div>
+            ) : (
+              <p style={{ color: "#aaa", fontSize: "14px", marginBottom: "14px" }}>この日のプログラムはまだありません</p>
             )}
 
-            {/* 会場イベント（イベント管理→会場イベントで登録したもの） */}
+            {/* 会場イベント（イベント管理→会場イベントで登録したもの）は下部に固定 */}
             {modal.venueEventItems.length > 0 && (
               <>
                 <p style={{ fontSize: "12px", color: "#888", fontWeight: "bold", marginBottom: "6px" }}>📌 会場イベント</p>
@@ -460,9 +481,6 @@ export default function MapPage() {
               </>
             )}
 
-            {modal.programs.length === 0 && Object.keys(modal.entriesByCategory).length === 0 && modal.venueEventItems.length === 0 && (
-              <p style={{ color: "#aaa", fontSize: "14px" }}>この日のプログラムはまだありません</p>
-            )}
             <button onClick={() => setModal(null)} style={closeBtn}>閉じる</button>
           </div>
         </div>
