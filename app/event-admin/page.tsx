@@ -228,8 +228,17 @@ export default function EventAdminPage() {
   const addVenueEvent = async () => {
     if (!vTitle) { alert("タイトルを入力してください"); return; }
     setVSubmitting(true);
-    const res = await fetch("/api/venue-events", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ venueKey, title: vTitle, description: vDescription }) });
-    if (res.ok) { setVTitle(""); setVDescription(""); loadVenueEvents(); }
+    const res = await fetch("/api/venue-events", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ venueKey, title: vTitle, description: vDescription }),
+    });
+    const data = await res.json();
+    if (res.ok) {
+      setVTitle(""); setVDescription(""); loadVenueEvents();
+    } else {
+      alert("エラー: " + (data.error ?? "不明") + (data.hint ? `\nヒント: ${data.hint}` : ""));
+    }
     setVSubmitting(false);
   };
 
