@@ -51,10 +51,10 @@ type LibClub      = { id: string; name: string; comment: string };
 type MenuItem     = { id: string; venue_key: string; title: string; description: string; image_url: string | null; price: number | null };
 
 type ClassModal   = { type: "class";   crowd: ClassCrowd; info: ClassInfo | null };
-type VenueModal   = { type: "venue";   venueKey: string; label: string; level: number; programs: VenueProgram[]; entriesByCategory: Record<string, EventEntry[]> };
+type VenueModal   = { type: "venue";   venueKey: string; label: string; level: number; programs: VenueProgram[]; entriesByCategory: Record<string, EventEntry[]>; venueEventItems: { id: string; venue_key: string; title: string; description: string }[] };
 type VenueSubModal = { type: "venue_sub"; categoryKey: string; entries: EventEntry[] };
 type LiveModal    = { type: "live";    entries: EventEntry[] };
-type LibraryModal = { type: "library"; level: number; clubs: LibClub[] };
+type LibraryModal = { type: "library"; level: number; clubs: LibClub[]; events: { id: string; venue_key: string; title: string; description: string }[] };
 type PinModal     = { type: "pin";     venueKey: string; label: string; level: number; pinInfo: PinInfo | null };
 type DosoModal    = { type: "doso";    info: { title: string; datetime: string; content: string } | null };
 type MenuModal    = { type: "menu";    venueKey: string; label: string; level: number; items: MenuItem[]; venueTitle: string; venueDesc: string };
@@ -110,6 +110,7 @@ export default function MapPage() {
   const [classInfos,     setClassInfos]     = useState<ClassInfo[]>([]);
   const [liveEntries,    setLiveEntries]    = useState<EventEntry[]>([]);
   const [venuePrograms,  setVenuePrograms]  = useState<VenueProgram[]>([]);
+  const [venueAllEvents, setVenueAllEvents] = useState<{ id: string; venue_key: string; title: string; description: string }[]>([]);
   const [pinInfos,       setPinInfos]       = useState<PinInfo[]>([]);
   const [libClubs,       setLibClubs]       = useState<LibClub[]>([]);
   const [festivalSettings, setFestivalSettings] = useState<FestivalSettings>({ day1_date: "", day2_date: "", display_mode: "auto" });
@@ -130,7 +131,7 @@ export default function MapPage() {
 
   const loadData = useCallback(async () => {
     const t = Date.now();
-    const [crowdRes, classLayoutRes, venueLayoutRes, classRes, liveRes, venuePrgRes, pinInfoRes, libClubRes, festivalRes] = await Promise.all([
+    const [crowdRes, classLayoutRes, venueLayoutRes, classRes, liveRes, venuePrgRes, pinInfoRes, libClubRes, festivalRes, venueEventsRes] = await Promise.all([
       fetch(`/api/crowd?type=all&_t=${t}`,              { cache: "no-store" }).then((r) => r.json()),
       fetch(`/api/map-layout?_t=${t}`,                  { cache: "no-store" }).then((r) => r.json()),
       fetch(`/api/map-layout?type=venue&_t=${t}`,       { cache: "no-store" }).then((r) => r.json()),
@@ -140,6 +141,7 @@ export default function MapPage() {
       fetch(`/api/pin-info?_t=${t}`,                    { cache: "no-store" }).then((r) => r.json()),
       fetch(`/api/library-clubs?_t=${t}`,               { cache: "no-store" }).then((r) => r.json()),
       fetch(`/api/festival-settings?_t=${t}`,           { cache: "no-store" }).then((r) => r.json()),
+      fetch(`/api/venue-events?_t=${t}`,                { cache: "no-store" }).then((r) => r.json()),
     ]);
     setClassCrowds(crowdRes.classes        ?? []);
     setVenueCrowds(crowdRes.venues         ?? []);
@@ -150,6 +152,7 @@ export default function MapPage() {
     setVenuePrograms(venuePrgRes.programs  ?? []);
     setPinInfos(pinInfoRes.items           ?? []);
     setLibClubs(libClubRes.clubs           ?? []);
+    setVenueAllEvents(venueEventsRes.events ?? []);
     if (festivalRes.settings) setFestivalSettings(festivalRes.settings);
     setLastUpdated(new Date());
     setLoading(false);
@@ -191,7 +194,9 @@ export default function MapPage() {
       const catEntries = filteredEntries.filter((e: EventEntry) => e.category === cat);
       if (catEntries.length > 0) entriesByCategory[cat] = catEntries;
     }
-    setModal({ type: "venue", venueKey, label, level: crowd?.level ?? 0, programs, entriesByCategory });
+    // venue_eventsのデータも取得（会場イベント管理で登録したもの）
+    const venueEventItems = venueAllEvents.filter((e) => e.venue_key === venueKey);
+    setModal({ type: "venue", venueKey, label, level: crowd?.level ?? 0, programs, entriesByCategory, venueEventItems });
   };
 
   const openLiveModal = () => {
@@ -200,8 +205,10 @@ export default function MapPage() {
   };
 
   const openLibraryModal = () => {
-    const libCrowd = venueCrowds.find((v) => v.venue_key === "library");
-    setModal({ type: "library", level: libCrowd?.level ?? 0, clubs: libClubs });
+    const libCrowd  = venueCrowds.find((v) => v.venue_key === "library");
+    // venue_eventsから図書館のデータを取得
+    const libEvents = venueAllEvents.filter((e) => e.venue_key === "library");
+    setModal({ type: "library", level: libCrowd?.level ?? 0, clubs: libClubs, events: libEvents });
   };
 
   const openPinModal = (venueKey: string) => {
@@ -438,7 +445,22 @@ export default function MapPage() {
               </>
             )}
 
-            {modal.programs.length === 0 && Object.keys(modal.entriesByCategory).length === 0 && (
+            {/* 会場イベント（イベント管理→会場イベントで登録したもの） */}
+            {modal.venueEventItems.length > 0 && (
+              <>
+                <p style={{ fontSize: "12px", color: "#888", fontWeight: "bold", marginBottom: "6px" }}>📌 会場イベント</p>
+                <div style={{ display: "flex", flexDirection: "column", gap: "8px", marginBottom: "14px" }}>
+                  {modal.venueEventItems.map((ev) => (
+                    <div key={ev.id} style={{ padding: "10px 12px", backgroundColor: "#f0f4ff", borderRadius: "8px", border: "1px solid #c5d5ff" }}>
+                      <p style={{ fontWeight: "bold", fontSize: "14px", margin: 0 }}>{ev.title}</p>
+                      {ev.description && <p style={{ fontSize: "13px", color: "#555", margin: "4px 0 0", whiteSpace: "pre-line" }}>{ev.description}</p>}
+                    </div>
+                  ))}
+                </div>
+              </>
+            )}
+
+            {modal.programs.length === 0 && Object.keys(modal.entriesByCategory).length === 0 && modal.venueEventItems.length === 0 && (
               <p style={{ color: "#aaa", fontSize: "14px" }}>この日のプログラムはまだありません</p>
             )}
             <button onClick={() => setModal(null)} style={closeBtn}>閉じる</button>
@@ -514,7 +536,21 @@ export default function MapPage() {
               <h2 style={{ fontSize: "18px", fontWeight: "bold", margin: 0 }}>📚 図書館</h2>
               <span style={{ fontWeight: "bold", color: getCrowdIcon(modal.level).color, fontSize: "13px" }}>{getCrowdIcon(modal.level).label}</span>
             </div>
-            {modal.clubs.length === 0 ? <p style={{ color: "#aaa", fontSize: "14px" }}>情報はまだありません</p> : (
+
+            {/* 会場イベント（イベント管理→会場イベントで登録したもの） */}
+            {modal.events.length > 0 && (
+              <div style={{ display: "flex", flexDirection: "column", gap: "8px", marginBottom: "14px" }}>
+                {modal.events.map((ev) => (
+                  <div key={ev.id} style={{ padding: "12px", backgroundColor: "#f0f4ff", borderRadius: "8px", border: "1px solid #c5d5ff" }}>
+                    <p style={{ fontWeight: "bold", fontSize: "14px", margin: 0 }}>{ev.title}</p>
+                    {ev.description && <p style={{ fontSize: "13px", color: "#555", margin: "4px 0 0", whiteSpace: "pre-line" }}>{ev.description}</p>}
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* 図書館クラブ（library-clubsで登録したもの） */}
+            {modal.clubs.length > 0 && (
               <div style={{ display: "flex", flexDirection: "column", gap: "8px", marginBottom: "4px" }}>
                 {modal.clubs.map((c) => (
                   <div key={c.id} style={{ padding: "12px", backgroundColor: "#f9f9f9", borderRadius: "8px", border: "1px solid #eee" }}>
@@ -523,6 +559,10 @@ export default function MapPage() {
                   </div>
                 ))}
               </div>
+            )}
+
+            {modal.events.length === 0 && modal.clubs.length === 0 && (
+              <p style={{ color: "#aaa", fontSize: "14px" }}>情報はまだありません</p>
             )}
             <button onClick={() => setModal(null)} style={closeBtn}>閉じる</button>
           </div>
