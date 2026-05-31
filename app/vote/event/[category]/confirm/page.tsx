@@ -84,7 +84,7 @@ function Inner() {
         <div style={{ fontSize: "56px", marginBottom: "16px" }}>✅</div>
         <h1 style={{ fontSize: "20px", marginBottom: "8px" }}>投票完了！</h1>
         <p style={{ color: "#888", marginBottom: "24px" }}>ありがとうございました</p>
-        <a href="/vote/event" style={{ display: "inline-block", padding: "12px 28px", backgroundColor: "#e10102", color: "white", borderRadius: "8px", fontSize: "15px", textDecoration: "none" }}>
+        <a href="/event-enter" style={{ display: "inline-block", padding: "12px 28px", backgroundColor: "#e10102", color: "white", borderRadius: "8px", fontSize: "15px", textDecoration: "none" }}>
           イベント投票トップに戻る
         </a>
       </main>
@@ -98,7 +98,7 @@ function Inner() {
         <div style={{ fontSize: "56px", marginBottom: "16px" }}>⚠️</div>
         <h1 style={{ fontSize: "20px", marginBottom: "8px" }}>すでに投票済みです</h1>
         <p style={{ color: "#888", marginBottom: "24px" }}>このイベントへの投票は1回のみ有効です</p>
-        <a href="/vote/event" style={{ display: "inline-block", padding: "12px 28px", backgroundColor: "#e10102", color: "white", borderRadius: "8px", fontSize: "15px", textDecoration: "none" }}>
+        <a href="/event-enter" style={{ display: "inline-block", padding: "12px 28px", backgroundColor: "#e10102", color: "white", borderRadius: "8px", fontSize: "15px", textDecoration: "none" }}>
           イベント投票トップに戻る
         </a>
       </main>
