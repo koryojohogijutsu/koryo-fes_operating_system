@@ -59,7 +59,7 @@ export async function POST(req: Request) {
     datetime:     datetime    ?? "",
     comment:      comment     ?? "",
     festival_day: festivalDay ?? "both",
-    order_num:    Date.now(),
+    order_num:    Math.floor(Date.now() / 1000000),
   });
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   return NextResponse.json({ success: true });
