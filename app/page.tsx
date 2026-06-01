@@ -102,8 +102,7 @@ function ChatWidget() {
         const chunk = decoder.decode(value, { stream: true });
         // フォーマット: 0:"token"
 
-        for (const line of chunk.split("
-")) {
+        for (const line of chunk.split("\n")) {
           if (!line.startsWith("0:")) continue;
           try {
             const token: string = JSON.parse(line.slice(2));
