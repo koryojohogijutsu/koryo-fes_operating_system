@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useState, Suspense } from "react";
+import { useEffect, useState, useRef, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
+import { useChat } from "ai/react";
 import { useInfoNotifications, NotificationBanners } from "@/lib/useInfoNotifications";
 
 type VisitorType = "smartphone" | "paper" | "student";
@@ -57,6 +58,225 @@ function md5(str: string): string {
   return md51(utf8).map(rhex).join("");
 }
 
+// ── チャットコンポーネント ───────────────────────────────────────────────
+function ChatWidget() {
+  const [open, setOpen] = useState(false);
+  const [bounce, setBounce] = useState(true);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  const { messages, input, handleInputChange, handleSubmit, isLoading } = useChat({
+    api: "/api/chat",
+  });
+
+  // 最初の3秒だけバウンスアニメーション
+  useEffect(() => {
+    const t = setTimeout(() => setBounce(false), 3000);
+    return () => clearTimeout(t);
+  }, []);
+
+  // 新しいメッセージが来たら一番下にスクロール
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages]);
+
+  return (
+    <>
+      {/* キャラクターボタン（右下固定） */}
+      <button
+        onClick={() => setOpen((v) => !v)}
+        style={{
+          position: "fixed",
+          bottom: "24px",
+          right: "16px",
+          border: "none",
+          backgroundColor: "transparent",
+          cursor: "pointer",
+          zIndex: 300,
+          padding: 0,
+          animation: bounce ? "chatBounce 0.7s infinite alternate" : "none",
+          filter: "drop-shadow(0 4px 12px rgba(0,0,0,0.3))",
+          lineHeight: 0,
+        }}
+        aria-label="AIアシスタントを開く"
+      >
+        <img
+          src="/mizuchi.gif"
+          alt="蛟龍くん"
+          style={{ width: "72px", height: "72px", objectFit: "contain" }}
+        />
+        {/* 未オープン時の吹き出し */}
+        {!open && (
+          <div style={{
+            position: "absolute", bottom: "70px", right: "0",
+            backgroundColor: "white", border: "2px solid #e10102",
+            borderRadius: "12px 12px 0 12px",
+            padding: "4px 10px", fontSize: "11px", fontWeight: "bold",
+            color: "#e10102", whiteSpace: "nowrap",
+            boxShadow: "0 2px 8px rgba(0,0,0,0.15)",
+          }}>
+            聞いて！🐉
+          </div>
+        )}
+      </button>
+
+      {/* チャットウィンドウ */}
+      {open && (
+        <div style={{
+          position: "fixed", bottom: "100px", right: "16px",
+          width: "min(360px, calc(100vw - 32px))",
+          height: "480px",
+          backgroundColor: "white",
+          borderRadius: "20px",
+          boxShadow: "0 8px 40px rgba(0,0,0,0.2)",
+          zIndex: 300,
+          display: "flex", flexDirection: "column",
+          overflow: "hidden",
+          border: "1px solid #f0f0f0",
+        }}>
+          {/* ヘッダー */}
+          <div style={{
+            backgroundColor: "#e10102", color: "white",
+            padding: "14px 16px", display: "flex", justifyContent: "space-between", alignItems: "center",
+            flexShrink: 0,
+          }}>
+            <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+              <span style={{ fontSize: "22px" }}>🐉</span>
+              <div>
+                <p style={{ fontWeight: "bold", fontSize: "14px", margin: 0 }}>蛟龍くん</p>
+                <p style={{ fontSize: "11px", margin: 0, opacity: 0.85 }}>蛟龍祭AIアシスタント</p>
+              </div>
+            </div>
+            <button onClick={() => setOpen(false)}
+              style={{ background: "none", border: "none", color: "white", fontSize: "20px", cursor: "pointer", lineHeight: 1, padding: "4px" }}>
+              ✕
+            </button>
+          </div>
+
+          {/* メッセージ一覧 */}
+          <div style={{
+            flex: 1, overflowY: "auto", padding: "16px 12px", display: "flex", flexDirection: "column", gap: "10px",
+          }}>
+            {/* 最初の案内メッセージ */}
+            {messages.length === 0 && (
+              <div style={{ textAlign: "center", padding: "20px 0" }}>
+                <p style={{ fontSize: "28px", margin: "0 0 8px" }}>🐉</p>
+                <p style={{ fontSize: "13px", color: "#888", lineHeight: 1.6 }}>
+                  こんにちは！蛟龍くんです🎉<br/>
+                  蛟龍祭について何でも聞いてね！
+                </p>
+                {/* クイック質問ボタン */}
+                <div style={{ display: "flex", flexWrap: "wrap", gap: "6px", justifyContent: "center", marginTop: "12px" }}>
+                  {["体育館は？", "混んでる？", "落とし物は？", "のど自慢は？"].map((q) => (
+                    <button key={q}
+                      onClick={() => {
+                        const syntheticEvent = { preventDefault: () => {} } as React.FormEvent;
+                        handleInputChange({ target: { value: q } } as React.ChangeEvent<HTMLInputElement>);
+                        setTimeout(() => handleSubmit(syntheticEvent), 50);
+                      }}
+                      style={{
+                        padding: "6px 12px", fontSize: "12px", cursor: "pointer",
+                        backgroundColor: "#fff5f5", color: "#e10102",
+                        border: "1px solid #ffd0d0", borderRadius: "16px",
+                      }}>
+                      {q}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {messages.map((m) => (
+              <div key={m.id} style={{
+                display: "flex",
+                justifyContent: m.role === "user" ? "flex-end" : "flex-start",
+                alignItems: "flex-end", gap: "6px",
+              }}>
+                {m.role === "assistant" && (
+                  <span style={{ fontSize: "20px", flexShrink: 0 }}>🐉</span>
+                )}
+                <div style={{
+                  maxWidth: "76%",
+                  padding: "10px 14px",
+                  borderRadius: m.role === "user" ? "18px 18px 4px 18px" : "18px 18px 18px 4px",
+                  backgroundColor: m.role === "user" ? "#e10102" : "#f5f5f5",
+                  color: m.role === "user" ? "white" : "#333",
+                  fontSize: "13px",
+                  lineHeight: 1.6,
+                  whiteSpace: "pre-wrap",
+                  wordBreak: "break-word",
+                }}>
+                  {m.content}
+                </div>
+              </div>
+            ))}
+
+            {/* ローディングインジケーター */}
+            {isLoading && (
+              <div style={{ display: "flex", alignItems: "flex-end", gap: "6px" }}>
+                <span style={{ fontSize: "20px" }}>🐉</span>
+                <div style={{
+                  padding: "10px 14px", borderRadius: "18px 18px 18px 4px",
+                  backgroundColor: "#f5f5f5", display: "flex", gap: "4px", alignItems: "center",
+                }}>
+                  {[0, 1, 2].map((i) => (
+                    <span key={i} style={{
+                      width: "6px", height: "6px", borderRadius: "50%", backgroundColor: "#ccc",
+                      animation: `chatDot 1.2s ${i * 0.2}s infinite`,
+                      display: "inline-block",
+                    }}/>
+                  ))}
+                </div>
+              </div>
+            )}
+            <div ref={messagesEndRef} />
+          </div>
+
+          {/* 入力エリア */}
+          <form onSubmit={handleSubmit} style={{
+            padding: "10px 12px", borderTop: "1px solid #eee",
+            display: "flex", gap: "8px", flexShrink: 0,
+            backgroundColor: "white",
+          }}>
+            <input
+              value={input}
+              onChange={handleInputChange}
+              placeholder="質問を入力..."
+              disabled={isLoading}
+              style={{
+                flex: 1, padding: "10px 14px", fontSize: "14px",
+                border: "1px solid #ddd", borderRadius: "20px",
+                outline: "none", backgroundColor: isLoading ? "#f9f9f9" : "white",
+              }}
+            />
+            <button type="submit" disabled={isLoading || !input.trim()}
+              style={{
+                width: "40px", height: "40px", borderRadius: "50%", border: "none",
+                backgroundColor: isLoading || !input.trim() ? "#ddd" : "#e10102",
+                color: "white", fontSize: "16px", cursor: isLoading || !input.trim() ? "not-allowed" : "pointer",
+                display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0,
+              }}>
+              ➤
+            </button>
+          </form>
+        </div>
+      )}
+
+      {/* アニメーション定義 */}
+      <style>{`
+        @keyframes chatBounce {
+          from { transform: translateY(0px); }
+          to   { transform: translateY(-8px); }
+        }
+        @keyframes chatDot {
+          0%, 80%, 100% { transform: scale(0.6); opacity: 0.4; }
+          40%            { transform: scale(1);   opacity: 1;   }
+        }
+      `}</style>
+    </>
+  );
+}
+
+// ── メインページ ─────────────────────────────────────────────────────────
 export default function Home() {
   return (
     <Suspense fallback={<main style={{ padding:"40px", textAlign:"center" }}><p style={{ color:"#aaa" }}>読み込み中...</p></main>}>
@@ -140,7 +360,7 @@ function HomeInner() {
   return (
     <>
       <NotificationBanners banners={banners} dismiss={dismissBanner} />
-      <main style={{ padding:"32px 20px 40px", textAlign:"center", maxWidth:"400px", margin:"0 auto", position:"relative" }}>
+      <main style={{ padding:"32px 20px 100px", textAlign:"center", maxWidth:"400px", margin:"0 auto", position:"relative" }}>
         <button onClick={() => setSubModal(true)}
           style={{ position:"absolute", top:"20px", right:"20px", width:"40px", height:"40px", borderRadius:"50%", border:"1px solid #ddd", backgroundColor:"white", fontSize:"18px", cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", boxShadow:"0 2px 6px rgba(0,0,0,0.08)" }}>
           ☰
@@ -149,7 +369,6 @@ function HomeInner() {
         <h1 style={{ fontSize:"24px", marginBottom:"4px", marginTop:"8px" }}>蛟龍祭 場内サイト</h1>
         <p style={{ color:"#888", fontSize:"13px", marginBottom:"24px" }}>{typeLabel}</p>
 
-        {/* メインボタン群 */}
         <div style={{ display:"flex", flexDirection:"column", gap:"14px" }}>
           <Link href="/enter"
             style={{ padding:"18px", fontSize:"17px", cursor:"pointer", backgroundColor:"#e10102", color:"white", border:"none", borderRadius:"10px", textDecoration:"none", display:"block" }}>
@@ -177,7 +396,6 @@ function HomeInner() {
           </Link>
         </div>
 
-        {/* 謎解きコンプリート者数（ボタン群の下・管理者ログインの上） */}
         {clearCount !== null && clearCount > 0 && (
           <div style={{ marginTop:"24px", display:"inline-flex", alignItems:"center", gap:"6px", backgroundColor:"#fff8e1", border:"1px solid #ffe082", borderRadius:"20px", padding:"8px 20px", fontSize:"13px", color:"#b8860b" }}>
             <span>🏆</span>
@@ -218,6 +436,9 @@ function HomeInner() {
           </div>
         </div>
       )}
+
+      {/* AIチャットウィジェット（右下固定） */}
+      <ChatWidget />
     </>
   );
 }
