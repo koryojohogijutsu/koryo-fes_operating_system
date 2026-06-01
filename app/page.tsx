@@ -100,8 +100,8 @@ function ChatWidget() {
         aria-label="AIアシスタントを開く"
       >
         <img
-          src="/mizuchi.gif"
-          alt="蛟龍くん"
+          src="/mizuchi.png"
+          alt="蛟くん"
           style={{ width: "72px", height: "72px", objectFit: "contain" }}
         />
         {/* 未オープン時の吹き出し */}
@@ -114,7 +114,7 @@ function ChatWidget() {
             color: "#e10102", whiteSpace: "nowrap",
             boxShadow: "0 2px 8px rgba(0,0,0,0.15)",
           }}>
-            聞いて！🐉
+            聞いてみよう！
           </div>
         )}
       </button>
@@ -142,7 +142,7 @@ function ChatWidget() {
             <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
               <span style={{ fontSize: "22px" }}>🐉</span>
               <div>
-                <p style={{ fontWeight: "bold", fontSize: "14px", margin: 0 }}>蛟龍くん</p>
+                <p style={{ fontWeight: "bold", fontSize: "14px", margin: 0 }}>蛟くん</p>
                 <p style={{ fontSize: "11px", margin: 0, opacity: 0.85 }}>蛟龍祭AIアシスタント</p>
               </div>
             </div>
@@ -161,7 +161,7 @@ function ChatWidget() {
               <div style={{ textAlign: "center", padding: "20px 0" }}>
                 <p style={{ fontSize: "28px", margin: "0 0 8px" }}>🐉</p>
                 <p style={{ fontSize: "13px", color: "#888", lineHeight: 1.6 }}>
-                  こんにちは！蛟龍くんです🎉<br/>
+                  こんにちは！蛟くんです🎉<br/>
                   蛟龍祭について何でも聞いてね！
                 </p>
                 {/* クイック質問ボタン */}
