@@ -3,7 +3,6 @@
 import { useEffect, useState, useRef, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
-import { useChat } from "@ai-sdk/react";
 import { useInfoNotifications, NotificationBanners } from "@/lib/useInfoNotifications";
 
 type VisitorType = "smartphone" | "paper" | "student";
@@ -59,14 +58,66 @@ function md5(str: string): string {
 }
 
 // ── チャットコンポーネント ───────────────────────────────────────────────
+type ChatMessage = { id: string; role: "user" | "assistant"; content: string };
+
 function ChatWidget() {
-  const [open, setOpen] = useState(false);
-  const [bounce, setBounce] = useState(true);
+  const [open,     setOpen]     = useState(false);
+  const [bounce,   setBounce]   = useState(true);
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [input,    setInput]    = useState("");
+  const [isLoading, setIsLoading] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  const { messages, input, handleInputChange, handleSubmit, isLoading } = useChat({
-    api: "/api/chat",
-  });
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const text = input.trim();
+    if (!text || isLoading) return;
+
+    const userMsg: ChatMessage = { id: Date.now().toString(), role: "user", content: text };
+    const assistantId = (Date.now() + 1).toString();
+    setMessages((prev) => [...prev, userMsg, { id: assistantId, role: "assistant", content: "" }]);
+    setInput("");
+    setIsLoading(true);
+
+    try {
+      const res = await fetch("/api/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ messages: [...messages, userMsg].map((m) => ({ role: m.role, content: m.content })) }),
+      });
+
+      if (!res.ok || !res.body) {
+        setMessages((prev) => prev.map((m) => m.id === assistantId ? { ...m, content: "エラーが発生しました🙏" } : m));
+        setIsLoading(false);
+        return;
+      }
+
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      let accumulated = "";
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        const chunk = decoder.decode(value, { stream: true });
+        // フォーマット: 0:"token"
+
+        for (const line of chunk.split("
+")) {
+          if (!line.startsWith("0:")) continue;
+          try {
+            const token: string = JSON.parse(line.slice(2));
+            accumulated += token;
+            setMessages((prev) => prev.map((m) => m.id === assistantId ? { ...m, content: accumulated } : m));
+          } catch { /* ignore */ }
+        }
+      }
+    } catch {
+      setMessages((prev) => prev.map((m) => m.id === assistantId ? { ...m, content: "通信エラーが発生しました🙏" } : m));
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   // 最初の3秒だけバウンスアニメーション
   useEffect(() => {
@@ -100,8 +151,8 @@ function ChatWidget() {
         aria-label="AIアシスタントを開く"
       >
         <img
-          src="/mizuchi.png"
-          alt="蛟くん"
+          src="/mizuchi.gif"
+          alt="蛟龍くん"
           style={{ width: "72px", height: "72px", objectFit: "contain" }}
         />
         {/* 未オープン時の吹き出し */}
@@ -114,7 +165,7 @@ function ChatWidget() {
             color: "#e10102", whiteSpace: "nowrap",
             boxShadow: "0 2px 8px rgba(0,0,0,0.15)",
           }}>
-            聞いてみよう！
+            聞いて！🐉
           </div>
         )}
       </button>
@@ -142,7 +193,7 @@ function ChatWidget() {
             <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
               <span style={{ fontSize: "22px" }}>🐉</span>
               <div>
-                <p style={{ fontWeight: "bold", fontSize: "14px", margin: 0 }}>蛟くん</p>
+                <p style={{ fontWeight: "bold", fontSize: "14px", margin: 0 }}>蛟龍くん</p>
                 <p style={{ fontSize: "11px", margin: 0, opacity: 0.85 }}>蛟龍祭AIアシスタント</p>
               </div>
             </div>
@@ -161,7 +212,7 @@ function ChatWidget() {
               <div style={{ textAlign: "center", padding: "20px 0" }}>
                 <p style={{ fontSize: "28px", margin: "0 0 8px" }}>🐉</p>
                 <p style={{ fontSize: "13px", color: "#888", lineHeight: 1.6 }}>
-                  こんにちは！蛟くんです🎉<br/>
+                  こんにちは！蛟龍くんです🎉<br/>
                   蛟龍祭について何でも聞いてね！
                 </p>
                 {/* クイック質問ボタン */}
@@ -169,9 +220,11 @@ function ChatWidget() {
                   {["体育館は？", "混んでる？", "落とし物は？", "のど自慢は？"].map((q) => (
                     <button key={q}
                       onClick={() => {
-                        const syntheticEvent = { preventDefault: () => {} } as React.FormEvent;
-                        handleInputChange({ target: { value: q } } as React.ChangeEvent<HTMLInputElement>);
-                        setTimeout(() => handleSubmit(syntheticEvent), 50);
+                        setInput(q);
+                        setTimeout(() => {
+                          const form = document.getElementById("chat-form") as HTMLFormElement;
+                          form?.requestSubmit();
+                        }, 50);
                       }}
                       style={{
                         padding: "6px 12px", fontSize: "12px", cursor: "pointer",
@@ -232,14 +285,14 @@ function ChatWidget() {
           </div>
 
           {/* 入力エリア */}
-          <form onSubmit={handleSubmit} style={{
+          <form id="chat-form" onSubmit={handleSubmit} style={{
             padding: "10px 12px", borderTop: "1px solid #eee",
             display: "flex", gap: "8px", flexShrink: 0,
             backgroundColor: "white",
           }}>
             <input
               value={input}
-              onChange={handleInputChange}
+              onChange={(e) => setInput(e.target.value)}
               placeholder="質問を入力..."
               disabled={isLoading}
               style={{
