@@ -22,7 +22,8 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "取得失敗" }, { status: 500 });
   }
 
-  const classCodes = [...new Set(data.map(d => d.class_code))];
+  // nullのclass_codeを除外（イベント入場ログ等がvisitsに混在する場合の対策）
+  const classCodes = [...new Set(data.map(d => d.class_code).filter(Boolean))];
 
   return NextResponse.json({ classCodes });
 }
