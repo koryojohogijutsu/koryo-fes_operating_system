@@ -3,7 +3,7 @@
 import { useEffect, useState, useRef, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
-import { useChat } from "ai/react";
+import { useChat } from "@ai-sdk/react";
 import { useInfoNotifications, NotificationBanners } from "@/lib/useInfoNotifications";
 
 type VisitorType = "smartphone" | "paper" | "student";
