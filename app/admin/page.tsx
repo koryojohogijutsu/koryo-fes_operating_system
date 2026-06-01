@@ -55,7 +55,7 @@ export default function AdminPage() {
         <a href="/admin/venue/bazar"    style={{ ...linkStyle, borderLeft: "4px solid #1976d2" }}>🛍️ バザー</a>
         <a href="/admin/venue/doso"     style={{ ...linkStyle, borderLeft: "4px solid #1976d2" }}>🎓 同窓会</a>
         <a href="/admin/venue/kyukei"   style={{ ...linkStyle, borderLeft: "4px solid #1976d2" }}>☕ 休憩所</a>
-        <a href="/admin/venue/kendo"    style={{ ...linkStyle, borderLeft: "4px solid #1976d2" }}>🥋 剣道部</a>
+        <a href="/admin/venue/tea"     style={{ ...linkStyle, borderLeft: "4px solid #4caf50" }}>🍵 茶道部</a>
         <a href="/admin/venue/kyudo"    style={{ ...linkStyle, borderLeft: "4px solid #1976d2" }}>🏹 弓道部</a>
       </div>
 
