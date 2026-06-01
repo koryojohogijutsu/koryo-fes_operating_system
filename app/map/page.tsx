@@ -15,10 +15,10 @@ const VENUE_LABELS: Record<string, string> = {
   tontonhiroba: "とんとん広場", tea: "茶道部", science: "科学物理部",
   tetsudo: "鉄道研究部", quiz: "クイズ研究会", bazar: "バザー",
   doso: "同窓会", shogi: "将棋部", igo: "囲碁部", kyukei: "休憩所",
-  kendo: "剣道部", kyudo: "弓道部", ouen: "應援團演舞",
+  kyudo: "弓道部", ouen: "應援團演舞",
 };
 
-const PIN_INFO_KEYS  = ["science","tetsudo","quiz","tea","shogi","igo","kendo","kyudo","ouen"];
+const PIN_INFO_KEYS  = ["science","tetsudo","quiz","tea","shogi","igo","kyudo","ouen"];
 // ★修正: サンデリカをメニューキーに追加
 const MENU_KEYS      = ["tontonhiroba","football","mockstore","sundelica"];
 const VENUE_CATEGORIES: Record<string, string[]> = {
