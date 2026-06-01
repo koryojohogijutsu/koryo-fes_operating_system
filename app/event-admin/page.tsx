@@ -35,24 +35,29 @@ function useDragSort<T extends { id: string; order_num: number }>(
   items: T[],
   onSave: (sorted: T[]) => Promise<void>
 ) {
-  const [list,        setList]        = useState<T[]>([]);
-  const [draggingId,  setDraggingId]  = useState<string | null>(null);
-  const [snapshot,    setSnapshot]    = useState<T[]>([]); // 元に戻す用スナップショット
-  const [dirty,       setDirty]       = useState(false);
-  const [saving,      setSaving]      = useState(false);
+  const [list,       setList]       = useState<T[]>([]);
+  const [draggingId, setDraggingId] = useState<string | null>(null);
+  const [snapshot,   setSnapshot]   = useState<T[]>([]);
+  const [dirty,      setDirty]      = useState(false);
+  const [saving,     setSaving]     = useState(false);
+
+  // refでdraggingIdを追跡（useCallbackの古いクロージャ問題を回避）
+  const draggingIdRef = useRef<string | null>(null);
 
   useEffect(() => { setList(items); setSnapshot(items); setDirty(false); }, [items]);
 
   const onDragStart = useCallback((id: string) => {
+    draggingIdRef.current = id;
     setDraggingId(id);
-    setSnapshot([...list]); // ドラッグ開始時点のスナップショット保存
-  }, [list]);
+    setSnapshot((prev) => [...prev]);
+  }, []);
 
   const onDragOver = useCallback((e: React.DragEvent, overId: string) => {
     e.preventDefault();
-    if (!draggingId || draggingId === overId) return;
+    const dragId = draggingIdRef.current;
+    if (!dragId || dragId === overId) return;
     setList((prev) => {
-      const from = prev.findIndex((i) => i.id === draggingId);
+      const from = prev.findIndex((i) => i.id === dragId);
       const to   = prev.findIndex((i) => i.id === overId);
       if (from === -1 || to === -1) return prev;
       const next = [...prev];
@@ -61,18 +66,25 @@ function useDragSort<T extends { id: string; order_num: number }>(
       return next;
     });
     setDirty(true);
-  }, [draggingId]);
+  }, []);
 
-  const onDragEnd = useCallback(() => { setDraggingId(null); }, []);
+  const onDragEnd = useCallback(() => {
+    draggingIdRef.current = null;
+    setDraggingId(null);
+  }, []);
 
   const handleSave = async () => {
     setSaving(true);
-    const withOrder = list.map((item, i) => ({ ...item, order_num: i * 10 }));
-    await onSave(withOrder);
-    setSnapshot(withOrder);
-    setList(withOrder);
-    setDirty(false);
-    setSaving(false);
+    // 保存直前のlistをスナップショットにも反映
+    setList((current) => {
+      const withOrder = current.map((item, i) => ({ ...item, order_num: i * 10 }));
+      onSave(withOrder).then(() => {
+        setSnapshot(withOrder);
+        setDirty(false);
+        setSaving(false);
+      });
+      return withOrder;
+    });
   };
 
   const handleReset = () => {
