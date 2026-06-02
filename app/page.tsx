@@ -150,8 +150,8 @@ function ChatWidget() {
         aria-label="AIアシスタントを開く"
       >
         <img
-          src="/mizuchi.gif"
-          alt="蛟龍くん"
+          src="/mizuchi.png"
+          alt="蛟くん"
           style={{ width: "72px", height: "72px", objectFit: "contain" }}
         />
         {/* 未オープン時の吹き出し */}
@@ -164,7 +164,7 @@ function ChatWidget() {
             color: "#e10102", whiteSpace: "nowrap",
             boxShadow: "0 2px 8px rgba(0,0,0,0.15)",
           }}>
-            聞いて！🐉
+            聞いてみよう！
           </div>
         )}
       </button>
@@ -190,9 +190,9 @@ function ChatWidget() {
             flexShrink: 0,
           }}>
             <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-              <span style={{ fontSize: "22px" }}>🐉</span>
+              
               <div>
-                <p style={{ fontWeight: "bold", fontSize: "14px", margin: 0 }}>蛟龍くん</p>
+                <p style={{ fontWeight: "bold", fontSize: "14px", margin: 0 }}>蛟くん</p>
                 <p style={{ fontSize: "11px", margin: 0, opacity: 0.85 }}>蛟龍祭AIアシスタント</p>
               </div>
             </div>
@@ -209,9 +209,9 @@ function ChatWidget() {
             {/* 最初の案内メッセージ */}
             {messages.length === 0 && (
               <div style={{ textAlign: "center", padding: "20px 0" }}>
-                <p style={{ fontSize: "28px", margin: "0 0 8px" }}>🐉</p>
+                
                 <p style={{ fontSize: "13px", color: "#888", lineHeight: 1.6 }}>
-                  こんにちは！蛟龍くんです🎉<br/>
+                  こんにちは！蛟です🎉<br/>
                   蛟龍祭について何でも聞いてね！
                 </p>
                 {/* クイック質問ボタン */}
@@ -244,7 +244,7 @@ function ChatWidget() {
                 alignItems: "flex-end", gap: "6px",
               }}>
                 {m.role === "assistant" && (
-                  <span style={{ fontSize: "20px", flexShrink: 0 }}>🐉</span>
+                  
                 )}
                 <div style={{
                   maxWidth: "76%",
@@ -265,7 +265,7 @@ function ChatWidget() {
             {/* ローディングインジケーター */}
             {isLoading && (
               <div style={{ display: "flex", alignItems: "flex-end", gap: "6px" }}>
-                <span style={{ fontSize: "20px" }}>🐉</span>
+                
                 <div style={{
                   padding: "10px 14px", borderRadius: "18px 18px 18px 4px",
                   backgroundColor: "#f5f5f5", display: "flex", gap: "4px", alignItems: "center",
