@@ -165,6 +165,10 @@ export default function EventEnterPage() {
           style={{ padding: "14px", fontSize: "16px", cursor: (voting || scanning) ? "not-allowed" : "pointer", backgroundColor: "white", color: "#e10102", border: "2px solid #e10102", borderRadius: "8px", opacity: scanning ? 0.5 : 1 }}>
           {voting ? "確認中..." : "🗳️ 投票する"}
         </button>
+        <Link href="/gym-rating"
+          style={{ padding: "14px", fontSize: "16px", textAlign: "center", backgroundColor: "white", color: "#f5a623", border: "2px solid #f5a623", borderRadius: "8px", textDecoration: "none", display: "block" }}>
+          ⭐ 体育館イベントを評価する
+        </Link>
       </div>
 
       <div style={{ display: scanning ? "block" : "none", width: "100%", maxWidth: "320px", margin: "0 auto 20px", borderRadius: "12px", overflow: "hidden", border: "2px solid #e10102" }}>
