@@ -108,10 +108,10 @@ function ChatWidget() {
             const token: string = JSON.parse(line.slice(2));
             accumulated += token;
             setMessages((prev) => prev.map((m) => m.id === assistantId ? { ...m, content: accumulated } : m));
-          } catch { /* ignore */ }
+          } catch (_e) { /* ignore */ }
         }
       }
-    } catch {
+    } catch (_e) {
       setMessages((prev) => prev.map((m) => m.id === assistantId ? { ...m, content: "通信エラーが発生しました🙏" } : m));
     } finally {
       setIsLoading(false);
