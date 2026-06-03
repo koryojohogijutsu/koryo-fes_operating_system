@@ -30,7 +30,7 @@ function makeClient() {
 export async function GET(req: NextRequest) {
   const supabase = makeClient();
   const venueKey = req.nextUrl.searchParams.get("venueKey");
-  let query = supabase.from("venue_events").select("id, venue_key, title, description, order_num").order("order_num");
+  let query = supabase.from("venue_events").select("id, venue_key, title, description, datetime, order_num").order("order_num");
   if (venueKey) query = query.eq("venue_key", venueKey);
   const { data, error } = await query;
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
