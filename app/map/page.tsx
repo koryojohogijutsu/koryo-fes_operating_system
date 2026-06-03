@@ -15,10 +15,10 @@ const VENUE_LABELS: Record<string, string> = {
   tontonhiroba: "とんとん広場", tea: "茶道部", science: "科学物理部",
   tetsudo: "鉄道研究部", quiz: "クイズ研究会", bazar: "バザー",
   doso: "同窓会", shogi: "将棋部", igo: "囲碁部", kyukei: "休憩所",
-  kyudo: "弓道部", nakatei: "中庭",
+  kyudo: "弓道部", nakaniwa: "中庭",
 };
 
-const PIN_INFO_KEYS  = ["science","tetsudo","quiz","tea","shogi","igo","kyudo","kyukei","nakatei"];
+const PIN_INFO_KEYS  = ["science","tetsudo","quiz","tea","shogi","igo","kyudo","nakaniwa"];
 // ★修正: サンデリカをメニューキーに追加
 const MENU_KEYS      = ["tontonhiroba","football","mockstore","sundelica"];
 const VENUE_CATEGORIES: Record<string, string[]> = {
@@ -149,7 +149,11 @@ export default function MapPage() {
     setClassCrowds(crowdRes.classes        ?? []);
     setVenueCrowds(crowdRes.venues         ?? []);
     setClassLayouts(classLayoutRes.layouts ?? []);
-    setVenueLayouts(venueLayoutRes.layouts ?? []);
+    // ouen(應援團演舞)・kendo(剣道部)はDBに残っていても表示しない
+    const EXCLUDED_VENUES = ["ouen", "kendo"];
+    setVenueLayouts((venueLayoutRes.layouts ?? []).filter(
+      (l: { venue_key: string }) => !EXCLUDED_VENUES.includes(l.venue_key)
+    ));
     setClassInfos(classRes.classes         ?? []);
     setLiveEntries(liveRes.entries         ?? []);
     setVenuePrograms(venuePrgRes.programs  ?? []);
@@ -267,13 +271,14 @@ export default function MapPage() {
 
   // 中庭モーダル — venue_eventsで登録した情報を表示
   const openNakateiModal = () => {
-    const crowd  = venueCrowds.find((v) => v.venue_key === "nakatei");
-    const events = venueAllEvents.filter((e) => e.venue_key === "nakatei");
-    setModal({ type: "library", venueKey: "nakatei", level: crowd?.level ?? 0, clubs: [], events });
+    const crowd  = venueCrowds.find((v) => v.venue_key === "nakaniwa");
+    const events = venueAllEvents.filter((e) => e.venue_key === "nakaniwa");
+    setModal({ type: "library", venueKey: "nakaniwa", level: crowd?.level ?? 0, clubs: [], events });
   };
 
   const handleVenuePin = (venueKey: string) => {
-    if (venueKey === "nakatei")            { openNakateiModal();       return; }
+    if (venueKey === "kyukei")              { return; } // 休憩所はピンのみ、モーダルなし
+    if (venueKey === "nakaniwa")            { openNakateiModal();       return; }
     if (PIN_INFO_KEYS.includes(venueKey))  { openPinModal(venueKey);   return; }
     if (venueKey === "doso")               { openDosoModal();          return; }
     if (MENU_KEYS.includes(venueKey))      { openMenuModal(venueKey);  return; }
@@ -560,7 +565,7 @@ export default function MapPage() {
           <div onClick={(e) => e.stopPropagation()} style={modalBox}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px" }}>
               <h2 style={{ fontSize: "18px", fontWeight: "bold", margin: 0 }}>
-                {modal.venueKey === "nakatei" ? "🌿 中庭" : "📚 図書館"}
+                {modal.venueKey === "nakaniwa" ? "🌿 中庭" : "📚 図書館"}
               </h2>
               <span style={{ fontWeight: "bold", color: getCrowdIcon(modal.level).color, fontSize: "13px" }}>{getCrowdIcon(modal.level).label}</span>
             </div>
@@ -571,6 +576,7 @@ export default function MapPage() {
                 {modal.events.map((ev) => (
                   <div key={ev.id} style={{ padding: "12px", backgroundColor: "#f0f4ff", borderRadius: "8px", border: "1px solid #c5d5ff" }}>
                     <p style={{ fontWeight: "bold", fontSize: "14px", margin: 0 }}>{ev.title}</p>
+                    {(ev as any).datetime && <p style={{ fontSize: "12px", color: "#1976d2", margin: "3px 0 0" }}>🕐 {(ev as any).datetime}</p>}
                     {ev.description && <p style={{ fontSize: "13px", color: "#555", margin: "4px 0 0", whiteSpace: "pre-line" }}>{ev.description}</p>}
                   </div>
                 ))}
