@@ -1,6 +1,5 @@
 "use client";
 import { useEffect, useState } from "react";
-import { useVenueAuth } from "@/app/admin/venue/_auth";
 
 const VENUE_KEY   = "kyudo";
 const VENUE_LABEL = "弓道部";
@@ -12,7 +11,7 @@ const CROWD_LEVELS = [
 ];
 
 export default function VenueManagePage() {
-  const authed = useVenueAuth();
+  const [authed, setAuthed] = useState(true); // 認証不要
   const [crowdLevel, setCrowdLevel] = useState(0);
   const [saving,     setSaving]     = useState(false);
   const [saved,      setSaved]      = useState(false);
