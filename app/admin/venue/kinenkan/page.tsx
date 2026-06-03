@@ -1,6 +1,5 @@
 "use client";
 import { useEffect, useState } from "react";
-import { useVenueAuth } from "@/app/admin/venue/_auth";
 
 const VENUE_KEY = "kinenkan";
 const M1_KEY    = "m1";
@@ -19,7 +18,7 @@ function assignRanks(items: Omit<VoteResult, "rank">[]): VoteResult[] {
   });
 }
 export default function KinenkanManagePage() {
-  const authed = useVenueAuth();
+  const [authed, setAuthed] = useState(true); // 認証不要
   const [crowdLevel,  setCrowdLevel]  = useState(0);
   const [saving,      setSaving]      = useState(false);
   const [saved,       setSaved]       = useState(false);
