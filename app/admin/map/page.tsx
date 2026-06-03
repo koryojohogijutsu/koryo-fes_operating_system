@@ -28,7 +28,7 @@ const VENUE_DEFAULTS: Omit<VenueLayoutItem, "mapKey">[] = [
   { venue_key: "igo",          label: "囲碁部",       pinLabel: "囲碁部",         x: -1, y: -1 },
   { venue_key: "kyukei",       label: "休憩所",       pinLabel: "休憩所",         x: -1, y: -1 },
   { venue_key: "kyudo",        label: "弓道部",       pinLabel: "弓道部",         x: -1, y: -1 },
-  { venue_key: "nakatei",      label: "中庭",         pinLabel: "中庭",             x: -1, y: -1 },
+  { venue_key: "nakaniwa",      label: "中庭",         pinLabel: "中庭",             x: -1, y: -1 },
   { venue_key: "mockstore",    label: "模擬店",       pinLabel: "模擬店",         x: -1, y: -1 },
 ];
 
