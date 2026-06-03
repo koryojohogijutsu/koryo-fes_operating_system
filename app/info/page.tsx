@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 
-type Notice = { id: string; title: string; body: string; created_at: string };
+type Notice = { id: string; title: string; body: string; image_url?: string; created_at: string };
 type Lost   = { id: string; time: string; place: string; memo: string; image_url?: string; created_at: string };
 
 export default function InfoPage() {
@@ -46,6 +46,10 @@ export default function InfoPage() {
                   <div key={n.id} style={{ padding: "14px 16px", borderRadius: "10px", border: "1px solid #eee", backgroundColor: "#fafafa" }}>
                     <div style={{ fontWeight: "bold", fontSize: "15px", marginBottom: "6px" }}>{n.title}</div>
                     <div style={{ fontSize: "14px", color: "#444", whiteSpace: "pre-line" }}>{n.body}</div>
+                    {n.image_url && (
+                      <img src={n.image_url} alt="画像"
+                        style={{ width: "100%", borderRadius: "8px", marginTop: "10px", display: "block", objectFit: "contain", backgroundColor: "#f5f5f5" }} />
+                    )}
                     <div style={{ fontSize: "11px", color: "#aaa", marginTop: "8px" }}>
                       {new Date(n.created_at).toLocaleString("ja-JP", { month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit" })}
                     </div>
@@ -70,7 +74,7 @@ export default function InfoPage() {
                       <img
                         src={l.image_url}
                         alt="落とし物"
-                        style={{ width: "100%", borderRadius: "8px", maxHeight: "200px", objectFit: "cover" }}
+                        style={{ width: "100%", borderRadius: "8px", display: "block", objectFit: "contain", backgroundColor: "#f5f5f5" }}
                       />
                     )}
                     <div style={{ fontSize: "11px", color: "#aaa", marginTop: "8px" }}>
