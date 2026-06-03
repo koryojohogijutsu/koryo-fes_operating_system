@@ -22,13 +22,13 @@ const VENUE_KEYS = [
   { key: "gym",      label: "🏟️ 体育館" },
   { key: "kinenkan", label: "🏛️ 記念館" },
   { key: "library",  label: "📚 図書館" },
-  { key: "nakatei",  label: "🌿 中庭" },
+  { key: "nakaniwa",  label: "🌿 中庭（中庭）" },
 ];
 
 type FestivalDay = "day1" | "day2" | "both";
 type Settings = { day1_date: string; day2_date: string };
 type Entry = { id: string; name: string; description: string; comment: string; datetime: string | null; image_url: string | null; members: string | null; festival_day: string; order_num: number };
-type VenueEvent = { id: string; venue_key: string; title: string; description: string; order_num: number };
+type VenueEvent = { id: string; venue_key: string; title: string; description: string; datetime?: string; order_num: number };
 type VenueProgram = { id: string; venue_key: string; name: string; datetime: string; comment: string; festival_day: string; order_num: number };
 
 // ドラッグ並び替えフック
@@ -134,6 +134,7 @@ export default function EventAdminPage() {
   const [venueEvents,  setVenueEvents]  = useState<VenueEvent[]>([]);
   const [vTitle,       setVTitle]       = useState("");
   const [vDescription, setVDescription] = useState("");
+  const [vDatetime,    setVDatetime]    = useState("");
   const [vSubmitting,  setVSubmitting]  = useState(false);
 
   useEffect(() => {
@@ -266,7 +267,7 @@ export default function EventAdminPage() {
     const res = await fetch("/api/venue-events", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ venueKey, title: vTitle, description: vDescription }),
+      body: JSON.stringify({ venueKey, title: vTitle, description: vDescription, datetime: vDatetime || null }),
     });
     const data = await res.json();
     if (res.ok) {
@@ -599,6 +600,7 @@ export default function EventAdminPage() {
           </div>
           <div style={{ padding: "16px", border: "1px solid #eee", borderRadius: "10px", marginBottom: "24px", display: "flex", flexDirection: "column", gap: "10px" }}>
             <input placeholder="イベントタイトル *" value={vTitle} onChange={(e) => setVTitle(e.target.value)} style={inputStyle} />
+            <input placeholder="時刻（任意）例: 10:00〜11:30" value={vDatetime} onChange={(e) => setVDatetime(e.target.value)} style={inputStyle} />
             <textarea placeholder="一言・説明（任意・改行可）" value={vDescription} onChange={(e) => setVDescription(e.target.value)} rows={2}
               style={{ padding: "10px", fontSize: "14px", borderRadius: "6px", border: "1px solid #ccc", resize: "vertical", fontFamily: "sans-serif" }} />
             <button onClick={addVenueEvent} disabled={vSubmitting}
@@ -615,6 +617,7 @@ export default function EventAdminPage() {
                 <div key={ev.id} style={{ padding: "12px 16px", border: "1px solid #eee", borderRadius: "8px", display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
                   <div>
                     <p style={{ fontWeight: "bold", fontSize: "14px", margin: 0 }}>{ev.title}</p>
+                    {ev.datetime && <p style={{ fontSize: "12px", color: "#1976d2", margin: "2px 0 0" }}>🕐 {ev.datetime}</p>}
                     {ev.description && <p style={{ fontSize: "13px", color: "#666", margin: "4px 0 0", whiteSpace: "pre-line" }}>{ev.description}</p>}
                   </div>
                   <button onClick={() => deleteVenueEvent(ev.id)} style={{ color: "#f44336", background: "none", border: "none", cursor: "pointer", fontSize: "13px", flexShrink: 0, marginLeft: "8px" }}>削除</button>
