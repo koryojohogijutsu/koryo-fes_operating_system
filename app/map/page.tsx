@@ -57,7 +57,7 @@ type UnifiedItem =
 type VenueModal   = { type: "venue";   venueKey: string; label: string; level: number; programs: VenueProgram[]; entriesByCategory: Record<string, EventEntry[]>; venueEventItems: { id: string; venue_key: string; title: string; description: string }[]; unified: UnifiedItem[] };
 type VenueSubModal = { type: "venue_sub"; categoryKey: string; entries: EventEntry[] };
 type LiveModal    = { type: "live";    entries: EventEntry[] };
-type LibraryModal = { type: "library"; level: number; clubs: LibClub[]; events: { id: string; venue_key: string; title: string; description: string }[] };
+type LibraryModal = { type: "library"; venueKey?: string; level: number; clubs: LibClub[]; events: { id: string; venue_key: string; title: string; description: string }[] };
 type PinModal     = { type: "pin";     venueKey: string; label: string; level: number; pinInfo: PinInfo | null };
 type DosoModal    = { type: "doso";    info: { title: string; datetime: string; content: string } | null };
 type MenuModal    = { type: "menu";    venueKey: string; label: string; level: number; items: MenuItem[]; venueTitle: string; venueDesc: string };
@@ -265,8 +265,16 @@ export default function MapPage() {
     });
   };
 
+  // 中庭モーダル — venue_eventsで登録した情報を表示
+  const openNakateiModal = () => {
+    const crowd  = venueCrowds.find((v) => v.venue_key === "nakatei");
+    const events = venueAllEvents.filter((e) => e.venue_key === "nakatei");
+    setModal({ type: "library", venueKey: "nakatei", level: crowd?.level ?? 0, clubs: [], events });
+  };
+
   const handleVenuePin = (venueKey: string) => {
-    if (PIN_INFO_KEYS.includes(venueKey))  { openPinModal(venueKey);  return; }
+    if (venueKey === "nakatei")            { openNakateiModal();       return; }
+    if (PIN_INFO_KEYS.includes(venueKey))  { openPinModal(venueKey);   return; }
     if (venueKey === "doso")               { openDosoModal();          return; }
     if (MENU_KEYS.includes(venueKey))      { openMenuModal(venueKey);  return; }
     if (venueKey === "library")            { openLibraryModal();       return; }
@@ -551,7 +559,9 @@ export default function MapPage() {
         <div onClick={() => setModal(null)} style={modalOverlay}>
           <div onClick={(e) => e.stopPropagation()} style={modalBox}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px" }}>
-              <h2 style={{ fontSize: "18px", fontWeight: "bold", margin: 0 }}>📚 図書館</h2>
+              <h2 style={{ fontSize: "18px", fontWeight: "bold", margin: 0 }}>
+                {modal.venueKey === "nakatei" ? "🌿 中庭" : "📚 図書館"}
+              </h2>
               <span style={{ fontWeight: "bold", color: getCrowdIcon(modal.level).color, fontSize: "13px" }}>{getCrowdIcon(modal.level).label}</span>
             </div>
 
