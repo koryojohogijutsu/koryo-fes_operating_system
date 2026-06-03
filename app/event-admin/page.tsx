@@ -455,12 +455,30 @@ export default function EventAdminPage() {
               renderItem={(entry) => (
                 <div>
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
-                    <div>
+                    <div style={{ flex: 1 }}>
                       <span style={{ fontWeight: "bold", fontSize: "14px" }}>{entry.name}</span>
                       {dayBadge(entry.festival_day)}
                       {entry.datetime && <span style={{ fontSize: "12px", color: "#1976d2", marginLeft: "6px" }}>🕐 {entry.datetime}</span>}
                     </div>
-                    <button onClick={() => deleteEntry(entry.id)} style={{ color: "#f44336", background: "none", border: "none", cursor: "pointer", fontSize: "12px", flexShrink: 0 }}>削除</button>
+                    <div style={{ display: "flex", alignItems: "center", gap: "4px", flexShrink: 0, marginLeft: "8px" }}>
+                      <span style={{ fontSize: "11px", color: "#aaa" }}>順</span>
+                      <input
+                        type="number"
+                        defaultValue={entry.order_num}
+                        onBlur={async (ev) => {
+                          const val = parseInt(ev.target.value, 10);
+                          if (!isNaN(val) && val !== entry.order_num) {
+                            await fetch("/api/event-entries/order", {
+                              method: "POST", headers: { "Content-Type": "application/json" },
+                              body: JSON.stringify({ items: [{ id: entry.id, order_num: val }] }),
+                            });
+                            loadEntries();
+                          }
+                        }}
+                        style={{ width: "52px", padding: "3px 5px", fontSize: "12px", border: "1px solid #ddd", borderRadius: "4px", textAlign: "center" }}
+                      />
+                    </div>
+                    <button onClick={() => deleteEntry(entry.id)} style={{ color: "#f44336", background: "none", border: "none", cursor: "pointer", fontSize: "12px", flexShrink: 0, marginLeft: "4px" }}>削除</button>
                   </div>
                   {entry.description && <p style={{ fontSize: "12px", color: "#888", margin: "2px 0 0" }}>{entry.description}</p>}
                   {editingId === entry.id ? (
