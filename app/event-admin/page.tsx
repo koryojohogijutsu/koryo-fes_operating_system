@@ -22,6 +22,7 @@ const VENUE_KEYS = [
   { key: "gym",      label: "🏟️ 体育館" },
   { key: "kinenkan", label: "🏛️ 記念館" },
   { key: "library",  label: "📚 図書館" },
+  { key: "nakatei",  label: "🌿 中庭" },
 ];
 
 type FestivalDay = "day1" | "day2" | "both";
