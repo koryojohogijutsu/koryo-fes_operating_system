@@ -11,7 +11,8 @@ const PIN_INFO_VENUES = [
   { key: "shogi",   label: "♟️ 将棋部" },
   { key: "igo",     label: "⚫ 囲碁部" },
   { key: "kyudo",   label: "🏹 弓道部" },
-  { key: "ouen",    label: "📣 應援團演舞" },
+  { key: "kyukei",  label: "🛋️ 休憩所" },
+  { key: "nakatei", label: "🌿 中庭" },
 ];
 
 // ★修正: サンデリカを追加
