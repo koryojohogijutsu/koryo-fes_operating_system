@@ -25,6 +25,14 @@ export async function GET(req: NextRequest) {
   }
 
   // 個人のクリア状態
+  const visitorIdStr = String(visitorId).trim();
+
+  // 改ざん対策: visitor_idの正当性検証
+  const { data: _vis } = await supabase.from("visitors").select("id").eq("id", visitorIdStr).single();
+  if (!_vis) {
+    return NextResponse.json({ error: "無効なvisitor_idです" }, { status: 403 });
+  }
+
   if (!visitorId) return NextResponse.json({ error: "visitorId missing" }, { status: 400 });
 
   const { data } = await supabase
