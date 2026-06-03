@@ -8,6 +8,14 @@ type Program = { id: string; name: string; datetime: string; festival_day: strin
 const COSCON_KEY   = "coscon";
 const COSCON_LABEL = "コスコン";
 
+// のど自慢（1日目・2日目①②を「のど自慢」としてまとめる場合と分ける場合）
+// 今回は日程別に3つ表示
+const NODOJIMAN_ITEMS = [
+  { key: "nodojiman-day1", label: "のど自慢（1日目）" },
+  { key: "nodojiman-day2-1", label: "のど自慢（2日目①）" },
+  { key: "nodojiman-day2-2", label: "のど自慢（2日目②）" },
+];
+
 export default function GymRatingPage() {
   const router = useRouter();
   const [visitorId, setVisitorId] = useState<string | null>(null);
@@ -27,7 +35,15 @@ export default function GymRatingPage() {
       fetch("/api/venue-programs?venueKey=gym", { cache: "no-store" }).then((r) => r.json()),
       fetch(`/api/event-ratings?visitorId=${id}`, { cache: "no-store" }).then((r) => r.json()),
     ]).then(([progData, ratingData]) => {
-      setPrograms(progData.programs ?? []);
+      // 同名の部活動企画を重複排除（例：ギター・マンドリン部が複数登録されている場合）
+    const rawPrograms: Program[] = progData.programs ?? [];
+    const seen = new Set<string>();
+    const deduped = rawPrograms.filter((p) => {
+      if (seen.has(p.name)) return false;
+      seen.add(p.name);
+      return true;
+    });
+    setPrograms(deduped);
       setRated(ratingData.rated ?? {});
       setLoading(false);
     });
@@ -104,7 +120,14 @@ export default function GymRatingPage() {
       </p>
 
       <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+        {/* のど自慢 */}
+        <p style={{ fontSize: "12px", color: "#aaa", fontWeight: "bold", marginTop: "4px" }}>🎤 のど自慢</p>
+        {NODOJIMAN_ITEMS.map((item) => (
+          <StarRating key={item.key} targetKey={item.key} label={item.label} />
+        ))}
+
         {/* コスコン（パフォーマンス・ランウェイ共通） */}
+        <p style={{ fontSize: "12px", color: "#aaa", fontWeight: "bold", marginTop: "8px" }}>👗 コスコン</p>
         <StarRating targetKey={COSCON_KEY} label={COSCON_LABEL} />
 
         {/* 部活動企画 */}
