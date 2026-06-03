@@ -96,7 +96,15 @@ export default function StaffPage() {
     const scanner = new Html5Qrcode("reader");
     scannerRef.current = scanner;
     scanner.start({ facingMode: "environment" }, { fps: 10, qrbox: 250 }, handleScan, () => {})
-      .catch(() => setMessage({ text: "カメラを起動できませんでした", ok: false }));
+      .catch(() => {
+        setMessage({ text: "カメラを起動できませんでした", ok: false });
+        // カメラ失敗時はホームに戻れるよう明示
+        setTimeout(() => {
+          if (typeof window !== "undefined") {
+            window.location.href = "/";
+          }
+        }, 3000);
+      });
     return () => {
       if (scannerRef.current) {
         scannerRef.current.stop().catch(() => {});
@@ -115,6 +123,9 @@ export default function StaffPage() {
           　<a href="/staff/settings" style={{ fontSize: "12px", color: "#888" }}>変更</a>
         </p>
       )}
+      <div style={{ marginBottom: "8px" }}>
+        <a href="/" style={{ fontSize: "13px", color: "#888", textDecoration: "none" }}>← ホームに戻る</a>
+      </div>
       <div id="reader" style={{ width: "300px", margin: "20px auto" }} />
       {message && (
         <div style={{ marginTop: "20px", padding: "14px 20px", borderRadius: "8px", backgroundColor: message.ok ? "#4caf50" : "#f44336", color: "white", fontSize: "18px" }}>
