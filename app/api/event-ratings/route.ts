@@ -69,6 +69,14 @@ export async function POST(req: Request) {
   const supabase = makeClient();
   const { visitorId, targetKey, targetLabel, stars } = await req.json();
 
+  const visitorIdStr = String(visitorId).trim();
+
+  // 改ざん対策: visitor_idの正当性検証
+  const { data: _vis } = await supabase.from("visitors").select("id").eq("id", visitorIdStr).single();
+  if (!_vis) {
+    return NextResponse.json({ error: "無効なvisitor_idです" }, { status: 403 });
+  }
+
   if (!visitorId || !targetKey || !stars) {
     return NextResponse.json({ error: "パラメータ不足" }, { status: 400 });
   }
