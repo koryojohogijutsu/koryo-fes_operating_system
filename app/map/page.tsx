@@ -18,7 +18,7 @@ const VENUE_LABELS: Record<string, string> = {
   kyudo: "弓道部", nakaniwa: "中庭",
 };
 
-const PIN_INFO_KEYS  = ["science","tetsudo","quiz","tea","shogi","igo","kyudo","nakaniwa"];
+const PIN_INFO_KEYS  = ["science","tetsudo","quiz","tea","shogi","igo","kyudo"];
 // ★修正: サンデリカをメニューキーに追加
 const MENU_KEYS      = ["tontonhiroba","football","mockstore","sundelica"];
 const VENUE_CATEGORIES: Record<string, string[]> = {
@@ -348,7 +348,9 @@ export default function MapPage() {
               <div key={layout.venue_key} onClick={() => handleVenuePin(layout.venue_key)}
                 style={{ position: "absolute", left: `${layout.x}%`, top: `${layout.y}%`, transform: "translate(-50%, -100%)", textAlign: "center", cursor: "pointer" }}>
                 <img src={icon.src} alt={icon.label} style={{ width: "32px", height: "32px", objectFit: "contain", display: "block", margin: "0 auto" }} onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }} />
-                <div style={{ backgroundColor: icon.color, color: "white", borderRadius: "12px", padding: "2px 8px", fontSize: "10px", fontWeight: "bold", whiteSpace: "nowrap", boxShadow: "0 2px 4px rgba(0,0,0,0.2)" }}>{VENUE_LABELS[layout.venue_key] ?? layout.venue_key}</div>
+                {layout.venue_key !== "nakaniwa" && (
+                  <div style={{ backgroundColor: icon.color, color: "white", borderRadius: "12px", padding: "2px 8px", fontSize: "10px", fontWeight: "bold", whiteSpace: "nowrap", boxShadow: "0 2px 4px rgba(0,0,0,0.2)" }}>{VENUE_LABELS[layout.venue_key] ?? layout.venue_key}</div>
+                )}
               </div>
             );
           })}
@@ -364,7 +366,9 @@ export default function MapPage() {
               <div key={layout.venue_key} onClick={() => handleVenuePin(layout.venue_key)}
                 style={{ position: "absolute", left: `${layout.x}%`, top: `${layout.y}%`, transform: "translate(-50%, -100%)", textAlign: "center", cursor: "pointer" }}>
                 <img src={icon.src} alt={icon.label} style={{ width: "36px", height: "36px", objectFit: "contain", display: "block", margin: "0 auto" }} onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }} />
-                <div style={{ backgroundColor: icon.color, color: "white", borderRadius: "12px", padding: "2px 8px", fontSize: "11px", fontWeight: "bold", whiteSpace: "nowrap", boxShadow: "0 2px 4px rgba(0,0,0,0.2)" }}>{VENUE_LABELS[layout.venue_key] ?? layout.venue_key}</div>
+                {layout.venue_key !== "nakaniwa" && (
+                  <div style={{ backgroundColor: icon.color, color: "white", borderRadius: "12px", padding: "2px 8px", fontSize: "11px", fontWeight: "bold", whiteSpace: "nowrap", boxShadow: "0 2px 4px rgba(0,0,0,0.2)" }}>{VENUE_LABELS[layout.venue_key] ?? layout.venue_key}</div>
+                )}
               </div>
             );
           })}
