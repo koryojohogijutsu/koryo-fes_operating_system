@@ -84,21 +84,28 @@ function HomeInner() {
   }, []);
 
   useEffect(() => {
-    let rawId   = searchParams.get("id");
+    // QRパラメータ: ?tk=<番号>&cd=<hash>[suffix]
+    // 旧形式も互換: ?id=<番号>&cd=<hash>[suffix] または ?id=<番号>,cd=<hash>
+    let tkParam = searchParams.get("tk") ?? searchParams.get("id");
     let cdParam = searchParams.get("cd");
 
-    if (rawId && rawId.includes(",cd=")) {
-      const parts = rawId.split(",cd=");
-      rawId   = parts[0];
-      cdParam = parts[1];
+    // 旧形式: id=xxx,cd=yyy がひとつのパラメータにまとまっている場合
+    if (tkParam && tkParam.includes(",cd=") && !cdParam) {
+      const parts = tkParam.split(",cd=");
+      tkParam  = parts[0];
+      cdParam  = parts[1];
     }
 
-    const idParam = rawId;
-
-    if (!idParam) {
+    // パラメータなし → 通常のスマホ来場者（cookieから判定）
+    if (!tkParam) {
       const visitorId = document.cookie.split("; ").find((row) => row.startsWith("visitor_id="))?.split("=")[1];
       if (!visitorId) { router.push("/register"); return; }
-      setStatus({ state: "ok", visitorId, type: "smartphone" });
+      // 既存cookieにvisitor_typeがあれば反映、なければsmartphone
+      const storedType = document.cookie.split("; ").find((row) => row.startsWith("visitor_type="))?.split("=")[1];
+      const vtype: VisitorType =
+        storedType === "student" ? "student" :
+        storedType === "paper"   ? "paper"   : "smartphone";
+      setStatus({ state: "ok", visitorId, type: vtype });
       return;
     }
 
@@ -107,23 +114,48 @@ function HomeInner() {
       return;
     }
 
-    const isStudent    = cdParam.endsWith("m$");
-    const cdValue      = isStudent ? cdParam.slice(0, -2) : cdParam;
-    const salt         = isStudent ? "akagioroshi" : "kakouryubu";
-    const expectedHash = md5(`${idParam}${salt}`);
+    // サフィックスで来場者区分を判定
+    // 前高生: cd末尾 "m$"  秘密語: "akagioroshi"
+    // 教員:   cd末尾 "t%"  秘密語: "maetakatc"
+    // 一般:   末尾なし      秘密語: "kakou"
+    let visitorCat: VisitorType;
+    let hashPart: string;
+    let salt: string;
 
-    if (expectedHash !== cdValue) {
+    if (cdParam.endsWith("m$")) {
+      visitorCat = "student";
+      hashPart   = cdParam.slice(0, -2);
+      salt       = "akagioroshi";
+    } else if (cdParam.endsWith("t%")) {
+      visitorCat = "paper";   // 教員も "paper" 扱い（DBにはteacherで保存）
+      hashPart   = cdParam.slice(0, -2);
+      salt       = "maetakatc";
+    } else {
+      visitorCat = "paper";
+      hashPart   = cdParam;
+      salt       = "kakou";
+    }
+
+    const expectedHash = md5(`${tkParam}${salt}`);
+
+    if (expectedHash !== hashPart) {
       setStatus({ state: "error", message: "チケットの認証に失敗しました。\nQRコードを正しく読み取ってください。" });
       return;
     }
 
-    const visitorId = cdValue;
+    // visitor_id = ハッシュ部分（サフィックスなし）
+    const visitorId = hashPart;
     const expires   = new Date();
     expires.setDate(expires.getDate() + 180);
     document.cookie = `visitor_id=${visitorId}; path=/; expires=${expires.toUTCString()}; SameSite=Lax`;
-    document.cookie = `visitor_type=${isStudent ? "student" : "paper"}; path=/; expires=${expires.toUTCString()}; SameSite=Lax`;
 
-    setStatus({ state: "ok", visitorId, type: isStudent ? "student" : "paper" });
+    // visitor_type を教員/前高生/一般で正確に保存
+    const cookieType =
+      cdParam.endsWith("t%") ? "teacher" :
+      cdParam.endsWith("m$") ? "student" : "paper";
+    document.cookie = `visitor_type=${cookieType}; path=/; expires=${expires.toUTCString()}; SameSite=Lax`;
+
+    setStatus({ state: "ok", visitorId, type: visitorCat });
   }, [searchParams, router]);
 
   if (status.state === "loading") return <main style={{ padding:"40px", textAlign:"center" }}><p style={{ color:"#aaa" }}>読み込み中...</p></main>;
