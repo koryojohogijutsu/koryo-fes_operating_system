@@ -25,12 +25,20 @@ export async function POST(req: NextRequest) {
   // visitor_id を必ず文字列（text）として扱う
   const visitorIdStr = String(visitorId).trim();
 
+  // IPとUser-Agentを記録（なりすまし・不正入場の調査用）
+  const ip = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim()
+    ?? req.headers.get("x-real-ip")
+    ?? "unknown";
+  const ua = req.headers.get("user-agent") ?? "unknown";
+
   // visits テーブルに入場記録
   const { error: visitError } = await supabase.from("visits").insert({
     visitor_id:   visitorIdStr,
     class_code:   classCode,
     entered_at:   new Date().toISOString(),
-    visitor_type: visitorType ?? "smartphone", // paper / student / teacher / smartphone
+    visitor_type: visitorType ?? "smartphone",
+    ip_address:   ip,
+    user_agent:   ua.slice(0, 255),
   });
 
   if (visitError) {
