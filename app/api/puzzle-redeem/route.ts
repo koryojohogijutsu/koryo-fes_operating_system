@@ -10,12 +10,6 @@ export async function POST(req: Request) {
   const { visitorId } = await req.json();
   const visitorIdStr = String(visitorId).trim();
 
-  // 改ざん対策: visitor_idの正当性検証
-  const { data: _vis } = await supabase.from("visitors").select("id").eq("id", visitorIdStr).single();
-  if (!_vis) {
-    return NextResponse.json({ error: "無効なvisitor_idです" }, { status: 403 });
-  }
-
   if (!visitorId) return NextResponse.json({ error: "visitorId missing" }, { status: 400 });
 
   // クリア記録を取得
