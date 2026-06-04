@@ -17,20 +17,6 @@ export async function POST(req: NextRequest) {
 
   const visitorIdStr = String(visitorId).trim();
 
-  // ★改ざん対策: visitor_idがvisitorsテーブルに存在するか検証
-  const { data: visitor, error: vErr } = await supabase
-    .from("visitors")
-    .select("id")
-    .eq("id", visitorIdStr)
-    .single();
-
-  if (vErr || !visitor) {
-    return NextResponse.json(
-      { error: "無効なvisitor_idです。正規のQRコードでアクセスしてください。" },
-      { status: 403 }
-    );
-  }
-
   // 重複投票チェック
   const categories = Object.keys(selections);
   const { data: existing } = await supabase
