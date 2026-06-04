@@ -8,15 +8,6 @@ const TOTAL_Q = 6;
 const Q_LABELS = ["Q0", "Q1", "Q2", "Q3", "Q4", "Final"];
 const HAS_HINT = [true, true, true, false, true, true];
 
-const ANSWERS: string[][] = [
-  (process.env.NEXT_PUBLIC_PUZZLE_ANS_0 ?? "").split("|").map((s) => s.trim()).filter(Boolean),
-  (process.env.NEXT_PUBLIC_PUZZLE_ANS_1 ?? "").split("|").map((s) => s.trim()).filter(Boolean),
-  (process.env.NEXT_PUBLIC_PUZZLE_ANS_2 ?? "").split("|").map((s) => s.trim()).filter(Boolean),
-  (process.env.NEXT_PUBLIC_PUZZLE_ANS_3 ?? "").split("|").map((s) => s.trim()).filter(Boolean),
-  (process.env.NEXT_PUBLIC_PUZZLE_ANS_4 ?? "").split("|").map((s) => s.trim()).filter(Boolean),
-  (process.env.NEXT_PUBLIC_PUZZLE_ANS_5 ?? "").split("|").map((s) => s.trim()).filter(Boolean),
-];
-
 type Progress = {
   solved:   number[];
   hints:    number[];
@@ -147,9 +138,26 @@ function PuzzleInner() {
   };
 
   const handleSubmit = async () => {
-    const correct: string[] = ANSWERS[currentQ];
-    if (!correct || correct.length === 0) { alert("この問題の答えは未設定です"); return; }
-    if (correct.some((c) => answer.trim().toLowerCase() === c.toLowerCase())) {
+    if (!answer.trim()) return;
+    setAnswerErr(null);
+
+    // 答え合わせはサーバーサイドAPIで行う（クライアントに答えを持たない）
+    let isCorrect = false;
+    try {
+      const res = await fetch("/api/puzzle-answer", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ questionIndex: currentQ, answer: answer.trim() }),
+      });
+      const data = await res.json();
+      if (!res.ok) { setAnswerErr("サーバーエラーが発生しました"); return; }
+      isCorrect = data.correct === true;
+    } catch {
+      setAnswerErr("通信エラーが発生しました");
+      return;
+    }
+
+    if (isCorrect) {
       const newSolved = [...new Set([...progress.solved, currentQ])];
       const newP = { ...progress, solved: newSolved };
       setProgress(newP); saveProgress(newP);
