@@ -40,6 +40,7 @@ export default function EventEnterPage() {
   const [scanning,       setScanning]       = useState(false);
   const [isInitializing, setIsInitializing] = useState(false);
   const [voting,         setVoting]         = useState(false);
+  const [cameraError,    setCameraError]    = useState(false);
 
   useEffect(() => {
     const id = document.cookie
@@ -114,8 +115,9 @@ export default function EventEnterPage() {
       const scanner = new Html5Qrcode("event-reader");
       scannerRef.current = scanner;
       await scanner.start({ facingMode: "environment" }, { fps: 10, qrbox: { width: 250, height: 250 } }, handleScan, () => {});
-    } catch {
+    } catch (_e) {
       setMessage({ text: "カメラを起動できませんでした。許可設定を確認してください。", ok: false });
+      setCameraError(true);
       setScanning(false);
     } finally {
       setIsInitializing(false);
@@ -170,15 +172,24 @@ export default function EventEnterPage() {
           ⭐ 体育館イベントを評価する
         </Link>
       </div>
-
       <div style={{ display: scanning ? "block" : "none", width: "100%", maxWidth: "320px", margin: "0 auto 20px", borderRadius: "12px", overflow: "hidden", border: "2px solid #e10102" }}>
         <div id="event-reader" style={{ width: "100%", minHeight: "250px" }} />
       </div>
       {!scanning && <div id="event-reader" style={{ display: "none" }} />}
 
       {message && (
-        <div style={{ padding: "12px 16px", borderRadius: "8px", backgroundColor: message.ok ? "#4caf50" : "#f44336", color: "white", fontSize: "15px", textAlign: "center", marginBottom: "16px" }}>
+        <div style={{ padding: "12px 16px", borderRadius: "8px", backgroundColor: message.ok ? "#4caf50" : "#f44336", color: "white", fontSize: "15px", textAlign: "center", marginBottom: "12px" }}>
           {message.text}
+        </div>
+      )}
+
+      {/* カメラ起動失敗時にホームへ戻るボタンを表示 */}
+      {cameraError && (
+        <div style={{ textAlign: "center", marginBottom: "16px" }}>
+          <a href="/"
+            style={{ display: "inline-block", padding: "12px 28px", backgroundColor: "#e10102", color: "white", borderRadius: "8px", fontSize: "15px", textDecoration: "none", fontWeight: "bold" }}>
+            ← ホームに戻る
+          </a>
         </div>
       )}
 
