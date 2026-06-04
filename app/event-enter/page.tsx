@@ -183,16 +183,6 @@ export default function EventEnterPage() {
         </div>
       )}
 
-      {/* カメラ起動失敗時にホームへ戻るボタンを表示 */}
-      {cameraError && (
-        <div style={{ textAlign: "center", marginBottom: "16px" }}>
-          <a href="/"
-            style={{ display: "inline-block", padding: "12px 28px", backgroundColor: "#e10102", color: "white", borderRadius: "8px", fontSize: "15px", textDecoration: "none", fontWeight: "bold" }}>
-            ← ホームに戻る
-          </a>
-        </div>
-      )}
-
       <section style={{ marginTop: "12px" }}>
         <h2 style={{ fontSize: "15px", fontWeight: "bold", marginBottom: "10px", borderBottom: "2px solid #e10102", paddingBottom: "6px" }}>入場履歴</h2>
         {loadingHistory ? (
