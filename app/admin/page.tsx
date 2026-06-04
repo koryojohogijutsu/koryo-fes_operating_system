@@ -46,8 +46,6 @@ export default function AdminPage() {
         <a href="/admin/venue/gym/coscon_runway"      style={subLinkStyle}>　🏃 コスコン（ランウェイ）</a>
         <a href="/admin/venue/kinenkan" style={{ ...linkStyle, borderLeft: "4px solid #e10102" }}>🏛️ 記念館（M1・混雑状況）</a>
         <a href="/admin/venue/koryokan" style={{ ...linkStyle, borderLeft: "4px solid #e10102" }}>🎵 ライブ（蛟龍館）</a>
-        <a href="/admin/venue/shogi"    style={subLinkStyle}>　♟️ 将棋部</a>
-        <a href="/admin/venue/igo"      style={subLinkStyle}>　⚫ 囲碁部</a>
         <a href="/admin/venue/library"  style={{ ...linkStyle, borderLeft: "4px solid #e10102" }}>📚 図書館</a>
         <a href="/admin/venue/science"  style={{ ...linkStyle, borderLeft: "4px solid #1976d2" }}>🔬 科学物理部</a>
         <a href="/admin/venue/tetsudo"  style={{ ...linkStyle, borderLeft: "4px solid #1976d2" }}>🚃 鉄道研究部</a>
