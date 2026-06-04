@@ -22,51 +22,64 @@ export default function StaffPage() {
     setClassLabel(label ? decodeURIComponent(label) : null);
   }, [router]);
 
-  // スキャン結果からvisitor_idを抽出
-  // パターン1: 通常のvisitor_id（UUID等）
-  // パターン2: https://venue.koryo-fes.com/?id=xxx,cd=yyy（URLの場合）
-  const extractVisitorId = (scanned: string): string | null => {
-    // URLの場合（koryo-fes.comドメインを含む）
-    if (scanned.includes("koryo-fes.com") || scanned.includes("venue.koryo-fes.com")) {
+  // スキャン結果から visitor_id と visitor_type を抽出
+  // QR形式: https://venue.koryo-fes.com/?tk=<番号>&cd=<hash>[suffix]
+  // suffix: なし=一般, m$=前高生, t%=教員
+  const extractTicketInfo = (scanned: string): { visitorId: string; visitorType: string } | null => {
+    if (scanned.includes("koryo-fes.com")) {
       try {
-        // ?以降のクエリ部分を取得
         const queryPart = scanned.split("?")[1];
         if (!queryPart) return null;
 
-        // カンマ区切り形式: id=xxx,cd=yyy または id=xxx,cd=yyyyyy
+        let cd: string | null = null;
+
+        // カンマ区切り旧形式: id=xxx,cd=yyy
         if (queryPart.includes(",cd=")) {
-          const cdPart = queryPart.split(",cd=")[1];
-          if (!cdPart) return null;
-          // m$（前高生）またはそのままvisitor_idとして使用
-          // m$を除いたハッシュ値がvisitor_id
-          const visitorId = cdPart.endsWith("m$") ? cdPart.slice(0, -2) : cdPart;
-          return visitorId || null;
+          cd = queryPart.split(",cd=")[1] ?? null;
+        } else {
+          // 通常の&区切り形式: ?tk=xxx&cd=yyy または ?id=xxx&cd=yyy
+          const params = new URLSearchParams(queryPart);
+          cd = params.get("cd");
         }
 
-        // 通常の&区切り形式: ?id=xxx&cd=yyy
-        const params = new URLSearchParams(queryPart);
-        const cd = params.get("cd");
-        if (cd) {
-          return cd.endsWith("m$") ? cd.slice(0, -2) : cd;
+        if (!cd) return null;
+
+        // サフィックスで区分判定
+        let visitorType: string;
+        let visitorId: string;
+        if (cd.endsWith("t%")) {
+          visitorType = "teacher";
+          visitorId   = cd.slice(0, -2);
+        } else if (cd.endsWith("m$")) {
+          visitorType = "student";
+          visitorId   = cd.slice(0, -2);
+        } else {
+          visitorType = "paper";
+          visitorId   = cd;
         }
+
+        return visitorId ? { visitorId, visitorType } : null;
       } catch {
         return null;
       }
     }
 
-    // URLでない場合はそのままvisitor_idとして使用
-    return scanned.trim();
+    // URLでない場合はそのままvisitor_id（スマホ来場者のQR）
+    const trimmed = scanned.trim();
+    return trimmed ? { visitorId: trimmed, visitorType: "smartphone" } : null;
   };
 
   const handleScan = async (raw: string) => {
     if (scanningRef.current) return;
 
-    const visitorId = extractVisitorId(raw);
-    if (!visitorId) {
+    const ticketInfo = extractTicketInfo(raw);
+    if (!ticketInfo) {
       setMessage({ text: "❌ 無効なQRコードです", ok: false });
       setTimeout(() => setMessage(null), 2000);
       return;
     }
+
+    const { visitorId, visitorType } = ticketInfo;
 
     // 10秒以内に同じvisitor_idのスキャンを排除
     const now = Date.now();
@@ -78,7 +91,7 @@ export default function StaffPage() {
     try {
       const res  = await fetch("/api/enter-class", {
         method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ visitorId, classCode }),
+        body: JSON.stringify({ visitorId, classCode, visitorType }),
       });
       const data = await res.json();
       if (res.ok) setMessage({ text: "✅ 入場記録完了！", ok: true });
@@ -97,13 +110,7 @@ export default function StaffPage() {
     scannerRef.current = scanner;
     scanner.start({ facingMode: "environment" }, { fps: 10, qrbox: 250 }, handleScan, () => {})
       .catch(() => {
-        setMessage({ text: "カメラを起動できませんでした", ok: false });
-        // カメラ失敗時はホームに戻れるよう明示
-        setTimeout(() => {
-          if (typeof window !== "undefined") {
-            window.location.href = "/";
-          }
-        }, 3000);
+        setMessage({ text: "カメラを起動できませんでした。許可設定を確認してください。", ok: false });
       });
     return () => {
       if (scannerRef.current) {
@@ -123,9 +130,6 @@ export default function StaffPage() {
           　<a href="/staff/settings" style={{ fontSize: "12px", color: "#888" }}>変更</a>
         </p>
       )}
-      <div style={{ marginBottom: "8px" }}>
-        <a href="/" style={{ fontSize: "13px", color: "#888", textDecoration: "none" }}>← ホームに戻る</a>
-      </div>
       <div id="reader" style={{ width: "300px", margin: "20px auto" }} />
       {message && (
         <div style={{ marginTop: "20px", padding: "14px 20px", borderRadius: "8px", backgroundColor: message.ok ? "#4caf50" : "#f44336", color: "white", fontSize: "18px" }}>
