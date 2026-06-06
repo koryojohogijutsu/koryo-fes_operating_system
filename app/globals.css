@@ -1,12 +1,26 @@
 :root {
   --background: #ffffff;
   --foreground: #171717;
+  --card-bg: #ffffff;
+  --card-border: #eeeeee;
+  --input-bg: #ffffff;
+  --input-border: #cccccc;
+  --muted: #888888;
+  --muted-bg: #f5f5f5;
+  --modal-bg: #ffffff;
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --background: #0a0a0a;
+    --background: #0f0f0f;
     --foreground: #ededed;
+    --card-bg: #1e1e1e;
+    --card-border: #333333;
+    --input-bg: #2a2a2a;
+    --input-border: #444444;
+    --muted: #aaaaaa;
+    --muted-bg: #2a2a2a;
+    --modal-bg: #1e1e1e;
   }
 }
 
