@@ -34,8 +34,9 @@ export default function AdminPage() {
         <a href="/staff/settings"          style={linkStyle}>📷 係員スキャン設定</a>
         <a href="/admin/vote-results"      style={linkStyle}>🏆 クラス投票得票数</a>
         <a href="/admin/info"              style={linkStyle}>📢 インフォメーション管理</a>
-        <a href="/admin/puzzle-redeem"     style={linkStyle}>🎁 景品引換スキャン</a>
-        <a href="/admin/analytics"         style={linkStyle}>📊 アクセス解析</a>
+        <a href="/admin/ticket-revoke"    style={linkStyle}>🎫 紙チケット紛失管理</a>
+        <a href="/admin/puzzle-redeem"    style={linkStyle}>🎁 景品引換スキャン</a>
+        <a href="/admin/analytics"        style={linkStyle}>📊 アクセス解析</a>
       </div>
 
       <h2 style={{ fontSize: "16px", marginBottom: "12px", borderBottom: "2px solid #e10102", paddingBottom: "6px" }}>会場管理（混雑状況）</h2>
