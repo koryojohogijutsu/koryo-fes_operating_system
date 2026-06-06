@@ -155,16 +155,21 @@ function HomeInner() {
       cdParam.endsWith("m$") ? "student" : "paper";
     document.cookie = `visitor_type=${cookieType}; path=/; expires=${expires.toUTCString()}; SameSite=Lax`;
 
+    // cd= の元の値（suffix付き）を decoded_cd として別途保存（DBに記録するため）
+    document.cookie = `decoded_cd=${encodeURIComponent(cdParam)}; path=/; expires=${expires.toUTCString()}; SameSite=Lax`;
+    // tk= の番号も保存
+    document.cookie = `ticket_num=${encodeURIComponent(tkParam)}; path=/; expires=${expires.toUTCString()}; SameSite=Lax`;
+
     setStatus({ state: "ok", visitorId, type: visitorCat });
   }, [searchParams, router]);
 
-  if (status.state === "loading") return <main style={{ padding:"40px", textAlign:"center" }}><p style={{ color:"#aaa" }}>読み込み中...</p></main>;
+  if (status.state === "loading") return <main style={{ padding:"40px", textAlign:"center" }}><p style={{ color:"var(--muted)" }}>読み込み中...</p></main>;
 
   if (status.state === "error") return (
     <main style={{ padding:"40px 20px", textAlign:"center" }}>
       <div style={{ fontSize:"48px", marginBottom:"16px" }}>⚠️</div>
       <h1 style={{ fontSize:"20px", marginBottom:"12px" }}>認証エラー</h1>
-      <p style={{ color:"#888", whiteSpace:"pre-line", fontSize:"14px" }}>{status.message}</p>
+      <p style={{ color:"var(--muted)", whiteSpace:"pre-line", fontSize:"14px" }}>{status.message}</p>
     </main>
   );
 
@@ -177,12 +182,12 @@ function HomeInner() {
       <NotificationBanners banners={banners} dismiss={dismissBanner} />
       <main style={{ padding:"32px 20px 100px", textAlign:"center", maxWidth:"400px", margin:"0 auto", position:"relative" }}>
         <button onClick={() => setSubModal(true)}
-          style={{ position:"absolute", top:"20px", right:"20px", width:"40px", height:"40px", borderRadius:"50%", border:"1px solid #ddd", backgroundColor:"white", fontSize:"18px", cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", boxShadow:"0 2px 6px rgba(0,0,0,0.08)" }}>
+          style={{ position:"absolute", top:"20px", right:"20px", width:"40px", height:"40px", borderRadius:"50%", border:"1px solid var(--card-border)", backgroundColor:"var(--card-bg)", fontSize:"18px", cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", boxShadow:"0 2px 6px rgba(0,0,0,0.15)" }}>
           ☰
         </button>
 
         <h1 style={{ fontSize:"24px", marginBottom:"4px", marginTop:"8px" }}>蛟龍祭 場内サイト</h1>
-        <p style={{ color:"#888", fontSize:"13px", marginBottom:"24px" }}>{typeLabel}</p>
+        <p style={{ color:"var(--muted)", fontSize:"13px", marginBottom:"24px" }}>{typeLabel}</p>
 
         <div style={{ display:"flex", flexDirection:"column", gap:"14px" }}>
           <Link href="/enter"
@@ -190,23 +195,23 @@ function HomeInner() {
             QRを表示する
           </Link>
           <Link href="/vote"
-            style={{ padding:"16px", fontSize:"16px", cursor:"pointer", backgroundColor:"white", color:"#e10102", border:"2px solid #e10102", borderRadius:"10px", textDecoration:"none", display:"block" }}>
+            style={{ padding:"16px", fontSize:"16px", cursor:"pointer", backgroundColor:"var(--card-bg)", color:"#e10102", border:"2px solid #e10102", borderRadius:"10px", textDecoration:"none", display:"block" }}>
             🗳️ クラス投票
           </Link>
           <Link href="/event-enter"
-            style={{ padding:"16px", fontSize:"16px", cursor:"pointer", backgroundColor:"white", color:"#e10102", border:"2px solid #e10102", borderRadius:"10px", textDecoration:"none", display:"block" }}>
+            style={{ padding:"16px", fontSize:"16px", cursor:"pointer", backgroundColor:"var(--card-bg)", color:"#e10102", border:"2px solid #e10102", borderRadius:"10px", textDecoration:"none", display:"block" }}>
             🎤 イベント入場・投票
           </Link>
           <Link href="/puzzle"
-            style={{ padding:"16px", fontSize:"16px", cursor:"pointer", backgroundColor:"white", color:"#e10102", border:"2px solid #e10102", borderRadius:"10px", textDecoration:"none", display:"block" }}>
+            style={{ padding:"16px", fontSize:"16px", cursor:"pointer", backgroundColor:"var(--card-bg)", color:"#e10102", border:"2px solid #e10102", borderRadius:"10px", textDecoration:"none", display:"block" }}>
             🕵️ 謎解き
           </Link>
           <Link href="/survey"
-            style={{ padding:"16px", fontSize:"16px", cursor:"pointer", backgroundColor:"white", color:"#e10102", border:"2px solid #e10102", borderRadius:"10px", textDecoration:"none", display:"block" }}>
+            style={{ padding:"16px", fontSize:"16px", cursor:"pointer", backgroundColor:"var(--card-bg)", color:"#e10102", border:"2px solid #e10102", borderRadius:"10px", textDecoration:"none", display:"block" }}>
             📝 アンケート
           </Link>
           <Link href="/info"
-            style={{ padding:"16px", fontSize:"16px", cursor:"pointer", backgroundColor:"white", color:"#e10102", border:"2px solid #e10102", borderRadius:"10px", textDecoration:"none", display:"block" }}>
+            style={{ padding:"16px", fontSize:"16px", cursor:"pointer", backgroundColor:"var(--card-bg)", color:"#e10102", border:"2px solid #e10102", borderRadius:"10px", textDecoration:"none", display:"block" }}>
             ℹ️ インフォメーション
           </Link>
         </div>
@@ -219,18 +224,18 @@ function HomeInner() {
         )}
 
         <div style={{ marginTop:"24px" }}>
-          <a href="/admin" style={{ fontSize:"12px", color:"#ccc", textDecoration:"none" }}>管理者ログイン</a>
+          <a href="/admin" style={{ fontSize:"12px", color:"var(--muted)", textDecoration:"none" }}>管理者ログイン</a>
         </div>
-        <p style={{ marginTop:"16px", fontSize:"11px", color:"#ccc", textAlign:"center" }}>©Koryo Festival Committee　　All Rights Reserved.</p>
+        <p style={{ marginTop:"16px", fontSize:"11px", color:"var(--muted)", textAlign:"center" }}>©Koryo Festival Committee　　All Rights Reserved.</p>
       </main>
 
       {/* サブメニューモーダル */}
       {subModal && (
         <div onClick={() => setSubModal(false)}
-          style={{ position:"fixed", inset:0, backgroundColor:"rgba(0,0,0,0.5)", zIndex:200, display:"flex", alignItems:"flex-end", justifyContent:"center" }}>
+          style={{ position:"fixed", inset:0, backgroundColor:"rgba(0,0,0,0.6)", zIndex:200, display:"flex", alignItems:"flex-end", justifyContent:"center" }}>
           <div onClick={(e) => e.stopPropagation()}
-            style={{ backgroundColor:"white", borderRadius:"20px 20px 0 0", padding:"24px 20px 40px", width:"100%", maxWidth:"480px" }}>
-            <div style={{ width:"40px", height:"4px", backgroundColor:"#ddd", borderRadius:"2px", margin:"0 auto 20px" }} />
+            style={{ backgroundColor:"var(--modal-bg)", borderRadius:"20px 20px 0 0", padding:"24px 20px 40px", width:"100%", maxWidth:"480px" }}>
+            <div style={{ width:"40px", height:"4px", backgroundColor:"var(--card-border)", borderRadius:"2px", margin:"0 auto 20px" }} />
             <div style={{ display:"flex", flexDirection:"column", gap:"10px" }}>
               {[
                 { label:"📋 履歴を見る", path:"/history" },
@@ -239,13 +244,13 @@ function HomeInner() {
               ].map((item) => (
                 <button key={item.label}
                   onClick={() => { router.push(item.path); setSubModal(false); }}
-                  style={{ padding:"14px 16px", fontSize:"15px", cursor:"pointer", backgroundColor:"white", color:"#333", border:"1px solid #eee", borderRadius:"8px", textAlign:"left" }}>
+                  style={{ padding:"14px 16px", fontSize:"15px", cursor:"pointer", backgroundColor:"var(--card-bg)", color:"var(--foreground)", border:"1px solid var(--card-border)", borderRadius:"8px", textAlign:"left" }}>
                   {item.label}
                 </button>
               ))}
             </div>
             <button onClick={() => setSubModal(false)}
-              style={{ marginTop:"16px", width:"100%", padding:"12px", fontSize:"14px", cursor:"pointer", backgroundColor:"#f5f5f5", color:"#555", border:"none", borderRadius:"8px" }}>
+              style={{ marginTop:"16px", width:"100%", padding:"12px", fontSize:"14px", cursor:"pointer", backgroundColor:"var(--muted-bg)", color:"var(--foreground)", border:"none", borderRadius:"8px" }}>
               閉じる
             </button>
           </div>
