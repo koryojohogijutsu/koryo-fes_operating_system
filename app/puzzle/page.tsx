@@ -347,7 +347,7 @@ function PuzzleInner() {
               </p>
             )}
             <p style={{ color:"#ffd700",fontSize:"14px",fontWeight:"bold",marginBottom:"20px" }}>
-              🎁 景品交換は1階東 生徒玄関南にて
+              🎁 景品交換は1階東 生徒玄関北にて
             </p>
             <img src="/puzzle/ending.png" alt="エンディング" style={{ width:"100%",borderRadius:"10px",marginBottom:"20px" }} />
             <div style={{ display:"flex",flexDirection:"column",gap:"10px" }}>
