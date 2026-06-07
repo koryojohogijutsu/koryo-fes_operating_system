@@ -203,7 +203,7 @@ function EnterInner() {
       {notification && (
         <div onClick={() => setNotification(null)}
           style={{ position: "fixed", inset: 0, backgroundColor: "rgba(0,0,0,0.65)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000 }}>
-          <div style={{ backgroundColor: "white", borderRadius: "20px", padding: "40px 32px", textAlign: "center", maxWidth: "300px", width: "88%", boxShadow: "0 12px 40px rgba(0,0,0,0.25)", animation: "notify-in 0.3s ease" }}>
+          <div style={{ backgroundColor: "var(--modal-bg)", borderRadius: "20px", padding: "40px 32px", textAlign: "center", maxWidth: "300px", width: "88%", boxShadow: "0 12px 40px rgba(0,0,0,0.25)", animation: "notify-in 0.3s ease" }}>
             <div style={{ fontSize: "56px", marginBottom: "12px" }}>✅</div>
             <div style={{ fontSize: "20px", fontWeight: "bold", marginBottom: "8px" }}>読み取られました！</div>
             <div style={{ fontSize: "15px", color: "#555" }}>クラス: <strong>{notification.classCode}</strong></div>
