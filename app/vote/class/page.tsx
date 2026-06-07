@@ -91,15 +91,15 @@ export default function VoteClassPage() {
 
   const hasAnySelection = Object.values(selections).some((v) => v !== "");
 
-  if (loading) return <main style={{ padding: "40px", textAlign: "center" }}><p style={{ color: "#aaa" }}>読み込み中...</p></main>;
+  if (loading) return <main style={{ padding: "40px", textAlign: "center" }}><p style={{ color: "var(--muted)" }}>読み込み中...</p></main>;
 
   return (
     <main style={{ padding: "24px 20px", maxWidth: "480px", margin: "0 auto" }}>
-      <a href="/vote" style={{ fontSize: "13px", color: "#888", textDecoration: "none", display: "block", marginBottom: "20px" }}>
+      <a href="/vote" style={{ fontSize: "13px", color: "var(--muted)", textDecoration: "none", display: "block", marginBottom: "20px" }}>
         ← 戻る
       </a>
       <h1 style={{ fontSize: "20px", marginBottom: "6px" }}>🏫 クラス企画投票</h1>
-      <p style={{ color: "#888", fontSize: "13px", marginBottom: "28px" }}>
+      <p style={{ color: "var(--muted)", fontSize: "13px", marginBottom: "28px" }}>
         入場したクラスのみ投票できます
       </p>
 
@@ -111,7 +111,7 @@ export default function VoteClassPage() {
               {cat.label}
             </h2>
             {classes.length === 0 ? (
-              <p style={{ color: "#aaa", fontSize: "13px" }}>
+              <p style={{ color: "var(--muted)", fontSize: "13px" }}>
                 {cat.grade !== null ? `${cat.grade}年のクラスにまだ入場していません` : "まだクラスに入場していません"}
               </p>
             ) : (
@@ -126,7 +126,7 @@ export default function VoteClassPage() {
                         padding: "12px 16px",
                         borderRadius: "8px",
                         border: selected ? "2px solid #e10102" : "1px solid #ddd",
-                        backgroundColor: selected ? "#fff5f5" : "white",
+                        backgroundColor: selected ? "rgba(225,1,2,0.08)" : "var(--card-bg)",
                         cursor: "pointer",
                         display: "flex",
                         justifyContent: "space-between",
@@ -135,7 +135,7 @@ export default function VoteClassPage() {
                     >
                       <div>
                         <span style={{ fontWeight: "bold", marginRight: "8px" }}>{c.code}</span>
-                        <span style={{ color: "#555" }}>{c.label}</span>
+                        <span style={{ color: "var(--muted)" }}>{c.label}</span>
                       </div>
                       {selected && <span style={{ color: "#e10102", fontSize: "18px" }}>✔</span>}
                     </div>
