@@ -27,7 +27,7 @@ export async function GET(req: NextRequest) {
   // festival_dayとdatetimeの両方で取得し、フロント側でソートする
   let query = supabase
     .from("venue_programs")
-    .select("id, venue_key, name, datetime, comment, festival_day, order_num");
+    .select("id, venue_key, name, datetime, comment, festival_day, order_num, image_url");
   if (venueKey) query = query.eq("venue_key", venueKey);
   const { data, error } = await query;
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
@@ -51,7 +51,7 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: Request) {
-  const { venueKey, name, datetime, comment, festivalDay } = await req.json();
+  const { venueKey, name, datetime, comment, festivalDay, imageUrl } = await req.json();
   if (!venueKey || !name) return NextResponse.json({ error: "venueKey and name are required" }, { status: 400 });
   const { error } = await supabase.from("venue_programs").insert({
     venue_key:    venueKey,
@@ -59,6 +59,7 @@ export async function POST(req: Request) {
     datetime:     datetime    ?? "",
     comment:      comment     ?? "",
     festival_day: festivalDay ?? "both",
+    image_url:    imageUrl    ?? null,
     order_num:    Math.floor(Date.now() / 1000000),
   });
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
