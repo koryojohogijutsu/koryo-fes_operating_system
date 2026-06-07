@@ -18,7 +18,7 @@ const CATEGORY_LABELS: Record<string, string> = {
 
 export default function VoteClassConfirmPage() {
   return (
-    <Suspense fallback={<main style={{ padding: "40px", textAlign: "center" }}><p style={{ color: "#aaa" }}>読み込み中...</p></main>}>
+    <Suspense fallback={<main style={{ padding: "40px", textAlign: "center" }}><p style={{ color: "var(--muted)" }}>読み込み中...</p></main>}>
       <Inner />
     </Suspense>
   );
@@ -77,7 +77,7 @@ function Inner() {
       <main style={{ padding: "60px 20px", textAlign: "center" }}>
         <div style={{ fontSize: "56px", marginBottom: "16px" }}>✅</div>
         <h1 style={{ fontSize: "20px", marginBottom: "8px" }}>投票完了！</h1>
-        <p style={{ color: "#888", marginBottom: "24px" }}>ありがとうございました</p>
+        <p style={{ color: "var(--muted)", marginBottom: "24px" }}>ありがとうございました</p>
         <a href="/vote" style={{ color: "#e10102", fontSize: "15px" }}>投票トップに戻る</a>
       </main>
     );
@@ -85,13 +85,13 @@ function Inner() {
 
   return (
     <main style={{ padding: "24px 20px", maxWidth: "480px", margin: "0 auto" }}>
-      <a href="/vote/class" style={{ fontSize: "13px", color: "#888", textDecoration: "none", display: "block", marginBottom: "20px" }}>
+      <a href="/vote/class" style={{ fontSize: "13px", color: "var(--muted)", textDecoration: "none", display: "block", marginBottom: "20px" }}>
         ← 選択に戻る
       </a>
       <h1 style={{ fontSize: "20px", marginBottom: "6px" }}>投票内容の確認</h1>
-      <p style={{ color: "#888", fontSize: "13px", marginBottom: "24px" }}>以下の内容で投票します</p>
+      <p style={{ color: "var(--muted)", fontSize: "13px", marginBottom: "24px" }}>以下の内容で投票します</p>
 
-      <div style={{ border: "1px solid #eee", borderRadius: "12px", overflow: "hidden", marginBottom: "24px" }}>
+      <div style={{ border: "1px solid var(--card-border)", borderRadius: "12px", overflow: "hidden", marginBottom: "24px" }}>
         {Object.entries(selections).map(([key, code], i) => (
           <div
             key={key}
@@ -102,7 +102,7 @@ function Inner() {
               justifyContent: "space-between",
             }}
           >
-            <span style={{ color: "#888", fontSize: "13px" }}>{CATEGORY_LABELS[key]}</span>
+            <span style={{ color: "var(--muted)", fontSize: "13px" }}>{CATEGORY_LABELS[key]}</span>
             <span style={{ fontWeight: "bold" }}>
               {code}　{classes[code] ?? ""}
             </span>
