@@ -25,13 +25,14 @@ export default function StaffPage() {
   // スキャン結果から visitor_id と visitor_type を抽出
   // QR形式: https://venue.koryo-fes.com/?tk=<番号>&cd=<hash>[suffix]
   // suffix: なし=一般, m$=前高生, t%=教員
-  const extractTicketInfo = (scanned: string): { visitorId: string; visitorType: string } | null => {
+  const extractTicketInfo = (scanned: string): { visitorId: string; visitorType: string; ticketNum: string | null } | null => {
     if (scanned.includes("koryo-fes.com")) {
       try {
         const queryPart = scanned.split("?")[1];
         if (!queryPart) return null;
 
         let cd: string | null = null;
+        let ticketNum: string | null = null;
 
         // カンマ区切り旧形式: id=xxx,cd=yyy
         if (queryPart.includes(",cd=")) {
@@ -40,6 +41,7 @@ export default function StaffPage() {
           // 通常の&区切り形式: ?tk=xxx&cd=yyy または ?id=xxx&cd=yyy
           const params = new URLSearchParams(queryPart);
           cd = params.get("cd");
+          ticketNum = params.get("tk") ?? params.get("id");
         }
 
         if (!cd) return null;
@@ -58,7 +60,7 @@ export default function StaffPage() {
           visitorId   = cd;
         }
 
-        return visitorId ? { visitorId, visitorType } : null;
+        return visitorId ? { visitorId, visitorType, ticketNum } : null;
       } catch {
         return null;
       }
@@ -66,7 +68,7 @@ export default function StaffPage() {
 
     // URLでない場合はそのままvisitor_id（スマホ来場者のQR）
     const trimmed = scanned.trim();
-    return trimmed ? { visitorId: trimmed, visitorType: "smartphone" } : null;
+    return trimmed ? { visitorId: trimmed, visitorType: "smartphone", ticketNum: null } : null;
   };
 
   const handleScan = async (raw: string) => {
@@ -79,7 +81,23 @@ export default function StaffPage() {
       return;
     }
 
-    const { visitorId, visitorType } = ticketInfo;
+    const { visitorId, visitorType, ticketNum } = ticketInfo;
+
+    // 前高生チケット（student）の場合、無効化チェック
+    if (visitorType === "student" && ticketNum) {
+      try {
+        const revokeRes = await fetch(`/api/ticket-revoke?ticket_num=${encodeURIComponent(ticketNum)}`, { cache: "no-store" });
+        const revokeData = await revokeRes.json();
+        if (revokeData.revoked) {
+          setMessage({ text: `⛔ このチケットは無効です（紛失番号）\n新番号: ${revokeData.record?.new_ticket_num ?? "不明"}`, ok: false });
+          scanningRef.current = false;
+          setTimeout(() => setMessage(null), 5000);
+          return;
+        }
+      } catch {
+        // チェック失敗時はスルーして入場記録を続行
+      }
+    }
 
     // 10秒以内に同じvisitor_idのスキャンを排除
     const now = Date.now();
