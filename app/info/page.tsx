@@ -22,7 +22,7 @@ export default function InfoPage() {
   return (
     <main style={{ padding: "24px 20px", maxWidth: "480px", margin: "0 auto" }}>
       <button onClick={() => router.back()}
-        style={{ background: "none", border: "none", color: "#888", fontSize: "14px", cursor: "pointer", marginBottom: "16px", padding: 0 }}>
+        style={{ background: "none", border: "none", color: "var(--muted)", fontSize: "14px", cursor: "pointer", marginBottom: "16px", padding: 0 }}>
         ← 戻る
       </button>
       <h1 style={{ fontSize: "20px", marginBottom: "20px" }}>ℹ️ インフォメーション</h1>
@@ -37,20 +37,20 @@ export default function InfoPage() {
         ))}
       </div>
 
-      {loading ? <p style={{ color: "#aaa" }}>読み込み中...</p> : (
+      {loading ? <p style={{ color: "var(--muted)" }}>読み込み中...</p> : (
         <>
           {tab === "notice" && (
-            notices.length === 0 ? <p style={{ color: "#aaa", fontSize: "14px" }}>お知らせはありません</p> : (
+            notices.length === 0 ? <p style={{ color: "var(--muted)", fontSize: "14px" }}>お知らせはありません</p> : (
               <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
                 {notices.map((n) => (
-                  <div key={n.id} style={{ padding: "14px 16px", borderRadius: "10px", border: "1px solid #eee", backgroundColor: "#fafafa" }}>
+                  <div key={n.id} style={{ padding: "14px 16px", borderRadius: "10px", border: "1px solid var(--card-border)", backgroundColor: "#fafafa" }}>
                     <div style={{ fontWeight: "bold", fontSize: "15px", marginBottom: "6px" }}>{n.title}</div>
                     <div style={{ fontSize: "14px", color: "#444", whiteSpace: "pre-line" }}>{n.body}</div>
                     {n.image_url && (
                       <img src={n.image_url} alt="画像"
-                        style={{ width: "100%", borderRadius: "8px", marginTop: "10px", display: "block", objectFit: "contain", backgroundColor: "#f5f5f5" }} />
+                        style={{ width: "100%", borderRadius: "8px", marginTop: "10px", display: "block", objectFit: "contain", backgroundColor: "var(--muted-bg)" }} />
                     )}
-                    <div style={{ fontSize: "11px", color: "#aaa", marginTop: "8px" }}>
+                    <div style={{ fontSize: "11px", color: "var(--muted)", marginTop: "8px" }}>
                       {new Date(n.created_at).toLocaleString("ja-JP", { month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit" })}
                     </div>
                   </div>
@@ -60,11 +60,11 @@ export default function InfoPage() {
           )}
 
           {tab === "lost" && (
-            lost.length === 0 ? <p style={{ color: "#aaa", fontSize: "14px" }}>落とし物の情報はありません</p> : (
+            lost.length === 0 ? <p style={{ color: "var(--muted)", fontSize: "14px" }}>落とし物の情報はありません</p> : (
               <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
                 {lost.map((l) => (
-                  <div key={l.id} style={{ padding: "14px 16px", borderRadius: "10px", border: "1px solid #eee", backgroundColor: "#fafafa" }}>
-                    <div style={{ display: "flex", gap: "12px", fontSize: "13px", color: "#888", marginBottom: "6px" }}>
+                  <div key={l.id} style={{ padding: "14px 16px", borderRadius: "10px", border: "1px solid var(--card-border)", backgroundColor: "#fafafa" }}>
+                    <div style={{ display: "flex", gap: "12px", fontSize: "13px", color: "var(--muted)", marginBottom: "6px" }}>
                       <span>🕐 {l.time}</span>
                       <span>📍 {l.place}</span>
                     </div>
@@ -74,10 +74,10 @@ export default function InfoPage() {
                       <img
                         src={l.image_url}
                         alt="落とし物"
-                        style={{ width: "100%", borderRadius: "8px", display: "block", objectFit: "contain", backgroundColor: "#f5f5f5" }}
+                        style={{ width: "100%", borderRadius: "8px", display: "block", objectFit: "contain", backgroundColor: "var(--muted-bg)" }}
                       />
                     )}
-                    <div style={{ fontSize: "11px", color: "#aaa", marginTop: "8px" }}>
+                    <div style={{ fontSize: "11px", color: "var(--muted)", marginTop: "8px" }}>
                       {new Date(l.created_at).toLocaleString("ja-JP", { month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit" })}
                     </div>
                   </div>
