@@ -148,7 +148,7 @@ export default function VotePage() {
                       style={{
                         padding: "12px 16px", borderRadius: "8px",
                         border: selected ? "2px solid #e10102" : "1px solid #ddd",
-                        backgroundColor: selected ? "#fff5f5" : "white",
+                        backgroundColor: selected ? "rgba(225,1,2,0.08)" : "var(--card-bg)",
                         cursor: "pointer",
                         display: "flex", justifyContent: "space-between", alignItems: "center",
                       }}
