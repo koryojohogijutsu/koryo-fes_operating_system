@@ -1,6 +1,7 @@
 "use client";
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import Link from "next/link";
+import { supabase } from "@/lib/supabase";
 
 const CROWD_ICONS = [
   { level: 0, src: "/crowd-low.png",  label: "混雑なし", color: "#4caf50" },
@@ -166,9 +167,46 @@ export default function MapPage() {
   }, []);
 
   useEffect(() => {
+    // 初回ロード
     loadData();
-    const interval = setInterval(loadData, 60000);
-    return () => clearInterval(interval);
+
+    // venue_crowd をリアルタイム購読（INSERT / UPDATE / DELETE）
+    const channel = supabase
+      .channel("venue_crowd_realtime")
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "venue_crowd" },
+        (payload) => {
+          // レコード1件分の変更を受け取ったら、venueCrowds を差分更新
+          setVenueCrowds((prev) => {
+            if (payload.eventType === "DELETE") {
+              return prev.filter((v) => v.venue_key !== (payload.old as { venue_key: string }).venue_key);
+            }
+            const updated = payload.new as { venue_key: string; level: number; updated_at: string };
+            const exists = prev.some((v) => v.venue_key === updated.venue_key);
+            if (exists) {
+              return prev.map((v) => v.venue_key === updated.venue_key ? { ...v, ...updated } : v);
+            }
+            return [...prev, updated];
+          });
+          setLastUpdated(new Date());
+        }
+      )
+      .subscribe();
+
+    // class 混雑（visits テーブルへの入場記録）は引き続き30秒ポーリング
+    // （visits は行数ベース計算なのでRealtime差分では対応しにくい）
+    const classInterval = setInterval(async () => {
+      const t = Date.now();
+      const res = await fetch(`/api/crowd?type=class&_t=${t}`, { cache: "no-store" });
+      const data = await res.json();
+      if (data.classes) setClassCrowds(data.classes);
+    }, 30000);
+
+    return () => {
+      supabase.removeChannel(channel);
+      clearInterval(classInterval);
+    };
   }, [loadData]);
 
   const getCrowdIcon = (level: number) => CROWD_ICONS[level] ?? CROWD_ICONS[0];
@@ -312,8 +350,15 @@ export default function MapPage() {
         <Link href="/" style={{ fontSize: "13px", color: "var(--muted)", textDecoration: "none", display: "block", marginBottom: "16px" }}>← ホームに戻る</Link>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "8px" }}>
           <h1 style={{ fontSize: "20px" }}>📍 マップ</h1>
-          <button onClick={loadData} style={{ padding: "6px 14px", fontSize: "12px", cursor: "pointer", backgroundColor: "var(--muted-bg)", color: "var(--foreground)", border: "1px solid var(--card-border)", borderRadius: "20px" }}>🔄 更新</button>
+          <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+            <span style={{ fontSize: "11px", color: "#e53935", fontWeight: "bold", display: "flex", alignItems: "center", gap: "3px" }}>
+              <span style={{ width: "7px", height: "7px", borderRadius: "50%", backgroundColor: "#e53935", display: "inline-block", animation: "pulse 1.5s infinite" }} />
+              LIVE
+            </span>
+            <button onClick={loadData} style={{ padding: "6px 14px", fontSize: "12px", cursor: "pointer", backgroundColor: "var(--muted-bg)", color: "var(--foreground)", border: "1px solid var(--card-border)", borderRadius: "20px" }}>🔄 更新</button>
+          </div>
         </div>
+        <style>{`@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.3} }`}</style>
         {lastUpdated && <p style={{ fontSize: "11px", color: "var(--muted)", marginBottom: "6px" }}>最終更新: {lastUpdated.toLocaleTimeString("ja-JP", { hour: "2-digit", minute: "2-digit", second: "2-digit" })}</p>}
         <p style={{ fontSize: "11px", color: "#1976d2", marginBottom: "16px", fontWeight: "bold" }}>📅 表示中: {activeDayLabel}</p>
 
