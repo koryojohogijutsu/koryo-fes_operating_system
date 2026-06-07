@@ -152,11 +152,11 @@ export default function EventEnterPage() {
 
   return (
     <main style={{ padding: "24px 20px", maxWidth: "480px", margin: "0 auto" }}>
-      <Link href="/" style={{ fontSize: "13px", color: "#888", textDecoration: "none", display: "block", marginBottom: "20px" }}>
+      <Link href="/" style={{ fontSize: "13px", color: "var(--muted)", textDecoration: "none", display: "block", marginBottom: "20px" }}>
         ← ホームに戻る
       </Link>
       <h1 style={{ fontSize: "20px", marginBottom: "6px" }}>🎤 イベント</h1>
-      <p style={{ color: "#888", fontSize: "13px", marginBottom: "24px" }}>会場のQRを読み取って入場記録、または投票できます</p>
+      <p style={{ color: "var(--muted)", fontSize: "13px", marginBottom: "24px" }}>会場のQRを読み取って入場記録、または投票できます</p>
 
       <div style={{ display: "flex", flexDirection: "column", gap: "12px", marginBottom: "24px" }}>
         <button onClick={scanning ? stopScanner : startScanner} disabled={isInitializing}
@@ -164,11 +164,11 @@ export default function EventEnterPage() {
           {isInitializing ? "カメラ起動中..." : scanning ? "📷 スキャン中（タップで停止）" : "📷 QRを読み取る"}
         </button>
         <button onClick={handleVoteButton} disabled={voting || scanning}
-          style={{ padding: "14px", fontSize: "16px", cursor: (voting || scanning) ? "not-allowed" : "pointer", backgroundColor: "white", color: "#e10102", border: "2px solid #e10102", borderRadius: "8px", opacity: scanning ? 0.5 : 1 }}>
+          style={{ padding: "14px", fontSize: "16px", cursor: (voting || scanning) ? "not-allowed" : "pointer", backgroundColor: "var(--card-bg)", color: "#e10102", border: "2px solid #e10102", borderRadius: "8px", opacity: scanning ? 0.5 : 1 }}>
           {voting ? "確認中..." : "🗳️ 投票する"}
         </button>
         <Link href="/gym-rating"
-          style={{ padding: "14px", fontSize: "16px", textAlign: "center", backgroundColor: "white", color: "#f5a623", border: "2px solid #f5a623", borderRadius: "8px", textDecoration: "none", display: "block" }}>
+          style={{ padding: "14px", fontSize: "16px", textAlign: "center", backgroundColor: "var(--card-bg)", color: "#f5a623", border: "2px solid #f5a623", borderRadius: "8px", textDecoration: "none", display: "block" }}>
           ⭐ 体育館イベントを評価する
         </Link>
       </div>
@@ -186,15 +186,15 @@ export default function EventEnterPage() {
       <section style={{ marginTop: "12px" }}>
         <h2 style={{ fontSize: "15px", fontWeight: "bold", marginBottom: "10px", borderBottom: "2px solid #e10102", paddingBottom: "6px" }}>入場履歴</h2>
         {loadingHistory ? (
-          <p style={{ color: "#aaa", fontSize: "13px" }}>読み込み中...</p>
+          <p style={{ color: "var(--muted)", fontSize: "13px" }}>読み込み中...</p>
         ) : eventVisits.length === 0 ? (
-          <p style={{ color: "#aaa", fontSize: "13px" }}>まだ入場記録がありません</p>
+          <p style={{ color: "var(--muted)", fontSize: "13px" }}>まだ入場記録がありません</p>
         ) : (
           <ul style={{ listStyle: "none", padding: 0, margin: 0 }}>
             {eventVisits.map((v, i) => (
               <li key={i} style={{ display: "flex", justifyContent: "space-between", padding: "10px 0", borderBottom: "1px solid #f0f0f0", fontSize: "14px" }}>
                 <strong>{EVENT_LABELS[v.event_key] ?? v.event_label}</strong>
-                <span style={{ color: "#888", fontSize: "12px" }}>
+                <span style={{ color: "var(--muted)", fontSize: "12px" }}>
                   {new Date(v.entered_at).toLocaleString("ja-JP", { month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit" })}
                 </span>
               </li>
