@@ -37,11 +37,33 @@ export default function KinenkanManagePage() {
       .then((r) => r.json()).then((data) => setIsOpen(data.is_open ?? false));
   }, [authed]);
 
+  const [saveError, setSaveError] = useState<string | null>(null);
+
+  const reloadCrowd = async () => {
+    const data = await fetch("/api/crowd?type=venue", { cache: "no-store" }).then((r) => r.json());
+    const venue = (data.venues ?? []).find((v: any) => v.venue_key === VENUE_KEY);
+    if (venue) setCrowdLevel(venue.level);
+    return venue?.level ?? null;
+  };
+
   const updateCrowd = async (level: number) => {
     setSaving(true);
-    await fetch("/api/crowd", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ venueKey: VENUE_KEY, level }) });
-    setCrowdLevel(level); setSaving(false); setSaved(true);
-    setTimeout(() => setSaved(false), 2000);
+    setSaveError(null);
+    const res  = await fetch("/api/crowd", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ venueKey: VENUE_KEY, level }) });
+    const data = await res.json();
+    if (!res.ok) {
+      setSaveError("保存に失敗しました: " + (data.error ?? res.status));
+      setSaving(false);
+      return;
+    }
+    const confirmed = await reloadCrowd();
+    setSaving(false);
+    if (confirmed === level) {
+      setSaved(true);
+      setTimeout(() => setSaved(false), 2000);
+    } else {
+      setSaveError("DBへの反映が確認できませんでした（再読み込みしてください）");
+    }
   };
   const toggleVote = async (open: boolean) => {
     await fetch("/api/event-vote-status", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ eventKey: M1_KEY, isOpen: open }) });
