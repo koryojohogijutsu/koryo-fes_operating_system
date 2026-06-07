@@ -63,7 +63,7 @@ export default function HistoryPage() {
     fetchAll();
   }, []);
 
-  if (loading) return <main style={{ padding: "40px", textAlign: "center" }}><p style={{ color: "#aaa" }}>読み込み中...</p></main>;
+  if (loading) return <main style={{ padding: "40px", textAlign: "center" }}><p style={{ color: "var(--muted)" }}>読み込み中...</p></main>;
 
   if (error) return (
     <main style={{ padding: "40px 20px", textAlign: "center" }}>
@@ -78,7 +78,7 @@ export default function HistoryPage() {
 
   return (
     <main style={{ padding: "24px 20px", maxWidth: "480px", margin: "0 auto" }}>
-      <button onClick={() => router.back()} style={{ background: "none", border: "none", color: "#888", fontSize: "14px", cursor: "pointer", marginBottom: "16px", padding: 0 }}>
+      <button onClick={() => router.back()} style={{ background: "none", border: "none", color: "var(--muted)", fontSize: "14px", cursor: "pointer", marginBottom: "16px", padding: 0 }}>
         ← 戻る
       </button>
       <h1 style={{ fontSize: "22px", marginBottom: "24px" }}>あなたの履歴</h1>
@@ -117,7 +117,7 @@ export default function HistoryPage() {
           <ul style={{ listStyle: "none", padding: 0, margin: 0 }}>
             {classVotes.map((v, i) => (
               <li key={i} style={{ ...rowStyle, flexDirection: "column", alignItems: "flex-start", gap: "2px" }}>
-                <span style={{ fontSize: "12px", color: "#888" }}>{v.category_label}</span>
+                <span style={{ fontSize: "12px", color: "var(--muted)" }}>{v.category_label}</span>
                 <span style={{ fontWeight: "bold" }}>{v.target_label}</span>
               </li>
             ))}
@@ -131,7 +131,7 @@ export default function HistoryPage() {
           <ul style={{ listStyle: "none", padding: 0, margin: 0 }}>
             {eventVotes.map((v, i) => (
               <li key={i} style={{ ...rowStyle, flexDirection: "column", alignItems: "flex-start", gap: "2px" }}>
-                <span style={{ fontSize: "12px", color: "#888" }}>{v.category_label}</span>
+                <span style={{ fontSize: "12px", color: "var(--muted)" }}>{v.category_label}</span>
                 <span style={{ fontWeight: "bold" }}>{v.target_label}</span>
               </li>
             ))}
@@ -150,7 +150,7 @@ export default function HistoryPage() {
                 🏆 コンプリート達成！
               </div>
             ) : (
-              <p style={{ fontSize: "13px", color: "#888", marginBottom: "10px" }}>
+              <p style={{ fontSize: "13px", color: "var(--muted)", marginBottom: "10px" }}>
                 {puzzle.solved.length} / {TOTAL_Q} 問正解
               </p>
             )}
@@ -179,19 +179,19 @@ export default function HistoryPage() {
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <section style={{ marginBottom: "32px" }}>
-      <h2 style={{ fontSize: "16px", color: "#333", marginBottom: "12px", borderBottom: "2px solid #e10102", paddingBottom: "6px" }}>{title}</h2>
+      <h2 style={{ fontSize: "16px", color: "var(--foreground)", marginBottom: "12px", borderBottom: "2px solid #e10102", paddingBottom: "6px" }}>{title}</h2>
       {children}
     </section>
   );
 }
 
 function Empty({ text = "まだ記録がありません" }: { text?: string }) {
-  return <p style={{ color: "#aaa", fontSize: "14px" }}>{text}</p>;
+  return <p style={{ color: "var(--muted)", fontSize: "14px" }}>{text}</p>;
 }
 
 function Time({ ts }: { ts: string }) {
   return (
-    <span style={{ color: "#888", fontSize: "13px" }}>
+    <span style={{ color: "var(--muted)", fontSize: "13px" }}>
       {new Date(ts).toLocaleString("ja-JP", { month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit" })}
     </span>
   );
