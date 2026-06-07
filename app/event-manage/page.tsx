@@ -79,7 +79,7 @@ export default function EventManagePage() {
 
   return (
     <main style={{ padding: "24px 20px", maxWidth: "500px", margin: "0 auto" }}>
-      <a href="/admin" style={{ fontSize: "13px", color: "#888", textDecoration: "none", display: "block", marginBottom: "20px" }}>
+      <a href="/admin" style={{ fontSize: "13px", color: "var(--muted)", textDecoration: "none", display: "block", marginBottom: "20px" }}>
         ← 管理者メニューに戻る
       </a>
       <h1 style={{ fontSize: "20px", marginBottom: "24px" }}>イベント管理</h1>
@@ -93,7 +93,7 @@ export default function EventManagePage() {
         const maxCount      = catResults[0]?.count ?? 1;
 
         return (
-          <section key={cat.key} style={{ marginBottom: "28px", padding: "16px", border: "1px solid #eee", borderRadius: "12px" }}>
+          <section key={cat.key} style={{ marginBottom: "28px", padding: "16px", border: "1px solid var(--card-border)", borderRadius: "12px" }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "12px" }}>
               <h2 style={{ fontSize: "16px", margin: 0 }}>{cat.label}</h2>
               <span style={{ fontSize: "12px", padding: "3px 10px", borderRadius: "20px", backgroundColor: isOpen ? "#e8f5e9" : "#fce4ec", color: isOpen ? "#2e7d32" : "#c62828", fontWeight: "bold" }}>
@@ -107,7 +107,7 @@ export default function EventManagePage() {
                 {loading ? "処理中..." : isOpen ? "🔒 締め切る" : "🟢 投票を開始する"}
               </button>
               <button onClick={() => fetchResults(cat.key)} disabled={resultLoading}
-                style={{ padding: "8px 14px", fontSize: "13px", borderRadius: "6px", border: "1px solid #e10102", backgroundColor: "white", color: "#e10102", cursor: resultLoading ? "not-allowed" : "pointer" }}>
+                style={{ padding: "8px 14px", fontSize: "13px", borderRadius: "6px", border: "1px solid #e10102", backgroundColor: "var(--card-bg)", color: "#e10102", cursor: resultLoading ? "not-allowed" : "pointer" }}>
                 {resultLoading ? "取得中..." : showResult ? "📊 閉じる" : "📊 得票数を表示"}
               </button>
             </div>
@@ -116,7 +116,7 @@ export default function EventManagePage() {
             {showResult && (
               <div style={{ marginTop: "14px", backgroundColor: "#fafafa", borderRadius: "8px", padding: "12px" }}>
                 {catResults.length === 0 ? (
-                  <p style={{ color: "#aaa", fontSize: "13px", margin: 0 }}>まだ投票がありません</p>
+                  <p style={{ color: "var(--muted)", fontSize: "13px", margin: 0 }}>まだ投票がありません</p>
                 ) : (
                   <ul style={{ listStyle: "none", padding: 0, margin: 0 }}>
                     {catResults.map((r) => (
