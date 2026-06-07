@@ -150,7 +150,7 @@ export default function MapPage() {
     setVenueCrowds(crowdRes.venues         ?? []);
     setClassLayouts(classLayoutRes.layouts ?? []);
     // ouen(應援團演舞)・kendo(剣道部)はDBに残っていても表示しない
-    const EXCLUDED_VENUES = ["ouen", "kendo"];
+    const EXCLUDED_VENUES = ["ouen", "kendo", "nakaniwa"];
     setVenueLayouts((venueLayoutRes.layouts ?? []).filter(
       (l: { venue_key: string }) => !EXCLUDED_VENUES.includes(l.venue_key)
     ));
@@ -287,7 +287,7 @@ export default function MapPage() {
     openVenueModal(venueKey);
   };
 
-  if (loading) return <main style={{ padding: "40px", textAlign: "center" }}><p style={{ color: "#aaa" }}>読み込み中...</p></main>;
+  if (loading) return <main style={{ padding: "40px", textAlign: "center" }}><p style={{ color: "var(--muted)" }}>読み込み中...</p></main>;
 
   const schoolClassLayouts = classLayouts.filter((l) => !["将棋部","囲碁部"].includes(l.class_code));
   const koryoClassLayouts  = classLayouts.filter((l) => ["将棋部","囲碁部"].includes(l.class_code));
@@ -302,19 +302,19 @@ export default function MapPage() {
 
   const activeDayLabel = activeDay === "day1" ? `1日目（${festivalSettings.day1_date}）` : activeDay === "day2" ? `2日目（${festivalSettings.day2_date}）` : "両日";
 
-  const modalOverlay: React.CSSProperties = { position: "fixed", inset: 0, backgroundColor: "rgba(0,0,0,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 500, padding: "20px" };
-  const modalBox: React.CSSProperties     = { backgroundColor: "white", borderRadius: "16px", padding: "24px 20px", maxWidth: "380px", width: "100%", boxShadow: "0 8px 32px rgba(0,0,0,0.2)", maxHeight: "90vh", overflowY: "auto" };
-  const closeBtn: React.CSSProperties     = { width: "100%", padding: "10px", fontSize: "14px", cursor: "pointer", backgroundColor: "#f5f5f5", color: "#555", border: "none", borderRadius: "8px", marginTop: "12px" };
+  const modalOverlay: React.CSSProperties = { position: "fixed", inset: 0, backgroundColor: "rgba(0,0,0,0.6)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 500, padding: "20px" };
+  const modalBox: React.CSSProperties     = { backgroundColor: "var(--modal-bg)", color: "var(--foreground)", borderRadius: "16px", padding: "24px 20px", maxWidth: "380px", width: "100%", boxShadow: "0 8px 32px rgba(0,0,0,0.4)", maxHeight: "90vh", overflowY: "auto" };
+  const closeBtn: React.CSSProperties     = { width: "100%", padding: "10px", fontSize: "14px", cursor: "pointer", backgroundColor: "var(--muted-bg)", color: "var(--foreground)", border: "1px solid var(--card-border)", borderRadius: "8px", marginTop: "12px" };
 
   return (
     <>
-      <main style={{ padding: "20px 16px 40px", maxWidth: "600px", margin: "0 auto" }}>
-        <Link href="/" style={{ fontSize: "13px", color: "#888", textDecoration: "none", display: "block", marginBottom: "16px" }}>← ホームに戻る</Link>
+      <main style={{ padding: "20px 16px 40px", maxWidth: "100%", margin: "0 auto" }}>
+        <Link href="/" style={{ fontSize: "13px", color: "var(--muted)", textDecoration: "none", display: "block", marginBottom: "16px" }}>← ホームに戻る</Link>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "8px" }}>
           <h1 style={{ fontSize: "20px" }}>📍 マップ</h1>
-          <button onClick={loadData} style={{ padding: "6px 14px", fontSize: "12px", cursor: "pointer", backgroundColor: "#f5f5f5", color: "#555", border: "1px solid #ddd", borderRadius: "20px" }}>🔄 更新</button>
+          <button onClick={loadData} style={{ padding: "6px 14px", fontSize: "12px", cursor: "pointer", backgroundColor: "var(--muted-bg)", color: "var(--foreground)", border: "1px solid var(--card-border)", borderRadius: "20px" }}>🔄 更新</button>
         </div>
-        {lastUpdated && <p style={{ fontSize: "11px", color: "#aaa", marginBottom: "6px" }}>最終更新: {lastUpdated.toLocaleTimeString("ja-JP", { hour: "2-digit", minute: "2-digit", second: "2-digit" })}</p>}
+        {lastUpdated && <p style={{ fontSize: "11px", color: "var(--muted)", marginBottom: "6px" }}>最終更新: {lastUpdated.toLocaleTimeString("ja-JP", { hour: "2-digit", minute: "2-digit", second: "2-digit" })}</p>}
         <p style={{ fontSize: "11px", color: "#1976d2", marginBottom: "16px", fontWeight: "bold" }}>📅 表示中: {activeDayLabel}</p>
 
         <div style={{ display: "flex", gap: "12px", marginBottom: "20px", flexWrap: "wrap" }}>
@@ -327,9 +327,10 @@ export default function MapPage() {
         </div>
 
         {/* 校舎マップ */}
-        <h2 style={{ fontSize: "15px", fontWeight: "bold", marginBottom: "4px", color: "#333" }}>🏫 校舎（教室棟・管理棟）</h2>
-        <p style={{ fontSize: "11px", color: "#aaa", marginBottom: "8px" }}>アイコンをタップすると詳細が見られます</p>
-        <div style={{ position: "relative", width: "100%", marginBottom: "32px", border: "1px solid #ddd", borderRadius: "8px", overflow: "hidden" }}>
+        <h2 style={{ fontSize: "15px", fontWeight: "bold", marginBottom: "4px" }}>🏫 校舎（教室棟・管理棟）</h2>
+        <p style={{ fontSize: "11px", color: "var(--muted)", marginBottom: "8px" }}>アイコンをタップすると詳細が見られます</p>
+        <div style={{ overflowX: "auto", marginBottom: "32px", WebkitOverflowScrolling: "touch" }}>
+          <div style={{ position: "relative", minWidth: "600px", width: "100%", border: "1px solid var(--card-border)", borderRadius: "8px", overflow: "hidden" }}>
           <img src="/map.png" alt="校舎マップ" style={{ width: "100%", display: "block" }} />
           {schoolClassLayouts.map((layout) => {
             const crowd = classCrowds.find((c) => c.class_code === layout.class_code);
@@ -348,17 +349,17 @@ export default function MapPage() {
               <div key={layout.venue_key} onClick={() => handleVenuePin(layout.venue_key)}
                 style={{ position: "absolute", left: `${layout.x}%`, top: `${layout.y}%`, transform: "translate(-50%, -100%)", textAlign: "center", cursor: "pointer" }}>
                 <img src={icon.src} alt={icon.label} style={{ width: "32px", height: "32px", objectFit: "contain", display: "block", margin: "0 auto" }} onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }} />
-                {layout.venue_key !== "nakaniwa" && (
-                  <div style={{ backgroundColor: icon.color, color: "white", borderRadius: "12px", padding: "2px 8px", fontSize: "10px", fontWeight: "bold", whiteSpace: "nowrap", boxShadow: "0 2px 4px rgba(0,0,0,0.2)" }}>{VENUE_LABELS[layout.venue_key] ?? layout.venue_key}</div>
-                )}
+                <div style={{ backgroundColor: icon.color, color: "white", borderRadius: "12px", padding: "2px 8px", fontSize: "10px", fontWeight: "bold", whiteSpace: "nowrap", boxShadow: "0 2px 4px rgba(0,0,0,0.2)" }}>{VENUE_LABELS[layout.venue_key] ?? layout.venue_key}</div>
               </div>
             );
           })}
         </div>
+        </div>
 
         {/* 全体図 */}
-        <h2 style={{ fontSize: "15px", fontWeight: "bold", marginBottom: "8px", color: "#333" }}>🏫 校内全体図</h2>
-        <div style={{ position: "relative", width: "100%", marginBottom: "24px", border: "1px solid #ddd", borderRadius: "8px", overflow: "hidden" }}>
+        <h2 style={{ fontSize: "15px", fontWeight: "bold", marginBottom: "8px" }}>🏫 校内全体図</h2>
+        <div style={{ overflowX: "auto", marginBottom: "24px", WebkitOverflowScrolling: "touch" }}>
+        <div style={{ position: "relative", minWidth: "600px", width: "100%", border: "1px solid var(--card-border)", borderRadius: "8px", overflow: "hidden" }}>
           <img src="/venue-map-all.png" alt="校内全体図" style={{ width: "100%", display: "block" }} />
           {allVenueLayouts.map((layout) => {
             const icon = pinIcon(layout.venue_key);
@@ -366,17 +367,17 @@ export default function MapPage() {
               <div key={layout.venue_key} onClick={() => handleVenuePin(layout.venue_key)}
                 style={{ position: "absolute", left: `${layout.x}%`, top: `${layout.y}%`, transform: "translate(-50%, -100%)", textAlign: "center", cursor: "pointer" }}>
                 <img src={icon.src} alt={icon.label} style={{ width: "36px", height: "36px", objectFit: "contain", display: "block", margin: "0 auto" }} onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }} />
-                {layout.venue_key !== "nakaniwa" && (
-                  <div style={{ backgroundColor: icon.color, color: "white", borderRadius: "12px", padding: "2px 8px", fontSize: "11px", fontWeight: "bold", whiteSpace: "nowrap", boxShadow: "0 2px 4px rgba(0,0,0,0.2)" }}>{VENUE_LABELS[layout.venue_key] ?? layout.venue_key}</div>
-                )}
+                <div style={{ backgroundColor: icon.color, color: "white", borderRadius: "12px", padding: "2px 8px", fontSize: "11px", fontWeight: "bold", whiteSpace: "nowrap", boxShadow: "0 2px 4px rgba(0,0,0,0.2)" }}>{VENUE_LABELS[layout.venue_key] ?? layout.venue_key}</div>
               </div>
             );
           })}
         </div>
+        </div>
 
         {/* 蛟龍館 */}
-        <h2 style={{ fontSize: "15px", fontWeight: "bold", marginBottom: "8px", color: "#333" }}>🏢 蛟龍館</h2>
-        <div style={{ position: "relative", width: "100%", marginBottom: "32px", border: "1px solid #ddd", borderRadius: "8px", overflow: "hidden" }}>
+        <h2 style={{ fontSize: "15px", fontWeight: "bold", marginBottom: "8px" }}>🏢 蛟龍館</h2>
+        <div style={{ overflowX: "auto", marginBottom: "32px", WebkitOverflowScrolling: "touch" }}>
+        <div style={{ position: "relative", minWidth: "600px", width: "100%", border: "1px solid var(--card-border)", borderRadius: "8px", overflow: "hidden" }}>
           <img src="/venue-map-koryokan.png" alt="蛟龍館マップ" style={{ width: "100%", display: "block" }} />
           {koryoVenueLayouts.map((layout) => {
             const icon = pinIcon(layout.venue_key);
@@ -400,9 +401,10 @@ export default function MapPage() {
             );
           })}
         </div>
+        </div>
 
         {/* 会場混雑一覧 */}
-        <h2 style={{ fontSize: "15px", fontWeight: "bold", marginBottom: "10px", color: "#333" }}>会場の混雑状況</h2>
+        <h2 style={{ fontSize: "15px", fontWeight: "bold", marginBottom: "10px" }}>会場の混雑状況</h2>
         <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
           {venueCrowds.map((v) => {
             const icon = getCrowdIcon(v.level);
@@ -423,7 +425,7 @@ export default function MapPage() {
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "12px" }}>
               <div>
                 <p style={{ fontWeight: "bold", fontSize: "18px", margin: 0 }}>{modal.info?.label ?? modal.crowd.class_code}</p>
-                <p style={{ color: "#888", fontSize: "13px", margin: "2px 0 0" }}>{modal.crowd.class_code}</p>
+                <p style={{ color: "var(--muted)", fontSize: "13px", margin: "2px 0 0" }}>{modal.crowd.class_code}</p>
               </div>
               <span style={{ fontWeight: "bold", color: getCrowdIcon(modal.crowd.level).color, fontSize: "13px" }}>{getCrowdIcon(modal.crowd.level).label}</span>
             </div>
@@ -455,10 +457,11 @@ export default function MapPage() {
                   if (item.kind === "program") {
                     const p = item.data;
                     return (
-                      <div key={"p" + i} style={{ padding: "10px 12px", backgroundColor: "#f9f9f9", borderRadius: "8px", border: "1px solid #eee" }}>
+                      <div key={"p" + i} style={{ padding: "10px 12px", backgroundColor: "var(--card-bg)", borderRadius: "8px", border: "1px solid var(--card-border)" }}>
+                        {(p as any).image_url && <img src={(p as any).image_url} alt={p.name} style={{ width: "100%", borderRadius: "6px", marginBottom: "8px" }} />}
                         <p style={{ fontWeight: "bold", fontSize: "14px", margin: 0 }}>{p.name}<DayBadge fd={p.festival_day} /></p>
                         {p.datetime && <p style={{ fontSize: "12px", color: "#1976d2", margin: "3px 0 0" }}>🕐 {p.datetime}</p>}
-                        {p.comment  && <p style={{ fontSize: "13px", color: "#666", margin: "4px 0 0", lineHeight: "1.6", whiteSpace: "pre-line" }}>{p.comment}</p>}
+                        {p.comment  && <p style={{ fontSize: "13px", color: "var(--muted)", margin: "4px 0 0", lineHeight: "1.6", whiteSpace: "pre-line" }}>{p.comment}</p>}
                       </div>
                     );
                   } else {
@@ -467,7 +470,7 @@ export default function MapPage() {
                       <div key={"e" + i} style={{ padding: "10px 12px", backgroundColor: "#fff5f5", borderRadius: "8px", border: "1px solid #ffd0d0", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                         <div>
                           <p style={{ fontWeight: "bold", fontSize: "13px", margin: 0, color: "#c62828" }}>{CATEGORY_LABELS[categoryKey] ?? categoryKey}</p>
-                          <p style={{ fontSize: "12px", color: "#888", margin: "2px 0 0" }}>{entries.length}組 出場</p>
+                          <p style={{ fontSize: "12px", color: "var(--muted)", margin: "2px 0 0" }}>{entries.length}組 出場</p>
                         </div>
                         <button
                           onClick={(e) => { e.stopPropagation(); openSubModal({ type: "venue_sub", categoryKey, entries }); }}
@@ -480,18 +483,18 @@ export default function MapPage() {
                 })}
               </div>
             ) : (
-              <p style={{ color: "#aaa", fontSize: "14px", marginBottom: "14px" }}>この日のプログラムはまだありません</p>
+              <p style={{ color: "var(--muted)", fontSize: "14px", marginBottom: "14px" }}>この日のプログラムはまだありません</p>
             )}
 
             {/* 会場イベント（イベント管理→会場イベントで登録したもの）は下部に固定 */}
             {modal.venueEventItems.length > 0 && (
               <>
-                <p style={{ fontSize: "12px", color: "#888", fontWeight: "bold", marginBottom: "6px" }}>📌 会場イベント</p>
+                <p style={{ fontSize: "12px", color: "var(--muted)", fontWeight: "bold", marginBottom: "6px" }}>📌 会場イベント</p>
                 <div style={{ display: "flex", flexDirection: "column", gap: "8px", marginBottom: "14px" }}>
                   {modal.venueEventItems.map((ev) => (
-                    <div key={ev.id} style={{ padding: "10px 12px", backgroundColor: "#f0f4ff", borderRadius: "8px", border: "1px solid #c5d5ff" }}>
+                    <div key={ev.id} style={{ padding: "10px 12px", backgroundColor: "var(--card-bg)", borderRadius: "8px", border: "1px solid #c5d5ff" }}>
                       <p style={{ fontWeight: "bold", fontSize: "14px", margin: 0 }}>{ev.title}</p>
-                      {ev.description && <p style={{ fontSize: "13px", color: "#555", margin: "4px 0 0", whiteSpace: "pre-line" }}>{ev.description}</p>}
+                      {ev.description && <p style={{ fontSize: "13px", color: "var(--muted)", margin: "4px 0 0", whiteSpace: "pre-line" }}>{ev.description}</p>}
                     </div>
                   ))}
                 </div>
@@ -516,15 +519,15 @@ export default function MapPage() {
             <h2 style={{ fontSize: "17px", fontWeight: "bold", marginBottom: "14px" }}>{CATEGORY_LABELS[modal.categoryKey] ?? modal.categoryKey}</h2>
             <div style={{ display: "flex", flexDirection: "column", gap: "12px", marginBottom: "4px" }}>
               {modal.entries.map((entry) => (
-                <div key={entry.id} style={{ padding: "12px", backgroundColor: "#f9f9f9", borderRadius: "8px", border: "1px solid #eee" }}>
+                <div key={entry.id} style={{ padding: "12px", backgroundColor: "var(--card-bg)", borderRadius: "8px", border: "1px solid var(--card-border)" }}>
                   {entry.image_url && <img src={entry.image_url} alt={entry.name} style={{ width: "100%", borderRadius: "8px", marginBottom: "8px" }} />}
                   <p style={{ fontWeight: "bold", fontSize: "14px", margin: 0 }}>
                     {entry.name}<DayBadge fd={inferFestivalDay(entry)} />
                   </p>
                   {entry.datetime    && <p style={{ fontSize: "12px", color: "#1976d2", margin: "3px 0 0" }}>🕐 {entry.datetime}</p>}
-                  {entry.description && <p style={{ fontSize: "13px", color: "#666", margin: "4px 0 0" }}>{entry.description}</p>}
-                  {entry.members     && <p style={{ fontSize: "12px", color: "#555", margin: "4px 0 0" }}>👥 {entry.members}</p>}
-                  {entry.comment     && <p style={{ fontSize: "13px", color: "#888", margin: "4px 0 0", fontStyle: "italic", whiteSpace: "pre-line" }}>「{entry.comment}」</p>}
+                  {entry.description && <p style={{ fontSize: "13px", color: "var(--muted)", margin: "4px 0 0" }}>{entry.description}</p>}
+                  {entry.members     && <p style={{ fontSize: "12px", color: "var(--muted)", margin: "4px 0 0" }}>👥 {entry.members}</p>}
+                  {entry.comment     && <p style={{ fontSize: "13px", color: "var(--muted)", margin: "4px 0 0", fontStyle: "italic", whiteSpace: "pre-line" }}>「{entry.comment}」</p>}
                 </div>
               ))}
             </div>
@@ -539,7 +542,7 @@ export default function MapPage() {
           <div onClick={(e) => e.stopPropagation()} style={modalBox}>
             <h2 style={{ fontSize: "18px", fontWeight: "bold", marginBottom: "4px" }}>🎵 ライブ 出演者</h2>
             <p style={{ fontSize: "11px", color: "#1976d2", marginBottom: "14px" }}>📅 {activeDayLabel}</p>
-            {modal.entries.length === 0 ? <p style={{ color: "#aaa", fontSize: "14px" }}>この日の出演者情報はまだありません</p> : (
+            {modal.entries.length === 0 ? <p style={{ color: "var(--muted)", fontSize: "14px" }}>この日の出演者情報はまだありません</p> : (
               <div style={{ display: "flex", flexDirection: "column", gap: "16px", marginBottom: "4px" }}>
                 {modal.entries.map((entry, i) => (
                   <div key={entry.id} style={{ borderBottom: "1px solid #f0f0f0", paddingBottom: "14px" }}>
@@ -551,9 +554,9 @@ export default function MapPage() {
                       {entry.name}<DayBadge fd={entry.festival_day} />
                     </p>
                     {entry.datetime && <p style={{ fontSize: "12px", color: "#1976d2", margin: "3px 0 0" }}>🕐 {entry.datetime}</p>}
-                    {entry.members && <p style={{ fontSize: "12px", color: "#666", margin: "4px 0 0" }}>👥 {entry.members}</p>}
+                    {entry.members && <p style={{ fontSize: "12px", color: "var(--muted)", margin: "4px 0 0" }}>👥 {entry.members}</p>}
                     {/* ★修正: 一言表示・改行対応 */}
-                    {entry.comment && <p style={{ fontSize: "13px", color: "#555", margin: "4px 0 0", whiteSpace: "pre-line" }}>{entry.comment}</p>}
+                    {entry.comment && <p style={{ fontSize: "13px", color: "var(--muted)", margin: "4px 0 0", whiteSpace: "pre-line" }}>{entry.comment}</p>}
                   </div>
                 ))}
               </div>
@@ -578,10 +581,10 @@ export default function MapPage() {
             {modal.events.length > 0 && (
               <div style={{ display: "flex", flexDirection: "column", gap: "8px", marginBottom: "14px" }}>
                 {modal.events.map((ev) => (
-                  <div key={ev.id} style={{ padding: "12px", backgroundColor: "#f0f4ff", borderRadius: "8px", border: "1px solid #c5d5ff" }}>
+                  <div key={ev.id} style={{ padding: "12px", backgroundColor: "var(--card-bg)", borderRadius: "8px", border: "1px solid #c5d5ff" }}>
                     <p style={{ fontWeight: "bold", fontSize: "14px", margin: 0 }}>{ev.title}</p>
                     {(ev as any).datetime && <p style={{ fontSize: "12px", color: "#1976d2", margin: "3px 0 0" }}>🕐 {(ev as any).datetime}</p>}
-                    {ev.description && <p style={{ fontSize: "13px", color: "#555", margin: "4px 0 0", whiteSpace: "pre-line" }}>{ev.description}</p>}
+                    {ev.description && <p style={{ fontSize: "13px", color: "var(--muted)", margin: "4px 0 0", whiteSpace: "pre-line" }}>{ev.description}</p>}
                   </div>
                 ))}
               </div>
@@ -591,16 +594,16 @@ export default function MapPage() {
             {modal.clubs.length > 0 && (
               <div style={{ display: "flex", flexDirection: "column", gap: "8px", marginBottom: "4px" }}>
                 {modal.clubs.map((c) => (
-                  <div key={c.id} style={{ padding: "12px", backgroundColor: "#f9f9f9", borderRadius: "8px", border: "1px solid #eee" }}>
+                  <div key={c.id} style={{ padding: "12px", backgroundColor: "var(--card-bg)", borderRadius: "8px", border: "1px solid var(--card-border)" }}>
                     <p style={{ fontWeight: "bold", fontSize: "14px", margin: 0 }}>{c.name}</p>
-                    {c.comment && <p style={{ fontSize: "13px", color: "#666", margin: "4px 0 0", whiteSpace: "pre-line" }}>{c.comment}</p>}
+                    {c.comment && <p style={{ fontSize: "13px", color: "var(--muted)", margin: "4px 0 0", whiteSpace: "pre-line" }}>{c.comment}</p>}
                   </div>
                 ))}
               </div>
             )}
 
             {modal.events.length === 0 && modal.clubs.length === 0 && (
-              <p style={{ color: "#aaa", fontSize: "14px" }}>情報はまだありません</p>
+              <p style={{ color: "var(--muted)", fontSize: "14px" }}>情報はまだありません</p>
             )}
             <button onClick={() => setModal(null)} style={closeBtn}>閉じる</button>
           </div>
@@ -618,7 +621,7 @@ export default function MapPage() {
             {modal.pinInfo ? (
               <div style={{ marginBottom: "4px" }}>
                 {modal.pinInfo.datetime && (
-                  <div style={{ display: "flex", alignItems: "center", gap: "6px", marginBottom: "10px", padding: "8px 12px", backgroundColor: "#e3f2fd", borderRadius: "8px" }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: "6px", marginBottom: "10px", padding: "8px 12px", backgroundColor: "rgba(25,118,210,0.12)", borderRadius: "8px" }}>
                     <span style={{ fontSize: "16px" }}>🕐</span>
                     <span style={{ fontSize: "14px", color: "#1976d2", fontWeight: "bold" }}>{modal.pinInfo.datetime}</span>
                   </div>
@@ -626,7 +629,7 @@ export default function MapPage() {
                 {modal.pinInfo.content && <p style={{ fontSize: "14px", color: "#444", lineHeight: "1.7", margin: 0, whiteSpace: "pre-line" }}>{modal.pinInfo.content}</p>}
               </div>
             ) : (
-              <p style={{ color: "#aaa", fontSize: "14px" }}>情報はまだありません</p>
+              <p style={{ color: "var(--muted)", fontSize: "14px" }}>情報はまだありません</p>
             )}
             <button onClick={() => setModal(null)} style={closeBtn}>閉じる</button>
           </div>
@@ -642,7 +645,7 @@ export default function MapPage() {
               <div style={{ marginBottom: "4px" }}>
                 {modal.info.title    && <p style={{ fontWeight: "bold", fontSize: "16px", margin: "0 0 8px" }}>{modal.info.title}</p>}
                 {modal.info.datetime && (
-                  <div style={{ display: "flex", alignItems: "center", gap: "6px", marginBottom: "10px", padding: "8px 12px", backgroundColor: "#e3f2fd", borderRadius: "8px" }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: "6px", marginBottom: "10px", padding: "8px 12px", backgroundColor: "rgba(25,118,210,0.12)", borderRadius: "8px" }}>
                     <span>🕐</span>
                     <span style={{ fontSize: "14px", color: "#1976d2", fontWeight: "bold" }}>{modal.info.datetime}</span>
                   </div>
@@ -650,7 +653,7 @@ export default function MapPage() {
                 {modal.info.content && <p style={{ fontSize: "14px", color: "#444", lineHeight: "1.7", margin: 0, whiteSpace: "pre-line" }}>{modal.info.content}</p>}
               </div>
             ) : (
-              <p style={{ color: "#aaa", fontSize: "14px" }}>情報はまだありません</p>
+              <p style={{ color: "var(--muted)", fontSize: "14px" }}>情報はまだありません</p>
             )}
             <button onClick={() => setModal(null)} style={closeBtn}>閉じる</button>
           </div>
@@ -667,10 +670,10 @@ export default function MapPage() {
             </div>
             {/* ★修正: 会場タイトルと一言を表示 */}
             {modal.venueDesc && (
-              <p style={{ fontSize: "13px", color: "#666", marginBottom: "14px", lineHeight: "1.6", whiteSpace: "pre-line" }}>{modal.venueDesc}</p>
+              <p style={{ fontSize: "13px", color: "var(--muted)", marginBottom: "14px", lineHeight: "1.6", whiteSpace: "pre-line" }}>{modal.venueDesc}</p>
             )}
             {!modal.venueDesc && <div style={{ marginBottom: "14px" }} />}
-            {modal.items.length === 0 ? <p style={{ color: "#aaa", fontSize: "14px" }}>メニューはまだありません</p> : (
+            {modal.items.length === 0 ? <p style={{ color: "var(--muted)", fontSize: "14px" }}>メニューはまだありません</p> : (
               <div style={{ display: "flex", flexDirection: "column", gap: "12px", marginBottom: "4px" }}>
                 {modal.items.map((m) => (
                   <div key={m.id} style={{ borderBottom: "1px solid #f0f0f0", paddingBottom: "12px" }}>
@@ -679,7 +682,7 @@ export default function MapPage() {
                       <span style={{ fontWeight: "bold", fontSize: "15px" }}>{m.title}</span>
                       {m.price !== null && <span style={{ color: "#e10102", fontWeight: "bold", fontSize: "15px" }}>¥{m.price}</span>}
                     </div>
-                    {m.description && <p style={{ fontSize: "13px", color: "#666", margin: "4px 0 0", lineHeight: "1.6", whiteSpace: "pre-line" }}>{m.description}</p>}
+                    {m.description && <p style={{ fontSize: "13px", color: "var(--muted)", margin: "4px 0 0", lineHeight: "1.6", whiteSpace: "pre-line" }}>{m.description}</p>}
                   </div>
                 ))}
               </div>
