@@ -17,7 +17,7 @@ type Entry = { id: string; name: string; description: string; comment: string };
 
 export default function VoteEventConfirmPage() {
   return (
-    <Suspense fallback={<main style={{ padding: "40px", textAlign: "center" }}><p style={{ color: "#aaa" }}>読み込み中...</p></main>}>
+    <Suspense fallback={<main style={{ padding: "40px", textAlign: "center" }}><p style={{ color: "var(--muted)" }}>読み込み中...</p></main>}>
       <Inner />
     </Suspense>
   );
@@ -83,7 +83,7 @@ function Inner() {
       <main style={{ padding: "60px 20px", textAlign: "center" }}>
         <div style={{ fontSize: "56px", marginBottom: "16px" }}>✅</div>
         <h1 style={{ fontSize: "20px", marginBottom: "8px" }}>投票完了！</h1>
-        <p style={{ color: "#888", marginBottom: "24px" }}>ありがとうございました</p>
+        <p style={{ color: "var(--muted)", marginBottom: "24px" }}>ありがとうございました</p>
         <a href="/event-enter" style={{ display: "inline-block", padding: "12px 28px", backgroundColor: "#e10102", color: "white", borderRadius: "8px", fontSize: "15px", textDecoration: "none" }}>
           イベント投票トップに戻る
         </a>
@@ -97,7 +97,7 @@ function Inner() {
       <main style={{ padding: "60px 20px", textAlign: "center" }}>
         <div style={{ fontSize: "56px", marginBottom: "16px" }}>⚠️</div>
         <h1 style={{ fontSize: "20px", marginBottom: "8px" }}>すでに投票済みです</h1>
-        <p style={{ color: "#888", marginBottom: "24px" }}>このイベントへの投票は1回のみ有効です</p>
+        <p style={{ color: "var(--muted)", marginBottom: "24px" }}>このイベントへの投票は1回のみ有効です</p>
         <a href="/event-enter" style={{ display: "inline-block", padding: "12px 28px", backgroundColor: "#e10102", color: "white", borderRadius: "8px", fontSize: "15px", textDecoration: "none" }}>
           イベント投票トップに戻る
         </a>
@@ -107,20 +107,20 @@ function Inner() {
 
   return (
     <main style={{ padding: "24px 20px", maxWidth: "480px", margin: "0 auto" }}>
-      <a href={`/vote/event/${category}`} style={{ fontSize: "13px", color: "#888", textDecoration: "none", display: "block", marginBottom: "20px" }}>
+      <a href={`/vote/event/${category}`} style={{ fontSize: "13px", color: "var(--muted)", textDecoration: "none", display: "block", marginBottom: "20px" }}>
         ← 選択に戻る
       </a>
       <h1 style={{ fontSize: "20px", marginBottom: "6px" }}>投票内容の確認</h1>
-      <p style={{ color: "#888", fontSize: "13px", marginBottom: "24px" }}>以下の内容で投票します</p>
+      <p style={{ color: "var(--muted)", fontSize: "13px", marginBottom: "24px" }}>以下の内容で投票します</p>
 
-      <div style={{ border: "1px solid #eee", borderRadius: "12px", padding: "16px 20px", marginBottom: "24px" }}>
-        <div style={{ color: "#888", fontSize: "12px", marginBottom: "6px" }}>{EVENT_LABELS[category] ?? category}</div>
+      <div style={{ border: "1px solid var(--card-border)", borderRadius: "12px", padding: "16px 20px", marginBottom: "24px" }}>
+        <div style={{ color: "var(--muted)", fontSize: "12px", marginBottom: "6px" }}>{EVENT_LABELS[category] ?? category}</div>
         <div style={{ fontWeight: "bold", fontSize: "17px" }}>{entry?.name ?? "..."}</div>
         {entry?.description && (
           <div style={{ color: "#777", fontSize: "13px", marginTop: "4px" }}>{entry.description}</div>
         )}
         {entry?.comment && (
-          <div style={{ color: "#555", fontSize: "13px", marginTop: "6px", fontStyle: "italic", whiteSpace: "pre-line" }}>「{entry.comment}」</div>
+          <div style={{ color: "var(--muted)", fontSize: "13px", marginTop: "6px", fontStyle: "italic", whiteSpace: "pre-line" }}>「{entry.comment}」</div>
         )}
       </div>
 
