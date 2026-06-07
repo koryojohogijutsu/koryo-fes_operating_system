@@ -24,11 +24,33 @@ export default function VenueManagePage() {
     });
   }, [authed]);
 
+  const [saveError, setSaveError] = useState<string | null>(null);
+
+  const reloadCrowd = async () => {
+    const data = await fetch("/api/crowd?type=venue", { cache: "no-store" }).then((r) => r.json());
+    const venue = (data.venues ?? []).find((v: any) => v.venue_key === VENUE_KEY);
+    if (venue) setCrowdLevel(venue.level);
+    return venue?.level ?? null;
+  };
+
   const updateCrowd = async (level: number) => {
     setSaving(true);
-    await fetch("/api/crowd", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ venueKey: VENUE_KEY, level }) });
-    setCrowdLevel(level); setSaving(false); setSaved(true);
-    setTimeout(() => setSaved(false), 2000);
+    setSaveError(null);
+    const res  = await fetch("/api/crowd", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ venueKey: VENUE_KEY, level }) });
+    const data = await res.json();
+    if (!res.ok) {
+      setSaveError("保存に失敗しました: " + (data.error ?? res.status));
+      setSaving(false);
+      return;
+    }
+    const confirmed = await reloadCrowd();
+    setSaving(false);
+    if (confirmed === level) {
+      setSaved(true);
+      setTimeout(() => setSaved(false), 2000);
+    } else {
+      setSaveError("DBへの反映が確認できませんでした（再読み込みしてください）");
+    }
   };
 
   if (!authed) return null;
@@ -41,7 +63,8 @@ export default function VenueManagePage() {
       <div style={{ marginBottom: "24px", padding: "20px", borderRadius: "10px", backgroundColor: current.bg, border: `2px solid ${current.color}`, textAlign: "center" }}>
         <p style={{ fontSize: "13px", color: "#888", marginBottom: "4px" }}>現在の混雑状況</p>
         <p style={{ fontSize: "24px", fontWeight: "bold", color: current.color }}>{current.label}</p>
-        {saved && <p style={{ fontSize: "12px", color: "#4caf50", marginTop: "4px" }}>✅ 保存しました</p>}
+        {saved     && <p style={{ fontSize: "12px", color: "#4caf50", marginTop: "4px" }}>✅ 保存しました</p>}
+        {saveError && <p style={{ fontSize: "12px", color: "#f44336", marginTop: "4px" }}>⚠️ {saveError}</p>}
       </div>
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px" }}>
         {CROWD_LEVELS.map((cl) => (
