@@ -75,7 +75,7 @@ export async function GET(req: NextRequest) {
   return NextResponse.json({ classes: classCrowds }, NO_CACHE);
 }
 
-// POST: 会場混雑状況を手動更新
+// POST: 会場混雑状況を手動更新（レコードがなければ作成、あれば更新）
 export async function POST(req: Request) {
   const body = await req.json();
   const { venueKey, level } = body;
@@ -87,10 +87,28 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "level must be 0-3" }, { status: 400 });
   }
 
-  const { error } = await supabase
+  const now = new Date().toISOString();
+
+  // 既存レコードがあるか確認
+  const { data: existing } = await supabase
     .from("venue_crowd")
-    .update({ level, updated_at: new Date().toISOString() })
-    .eq("venue_key", venueKey);
+    .select("id")
+    .eq("venue_key", venueKey)
+    .maybeSingle();
+
+  let error;
+  if (existing) {
+    // 既存レコードを更新
+    ({ error } = await supabase
+      .from("venue_crowd")
+      .update({ level, updated_at: now })
+      .eq("venue_key", venueKey));
+  } else {
+    // 新規レコードを作成
+    ({ error } = await supabase
+      .from("venue_crowd")
+      .insert({ venue_key: venueKey, level, updated_at: now }));
+  }
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   return NextResponse.json({ success: true });
