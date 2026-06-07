@@ -181,7 +181,7 @@ export default function SurveyPage() {
               style={{
                 flex: 1, padding: "10px", fontSize: "14px", cursor: "pointer", borderRadius: "8px", border: "2px solid",
                 borderColor: targetType === t ? "#e10102" : "#ddd",
-                backgroundColor: targetType === t ? "#fff5f5" : "white",
+                backgroundColor: targetType === t ? "rgba(225,1,2,0.08)" : "var(--card-bg)",
                 color: targetType === t ? "#e10102" : "#555",
                 fontWeight: targetType === t ? "bold" : "normal",
               }}>
@@ -204,7 +204,7 @@ export default function SurveyPage() {
                   style={{
                     padding: "14px 16px", borderRadius: "10px",
                     border: done ? "1px solid #ddd" : "1px solid #ddd",
-                    backgroundColor: done ? "#f9f9f9" : "white",
+                    backgroundColor: done ? "var(--muted-bg)" : "var(--card-bg)",
                     cursor: done ? "not-allowed" : "pointer",
                     display: "flex", justifyContent: "space-between", alignItems: "center",
                     opacity: done ? 0.6 : 1,
@@ -291,7 +291,7 @@ export default function SurveyPage() {
         display: "flex", alignItems: "center", justifyContent: "center", zIndex: 300, padding: "20px",
       }}>
         <div style={{
-          backgroundColor: "white", borderRadius: "20px", padding: "32px 24px",
+          backgroundColor: "var(--modal-bg)", borderRadius: "20px", padding: "32px 24px",
           textAlign: "center", maxWidth: "360px", width: "100%",
           boxShadow: "0 12px 40px rgba(0,0,0,0.2)",
         }}>
