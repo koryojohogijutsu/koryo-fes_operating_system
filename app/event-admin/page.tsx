@@ -126,6 +126,7 @@ export default function EventAdminPage() {
   const [pDatetime,    setPDatetime]    = useState("");
   const [pComment,     setPComment]     = useState("");
   const [pFestivalDay, setPFestivalDay] = useState<FestivalDay>("day1");
+  const [pImage,       setPImage]       = useState<File | null>(null);
   const [pSaving,      setPSaving]      = useState(false);
   const [pSortDay,     setPSortDay]     = useState<"day1" | "day2" | "both">("day1");
 
@@ -157,8 +158,18 @@ export default function EventAdminPage() {
   }, [entryCategory]);
 
   const loadEntries = async () => {
-    const res = await fetch(`/api/event-entries?category=${entryCategory}`, { cache: "no-store" });
-    setEntries((await res.json()).entries ?? []);
+    // コスコン（P）= coscon_performance と coscon_runway を合算
+    if (entryCategory === "coscon_performance") {
+      const [resP, resR] = await Promise.all([
+        fetch(`/api/event-entries?category=coscon_performance`, { cache: "no-store" }).then((r) => r.json()),
+        fetch(`/api/event-entries?category=coscon_runway`, { cache: "no-store" }).then((r) => r.json()),
+      ]);
+      const combined = [...(resP.entries ?? []), ...(resR.entries ?? [])].sort((a, b) => (a.order_num ?? 0) - (b.order_num ?? 0));
+      setEntries(combined);
+    } else {
+      const res = await fetch(`/api/event-entries?category=${entryCategory}`, { cache: "no-store" });
+      setEntries((await res.json()).entries ?? []);
+    }
   };
   // 会場→対応するevent_entriesカテゴリのマッピング
   const VENUE_ENTRY_CATEGORIES: Record<string, string[]> = {
@@ -246,11 +257,18 @@ export default function EventAdminPage() {
   const addProgram = async () => {
     if (!pName) { alert("部活名を入力してください"); return; }
     setPSaving(true);
+    let imageUrl: string | null = null;
+    if (pImage) {
+      const fd = new FormData();
+      fd.append("file", pImage); fd.append("bucket", "venue-programs");
+      fd.append("path", `${progVenueKey}/${Date.now()}.${pImage.name.split(".").pop()}`);
+      imageUrl = (await fetch("/api/upload", { method: "POST", body: fd }).then((r) => r.json())).url ?? null;
+    }
     const res = await fetch("/api/venue-programs", {
       method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ venueKey: progVenueKey, name: pName, datetime: pDatetime, comment: pComment, festivalDay: pFestivalDay }),
+      body: JSON.stringify({ venueKey: progVenueKey, name: pName, datetime: pDatetime, comment: pComment, festivalDay: pFestivalDay, imageUrl }),
     });
-    if (res.ok) { setPName(""); setPDatetime(""); setPComment(""); setPFestivalDay("day1"); loadPrograms(); }
+    if (res.ok) { setPName(""); setPDatetime(""); setPComment(""); setPFestivalDay("day1"); setPImage(null); loadPrograms(); }
     else { alert("エラー: " + (await res.json()).error); }
     setPSaving(false);
   };
@@ -345,13 +363,13 @@ export default function EventAdminPage() {
               {saving ? "保存中..." : "✅ 並び順を保存"}
             </button>
             <button onClick={handleReset}
-              style={{ padding: "8px 16px", fontSize: "13px", cursor: "pointer", backgroundColor: "#f5f5f5", color: "#555", border: "1px solid #ddd", borderRadius: "6px" }}>
+              style={{ padding: "8px 16px", fontSize: "13px", cursor: "pointer", backgroundColor: "var(--muted-bg)", color: "var(--muted)", border: "1px solid var(--card-border)", borderRadius: "6px" }}>
               ↩ 元に戻す
             </button>
           </div>
         )}
         {list.length === 0 ? (
-          <p style={{ color: "#aaa", fontSize: "13px" }}>この日程の登録がありません</p>
+          <p style={{ color: "var(--muted)", fontSize: "13px" }}>この日程の登録がありません</p>
         ) : (
           <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
             {list.map((item) => (
@@ -365,8 +383,8 @@ export default function EventAdminPage() {
                   opacity: draggingId === item.id ? 0.4 : 1,
                   cursor: "grab",
                   borderRadius: "8px",
-                  border: "1px solid #eee",
-                  backgroundColor: draggingId === item.id ? "#f0f0f0" : "white",
+                  border: "1px solid var(--card-border)",
+                  backgroundColor: draggingId === item.id ? "var(--muted-bg)" : "var(--card-bg)",
                   transition: "opacity 0.15s",
                 }}
               >
@@ -384,7 +402,7 @@ export default function EventAdminPage() {
 
   return (
     <main style={{ padding: "24px 20px", maxWidth: "560px", margin: "0 auto" }}>
-      <a href="/admin" style={{ fontSize: "13px", color: "#888", textDecoration: "none", display: "block", marginBottom: "20px" }}>← 管理者メニューに戻る</a>
+      <a href="/admin" style={{ fontSize: "13px", color: "var(--muted)", textDecoration: "none", display: "block", marginBottom: "20px" }}>← 管理者メニューに戻る</a>
       <h1 style={{ fontSize: "20px", marginBottom: "20px" }}>🎤 イベント管理</h1>
 
       <div style={{ display: "flex", gap: "8px", marginBottom: "24px" }}>
@@ -402,11 +420,11 @@ export default function EventAdminPage() {
             ))}
           </div>
           {/* 追加フォーム */}
-          <div style={{ padding: "16px", border: "1px solid #eee", borderRadius: "10px", marginBottom: "20px", display: "flex", flexDirection: "column", gap: "10px" }}>
+          <div style={{ padding: "16px", border: "1px solid var(--card-border)", borderRadius: "10px", marginBottom: "20px", display: "flex", flexDirection: "column", gap: "10px" }}>
             <input placeholder="名前 *" value={eName} onChange={(e) => setEName(e.target.value)} style={inputStyle} />
             <input placeholder="出場内容（任意）" value={eDesc} onChange={(e) => setEDesc(e.target.value)} style={inputStyle} />
             <input placeholder="時刻（任意）例: 14:00〜" value={eDatetime} onChange={(e) => setEDatetime(e.target.value)} style={inputStyle} />
-            <label style={{ fontSize: "13px", color: "#555" }}>
+            <label style={{ fontSize: "13px", color: "var(--muted)" }}>
               出演日
               <select value={eFestivalDay} onChange={(e) => setEFestivalDay(e.target.value as FestivalDay)} style={{ ...selectStyle, marginTop: "4px" }}>
                 {DAY_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
@@ -419,7 +437,7 @@ export default function EventAdminPage() {
                 style={{ padding: "10px", fontSize: "14px", borderRadius: "6px", border: "1px solid #ccc", resize: "vertical", fontFamily: "sans-serif" }} />
             )}
             <div>
-              <p style={{ fontSize: "13px", color: "#555", marginBottom: "4px" }}>画像（任意）</p>
+              <p style={{ fontSize: "13px", color: "var(--muted)", marginBottom: "4px" }}>画像（任意）</p>
               <input type="file" accept="image/*" onChange={(e) => setEImage(e.target.files?.[0] ?? null)} style={{ fontSize: "13px" }} />
             </div>
             <button onClick={addEntry} disabled={eSubmitting}
@@ -435,16 +453,15 @@ export default function EventAdminPage() {
             </h2>
             {/* 会場グループボタン */}
             <div style={{ display: "flex", gap: "6px", marginBottom: "8px", flexWrap: "wrap" }}>
-              <span style={{ fontSize: "11px", color: "#aaa", alignSelf: "center" }}>会場：</span>
+              <span style={{ fontSize: "11px", color: "var(--muted)", alignSelf: "center" }}>会場：</span>
               <button onClick={() => setEntryCategory("nodojiman-1")} style={subBtnStyle(entryCategory === "nodojiman-1")}>🏟のど自慢(1日目)</button>
               <button onClick={() => setEntryCategory("nodojiman-2")} style={subBtnStyle(entryCategory === "nodojiman-2")}>🏟のど自慢(2日目①)</button>
               <button onClick={() => setEntryCategory("nodojiman-3")} style={subBtnStyle(entryCategory === "nodojiman-3")}>🏟のど自慢(2日目②)</button>
-              <button onClick={() => setEntryCategory("coscon_performance")} style={subBtnStyle(entryCategory === "coscon_performance")}>🏟コスコン(P)</button>
-              <button onClick={() => setEntryCategory("coscon_runway")} style={subBtnStyle(entryCategory === "coscon_runway")}>🏟コスコン(R)</button>
+              <button onClick={() => setEntryCategory("coscon_performance")} style={subBtnStyle(entryCategory === "coscon_performance" || entryCategory === "coscon_runway")}>🏟コスコン（P）</button>
               <button onClick={() => setEntryCategory("m1")} style={subBtnStyle(entryCategory === "m1")}>🏛M1</button>
               <button onClick={() => setEntryCategory("live")} style={subBtnStyle(entryCategory === "live")}>🎵ライブ</button>
             </div>
-            <p style={{ fontSize: "11px", color: "#aaa", marginBottom: "10px" }}>⠿ をドラッグして順番を変更。「保存」で確定、「元に戻す」で直前の状態に戻せます。</p>
+            <p style={{ fontSize: "11px", color: "var(--muted)", marginBottom: "10px" }}>⠿ ドラッグで並べ替え、または右の「順」欄に数字を直接入力してEnterキー / フォーカスを外すと即時保存されます。ドラッグ後は「保存」で確定。</p>
             <div style={{ display: "flex", gap: "6px", marginBottom: "12px" }}>
               <button onClick={() => setSortDay("day1")} style={dayBtnStyle(sortDay === "day1", "#1976d2")}>1日目</button>
               <button onClick={() => setSortDay("day2")} style={dayBtnStyle(sortDay === "day2", "#e10102")}>2日目</button>
@@ -463,7 +480,7 @@ export default function EventAdminPage() {
                       {entry.datetime && <span style={{ fontSize: "12px", color: "#1976d2", marginLeft: "6px" }}>🕐 {entry.datetime}</span>}
                     </div>
                     <div style={{ display: "flex", alignItems: "center", gap: "4px", flexShrink: 0, marginLeft: "8px" }}>
-                      <span style={{ fontSize: "11px", color: "#aaa" }}>順</span>
+                      <span style={{ fontSize: "11px", color: "var(--muted)" }}>順</span>
                       <input
                         type="number"
                         defaultValue={entry.order_num}
@@ -477,19 +494,19 @@ export default function EventAdminPage() {
                             loadEntries();
                           }
                         }}
-                        style={{ width: "52px", padding: "3px 5px", fontSize: "12px", border: "1px solid #ddd", borderRadius: "4px", textAlign: "center" }}
+                        style={{ width: "52px", padding: "3px 5px", fontSize: "12px", border: "1px solid var(--card-border)", borderRadius: "4px", textAlign: "center" }}
                       />
                     </div>
                     <button onClick={() => deleteEntry(entry.id)} style={{ color: "#f44336", background: "none", border: "none", cursor: "pointer", fontSize: "12px", flexShrink: 0, marginLeft: "4px" }}>削除</button>
                   </div>
-                  {entry.description && <p style={{ fontSize: "12px", color: "#888", margin: "2px 0 0" }}>{entry.description}</p>}
+                  {entry.description && <p style={{ fontSize: "12px", color: "var(--muted)", margin: "2px 0 0" }}>{entry.description}</p>}
                   {editingId === entry.id ? (
                     <div style={{ display: "flex", flexDirection: "column", gap: "6px", marginTop: "6px" }}>
                       <textarea value={editComment} onChange={(e) => setEditComment(e.target.value)} rows={2}
                         style={{ padding: "8px", fontSize: "13px", borderRadius: "6px", border: "1px solid #ccc", resize: "vertical", fontFamily: "sans-serif" }} />
                       <div style={{ display: "flex", gap: "6px" }}>
                         <button onClick={() => saveComment(entry.id)} style={{ padding: "4px 14px", fontSize: "12px", cursor: "pointer", backgroundColor: "#e10102", color: "white", border: "none", borderRadius: "6px" }}>保存</button>
-                        <button onClick={() => setEditingId(null)} style={{ padding: "4px 14px", fontSize: "12px", cursor: "pointer", backgroundColor: "#f5f5f5", color: "#555", border: "1px solid #ddd", borderRadius: "6px" }}>ｷｬﾝｾﾙ</button>
+                        <button onClick={() => setEditingId(null)} style={{ padding: "4px 14px", fontSize: "12px", cursor: "pointer", backgroundColor: "var(--muted-bg)", color: "var(--muted)", border: "1px solid var(--card-border)", borderRadius: "6px" }}>ｷｬﾝｾﾙ</button>
                       </div>
                     </div>
                   ) : (
@@ -514,10 +531,10 @@ export default function EventAdminPage() {
               <button key={v.key} onClick={() => setProgVenueKey(v.key)} style={{ ...subBtnStyle(progVenueKey === v.key), flex: 1 }}>{v.label}</button>
             ))}
           </div>
-          <div style={{ padding: "16px", border: "1px solid #eee", borderRadius: "10px", marginBottom: "20px", display: "flex", flexDirection: "column", gap: "10px" }}>
+          <div style={{ padding: "16px", border: "1px solid var(--card-border)", borderRadius: "10px", marginBottom: "20px", display: "flex", flexDirection: "column", gap: "10px" }}>
             <input placeholder="部活名 *" value={pName} onChange={(e) => setPName(e.target.value)} style={inputStyle} />
             <input placeholder="時刻（任意）例: 10:00〜11:00" value={pDatetime} onChange={(e) => setPDatetime(e.target.value)} style={inputStyle} />
-            <label style={{ fontSize: "13px", color: "#555" }}>
+            <label style={{ fontSize: "13px", color: "var(--muted)" }}>
               実施日
               <select value={pFestivalDay} onChange={(e) => setPFestivalDay(e.target.value as FestivalDay)} style={{ ...selectStyle, marginTop: "4px" }}>
                 {DAY_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
@@ -525,6 +542,10 @@ export default function EventAdminPage() {
             </label>
             <textarea placeholder="一言（任意・改行可）" value={pComment} onChange={(e) => setPComment(e.target.value)} rows={2}
               style={{ padding: "10px", fontSize: "14px", borderRadius: "6px", border: "1px solid #ccc", resize: "vertical", fontFamily: "sans-serif" }} />
+            <div>
+              <p style={{ fontSize: "13px", color: "var(--muted)", marginBottom: "4px" }}>画像（任意）</p>
+              <input type="file" accept="image/*" onChange={(e) => setPImage(e.target.files?.[0] ?? null)} style={{ fontSize: "13px" }} />
+            </div>
             <button onClick={addProgram} disabled={pSaving}
               style={{ padding: "10px", fontSize: "14px", cursor: pSaving ? "not-allowed" : "pointer", backgroundColor: pSaving ? "#ccc" : "#e10102", color: "white", border: "none", borderRadius: "6px" }}>
               {pSaving ? "追加中..." : "追加"}
@@ -550,7 +571,7 @@ export default function EventAdminPage() {
                 <h2 style={{ fontSize: "15px", marginBottom: "8px", borderBottom: "2px solid #e10102", paddingBottom: "6px" }}>
                   {PROGRAM_VENUES.find((v) => v.key === progVenueKey)?.label} — 部活動企画＋イベント 並び替え
                 </h2>
-                <p style={{ fontSize: "11px", color: "#aaa", marginBottom: "10px" }}>⠿ をドラッグして順番を変更。部活動企画（白）とイベント出場者（赤枠）を混在して並べられます。</p>
+                <p style={{ fontSize: "11px", color: "var(--muted)", marginBottom: "10px" }}>⠿ をドラッグして順番を変更。部活動企画（白）とイベント出場者（赤枠）を混在して並べられます。</p>
                 <div style={{ display: "flex", gap: "6px", marginBottom: "12px" }}>
                   <button onClick={() => setPSortDay("day1")} style={dayBtnStyle(pSortDay === "day1", "#1976d2")}>1日目</button>
                   <button onClick={() => setPSortDay("day2")} style={dayBtnStyle(pSortDay === "day2", "#e10102")}>2日目</button>
@@ -565,20 +586,39 @@ export default function EventAdminPage() {
                     const isEntry = row._kind === "entry";
                     return (
                       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start",
-                        backgroundColor: isEntry ? "#fff5f5" : "transparent",
-                        border: isEntry ? "1px solid #ffd0d0" : "none",
+                        backgroundColor: isEntry ? "rgba(225,1,2,0.06)" : "transparent",
+                        border: isEntry ? "1px solid rgba(225,1,2,0.2)" : "none",
                         borderRadius: isEntry ? "6px" : "0", padding: isEntry ? "4px 8px" : "0" }}>
-                        <div>
-                          <span style={{ fontWeight: "bold", fontSize: "14px", color: isEntry ? "#c62828" : "#222" }}>
+                        <div style={{ flex: 1 }}>
+                          <span style={{ fontWeight: "bold", fontSize: "14px", color: isEntry ? "#c62828" : "var(--foreground)" }}>
                             {isEntry ? (CATEGORY_LABELS_ADM[row.category ?? ""] ?? row.category) : row.name}
                           </span>
                           {dayBadge(row.festival_day)}
                           {!isEntry && row.datetime && <p style={{ fontSize: "12px", color: "#1976d2", margin: "2px 0 0" }}>🕐 {row.datetime}</p>}
-                          {!isEntry && row.comment   && <p style={{ fontSize: "12px", color: "#666", margin: "2px 0 0", whiteSpace: "pre-line" }}>{row.comment}</p>}
-                          {isEntry && <p style={{ fontSize: "11px", color: "#aaa", margin: "1px 0 0" }}>イベント出場者（詳細は出場者管理で設定）</p>}
+                          {!isEntry && row.comment   && <p style={{ fontSize: "12px", color: "var(--muted)", margin: "2px 0 0", whiteSpace: "pre-line" }}>{row.comment}</p>}
+                          {isEntry && <p style={{ fontSize: "11px", color: "var(--muted)", margin: "1px 0 0" }}>イベント出場者（詳細は出場者管理で設定）</p>}
+                        </div>
+                        <div style={{ display: "flex", alignItems: "center", gap: "4px", flexShrink: 0, marginLeft: "8px" }}>
+                          <span style={{ fontSize: "11px", color: "var(--muted)" }}>順</span>
+                          <input
+                            type="number"
+                            defaultValue={row.order_num}
+                            onBlur={async (ev) => {
+                              const val = parseInt(ev.target.value, 10);
+                              if (!isNaN(val) && val !== row.order_num) {
+                                const endpoint = row._kind === "program" ? "/api/venue-programs/order" : "/api/event-entries/order";
+                                await fetch(endpoint, {
+                                  method: "POST", headers: { "Content-Type": "application/json" },
+                                  body: JSON.stringify({ items: [{ id: row.id, order_num: val }] }),
+                                });
+                                loadPrograms();
+                              }
+                            }}
+                            style={{ width: "52px", padding: "3px 5px", fontSize: "12px", border: "1px solid var(--card-border)", borderRadius: "4px", textAlign: "center", backgroundColor: "var(--input-bg)", color: "var(--foreground)" }}
+                          />
                         </div>
                         {!isEntry && (
-                          <button onClick={() => deleteProgram(row.id)} style={{ color: "#f44336", background: "none", border: "none", cursor: "pointer", fontSize: "12px", flexShrink: 0, marginLeft: "8px" }}>削除</button>
+                          <button onClick={() => deleteProgram(row.id)} style={{ color: "#f44336", background: "none", border: "none", cursor: "pointer", fontSize: "12px", flexShrink: 0, marginLeft: "4px" }}>削除</button>
                         )}
                       </div>
                     );
@@ -598,7 +638,7 @@ export default function EventAdminPage() {
               <button key={v.key} onClick={() => setVenueKey(v.key)} style={subBtnStyle(venueKey === v.key)}>{v.label}</button>
             ))}
           </div>
-          <div style={{ padding: "16px", border: "1px solid #eee", borderRadius: "10px", marginBottom: "24px", display: "flex", flexDirection: "column", gap: "10px" }}>
+          <div style={{ padding: "16px", border: "1px solid var(--card-border)", borderRadius: "10px", marginBottom: "24px", display: "flex", flexDirection: "column", gap: "10px" }}>
             <input placeholder="イベントタイトル *" value={vTitle} onChange={(e) => setVTitle(e.target.value)} style={inputStyle} />
             <input placeholder="時刻（任意）例: 10:00〜11:30" value={vDatetime} onChange={(e) => setVDatetime(e.target.value)} style={inputStyle} />
             <textarea placeholder="一言・説明（任意・改行可）" value={vDescription} onChange={(e) => setVDescription(e.target.value)} rows={2}
@@ -611,10 +651,10 @@ export default function EventAdminPage() {
           <h2 style={{ fontSize: "15px", marginBottom: "12px", borderBottom: "2px solid #1976d2", paddingBottom: "6px" }}>
             {VENUE_KEYS.find((v) => v.key === venueKey)?.label} イベント一覧
           </h2>
-          {venueEvents.length === 0 ? <p style={{ color: "#aaa", fontSize: "13px" }}>まだ登録がありません</p> : (
+          {venueEvents.length === 0 ? <p style={{ color: "var(--muted)", fontSize: "13px" }}>まだ登録がありません</p> : (
             <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
               {venueEvents.map((ev) => (
-                <div key={ev.id} style={{ padding: "12px 16px", border: "1px solid #eee", borderRadius: "8px", display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+                <div key={ev.id} style={{ padding: "12px 16px", border: "1px solid var(--card-border)", borderRadius: "8px", display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
                   <div>
                     <p style={{ fontWeight: "bold", fontSize: "14px", margin: 0 }}>{ev.title}</p>
                     {ev.datetime && <p style={{ fontSize: "12px", color: "#1976d2", margin: "2px 0 0" }}>🕐 {ev.datetime}</p>}
