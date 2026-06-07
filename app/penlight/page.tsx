@@ -227,7 +227,7 @@ export default function PenlightPage() {
 
         <button
           onClick={toggleFullscreen}
-          style={{ padding: "10px 20px", fontSize: "13px", cursor: "pointer", backgroundColor: "white", color: "#555", border: "1px solid #ddd", borderRadius: "8px" }}
+          style={{ padding: "10px 20px", fontSize: "13px", cursor: "pointer", backgroundColor: "var(--card-bg)", color: "var(--foreground)", border: "1px solid var(--card-border)", borderRadius: "8px" }}
         >
           {isFullscreen ? "フルスクリーン解除" : "フルスクリーンで使う"}
         </button>
