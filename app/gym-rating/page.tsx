@@ -71,11 +71,11 @@ export default function GymRatingPage() {
     const isDone       = done   === targetKey;
 
     return (
-      <div style={{ padding: "16px", border: "1px solid #eee", borderRadius: "12px", backgroundColor: isDone ? "#f9fff5" : "white" }}>
+      <div style={{ padding: "16px", border: "1px solid var(--card-border)", borderRadius: "12px", backgroundColor: isDone ? "rgba(76,175,80,0.08)" : "var(--card-bg)" }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "10px" }}>
           <span style={{ fontWeight: "bold", fontSize: "15px" }}>{label}</span>
           {isDone && <span style={{ fontSize: "12px", color: "#4caf50", fontWeight: "bold" }}>✅ 評価済み</span>}
-          {currentStars > 0 && !isDone && <span style={{ fontSize: "11px", color: "#aaa" }}>タップで変更可</span>}
+          {currentStars > 0 && !isDone && <span style={{ fontSize: "11px", color: "var(--muted)" }}>タップで変更可</span>}
         </div>
         <div style={{ display: "flex", gap: "6px" }}>
           {[1,2,3,4,5].map((s) => (
@@ -101,39 +101,39 @@ export default function GymRatingPage() {
             </button>
           ))}
         </div>
-        {isSaving && <p style={{ fontSize: "12px", color: "#aaa", marginTop: "6px" }}>送信中...</p>}
+        {isSaving && <p style={{ fontSize: "12px", color: "var(--muted)", marginTop: "6px" }}>送信中...</p>}
       </div>
     );
   };
 
-  if (loading) return <main style={{ padding: "40px", textAlign: "center" }}><p style={{ color: "#aaa" }}>読み込み中...</p></main>;
+  if (loading) return <main style={{ padding: "40px", textAlign: "center" }}><p style={{ color: "var(--muted)" }}>読み込み中...</p></main>;
 
   return (
     <main style={{ padding: "24px 20px 60px", maxWidth: "480px", margin: "0 auto" }}>
       <button onClick={() => router.back()}
-        style={{ background: "none", border: "none", color: "#888", fontSize: "14px", cursor: "pointer", marginBottom: "16px", padding: 0 }}>
+        style={{ background: "none", border: "none", color: "var(--muted)", fontSize: "14px", cursor: "pointer", marginBottom: "16px", padding: 0 }}>
         ← 戻る
       </button>
       <h1 style={{ fontSize: "20px", marginBottom: "4px" }}>🏟️ 体育館イベントの評価</h1>
-      <p style={{ color: "#888", fontSize: "13px", marginBottom: "24px" }}>
+      <p style={{ color: "var(--muted)", fontSize: "13px", marginBottom: "24px" }}>
         各イベントを星1〜5で評価してください。後から変更することもできます。
       </p>
 
       <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
         {/* のど自慢 */}
-        <p style={{ fontSize: "12px", color: "#aaa", fontWeight: "bold", marginTop: "4px" }}>🎤 のど自慢</p>
+        <p style={{ fontSize: "12px", color: "var(--muted)", fontWeight: "bold", marginTop: "4px" }}>🎤 のど自慢</p>
         {NODOJIMAN_ITEMS.map((item) => (
           <StarRating key={item.key} targetKey={item.key} label={item.label} />
         ))}
 
         {/* コスコン（パフォーマンス・ランウェイ共通） */}
-        <p style={{ fontSize: "12px", color: "#aaa", fontWeight: "bold", marginTop: "8px" }}>👗 コスコン</p>
+        <p style={{ fontSize: "12px", color: "var(--muted)", fontWeight: "bold", marginTop: "8px" }}>👗 コスコン</p>
         <StarRating targetKey={COSCON_KEY} label={COSCON_LABEL} />
 
         {/* 部活動企画 */}
         {programs.length > 0 && (
           <>
-            <p style={{ fontSize: "12px", color: "#aaa", fontWeight: "bold", marginTop: "8px" }}>📋 部活動企画</p>
+            <p style={{ fontSize: "12px", color: "var(--muted)", fontWeight: "bold", marginTop: "8px" }}>📋 部活動企画</p>
             {programs.map((p) => (
               <StarRating key={p.id} targetKey={`program:${p.id}`} label={p.name} />
             ))}
@@ -141,7 +141,7 @@ export default function GymRatingPage() {
         )}
 
         {programs.length === 0 && (
-          <p style={{ color: "#aaa", fontSize: "14px" }}>部活動企画の情報がまだありません</p>
+          <p style={{ color: "var(--muted)", fontSize: "14px" }}>部活動企画の情報がまだありません</p>
         )}
       </div>
     </main>
