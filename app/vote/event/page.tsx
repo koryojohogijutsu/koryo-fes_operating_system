@@ -14,11 +14,11 @@ export default function VoteEventPage() {
 
   return (
     <main style={{ padding: "24px 20px", maxWidth: "480px", margin: "0 auto" }}>
-      <a href="/vote" style={{ fontSize: "13px", color: "#888", textDecoration: "none", display: "block", marginBottom: "20px" }}>
+      <a href="/vote" style={{ fontSize: "13px", color: "var(--muted)", textDecoration: "none", display: "block", marginBottom: "20px" }}>
         ← 戻る
       </a>
       <h1 style={{ fontSize: "20px", marginBottom: "6px" }}>🎤 イベント企画投票</h1>
-      <p style={{ color: "#888", fontSize: "13px", marginBottom: "28px" }}>
+      <p style={{ color: "var(--muted)", fontSize: "13px", marginBottom: "28px" }}>
         投票するイベントを選んでください
       </p>
 
@@ -31,9 +31,9 @@ export default function VoteEventPage() {
               padding: "20px",
               fontSize: "17px",
               cursor: "pointer",
-              backgroundColor: "white",
-              color: "#333",
-              border: "1px solid #ddd",
+              backgroundColor: "var(--card-bg)",
+              color: "var(--foreground)",
+              border: "1px solid var(--card-border)",
               borderRadius: "12px",
               textAlign: "left",
             }}
